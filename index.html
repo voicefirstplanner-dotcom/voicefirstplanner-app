@@ -1686,7 +1686,7 @@ html, body {
         <div class="settings-section-title">Account</div>
         <div class="settings-row"><span class="settings-row-label">Name</span><span class="settings-row-value" id="set-name">Dave</span></div>
         <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
-        <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value">Free</span><span class="settings-row-action" onclick="showUpgrade()">Upgrade to Pro</span></div>
+        <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value" id="set-plan">Free</span><span class="settings-row-action" id="set-plan-action" onclick="showUpgrade()">Upgrade</span></div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">App</div>
@@ -1723,7 +1723,9 @@ html, body {
     <div class="pro-price">$7.99 <span>/ month USD</span></div>
     <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Or $69.99/year — save 27%</div>
     <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Launch offer: $99 once for lifetime access — first 1,000 members</div>
-    <button class="modal-cta" onclick="closeUpgrade();showToast('Premium is coming soon — we\'ll notify you at launch!')">Start 14-day free trial</button>
+    <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.monthly)">Get Premium — $7.99/mo</button>
+    <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.annual)">Premium Annual — $69.99/yr · save 27%</button>
+    <button class="modal-cta" style="margin-top:8px;background:var(--navy);color:#fff" onclick="startCheckout(STRIPE_PRICES.lifetime)">Lifetime — $99 once</button>
     <div style="font-weight:700;color:var(--navy);margin:22px 0 2px;font-size:15px">Pro <span style="font-weight:400;color:var(--orange);font-size:13px">— coming soon, with AI</span></div>
     <div class="pro-feat"><i class="ti ti-sparkles"></i>Everything in Premium, plus:</div>
     <div class="pro-feat"><i class="ti ti-sparkles"></i>AI voice planning — unlimited commands interpreted by AI</div>
@@ -2159,6 +2161,8 @@ function launchApp() {
   document.getElementById('set-email').textContent = state.user?.email || '';
   renderAll();
   showGroup('daily-planning', 'daily');
+  loadEntitlement();
+  handleCheckoutReturn();
 }
 
 // ============================================================
@@ -3961,6 +3965,110 @@ function closeSettings() { document.getElementById('settings-overlay').classList
 // ============================================================
 // UPGRADE MODAL
 // ============================================================
+// ---- Stripe billing -----------------------------------------------------
+// Sandbox/test price IDs. When you switch to your LIVE Stripe account the
+// prices get new IDs — swap these three and redeploy.
+const STRIPE_PRICES = {
+  monthly:  'price_1Te7KS0H03YcCNF93dl264YU',
+  annual:   'price_1Te7l90H03YcCNF90xj77huH',
+  lifetime: 'price_1Te7cz0H03YcCNF9FYBKLQWt',
+};
+
+async function startCheckout(priceId) {
+  if (!sb || isDemo || !authUserId) {
+    closeUpgrade();
+    showToast('Create an account or sign in to upgrade');
+    return;
+  }
+  try {
+    const r = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId, userId: authUserId, email: state.user?.email || '' }),
+    });
+    const data = await r.json();
+    if (data.url) window.location.href = data.url;
+    else showToast(data.error || 'Could not start checkout');
+  } catch (e) {
+    showToast('Could not reach checkout — please try again');
+  }
+}
+
+async function openBillingPortal() {
+  if (!sb || isDemo || !authUserId) return;
+  try {
+    const r = await fetch('/api/create-portal-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: authUserId }),
+    });
+    const data = await r.json();
+    if (data.url) window.location.href = data.url;
+    else showToast(data.error || 'Could not open billing');
+  } catch (e) {
+    showToast('Could not open billing — please try again');
+  }
+}
+
+function isPremium() {
+  const p = state.entitlement?.plan;
+  return p === 'premium' || p === 'pro';
+}
+
+async function loadEntitlement() {
+  state.entitlement = { plan: 'free' };
+  if (sb && authUserId && !isDemo) {
+    try {
+      const { data } = await sb.from('entitlements')
+        .select('plan,status,source').eq('user_id', authUserId).maybeSingle();
+      if (data) state.entitlement = data;
+    } catch (e) { /* default to free */ }
+  }
+  renderPlan();
+}
+
+function renderPlan() {
+  const ent = state.entitlement || { plan: 'free' };
+  const labels = { free: 'Free', premium: 'Premium', pro: 'Pro' };
+  const valEl = document.getElementById('set-plan');
+  const actEl = document.getElementById('set-plan-action');
+  if (valEl) valEl.textContent = ent.source === 'lifetime' ? 'Premium (Lifetime)' : (labels[ent.plan] || 'Free');
+  if (!actEl) return;
+  if (isPremium() && ent.source === 'lifetime') {
+    actEl.style.display = 'none';
+  } else if (isPremium()) {
+    actEl.style.display = '';
+    actEl.textContent = 'Manage billing';
+    actEl.onclick = openBillingPortal;
+  } else {
+    actEl.style.display = '';
+    actEl.textContent = 'Upgrade';
+    actEl.onclick = showUpgrade;
+  }
+}
+
+// Runs when the browser returns from Stripe Checkout (?checkout=success|cancel).
+function handleCheckoutReturn() {
+  const params = new URLSearchParams(location.search);
+  const c = params.get('checkout');
+  if (!c) return;
+  history.replaceState({}, '', location.pathname);
+  if (c === 'cancel') { showToast('Checkout cancelled — no charge made'); return; }
+  if (c === 'success') {
+    showToast('Payment received — unlocking Premium…');
+    let tries = 0;
+    const poll = setInterval(async () => {
+      tries++;
+      await loadEntitlement();
+      if (isPremium() || tries >= 5) {
+        clearInterval(poll);
+        if (isPremium()) showToast("You're Premium — thank you!");
+      }
+    }, 1500);
+  }
+}
+// -------------------------------------------------------------------------
+
 function showUpgrade() { document.getElementById('upgrade-modal').classList.add('open'); }
 function closeUpgrade() { document.getElementById('upgrade-modal').classList.remove('open'); }
 
