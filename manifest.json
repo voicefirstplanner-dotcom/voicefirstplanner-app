@@ -1,0 +1,19 @@
+{
+  "name": "VoiceFirstPlanner",
+  "short_name": "VFP Planner",
+  "description": "The voice-first day planner. Plan your day by voice \u2014 tasks, appointments, habits, projects, all built around your values.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0F5FB",
+  "theme_color": "#0C447C",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

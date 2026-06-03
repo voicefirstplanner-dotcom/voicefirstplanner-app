@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VoiceFirstPlanner">
+  <!-- full-bleed navy background (maskable-safe) -->
+  <rect width="512" height="512" fill="#0C447C"/>
+  <!-- faint dotted concentric rings -->
+  <g fill="none" stroke="#F2771A" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 22" opacity="0.55">
+    <circle cx="256" cy="232" r="118"/>
+    <circle cx="256" cy="232" r="158"/>
+  </g>
+  <!-- microphone -->
+  <g fill="#F2771A">
+    <rect x="222" y="120" width="68" height="132" rx="34"/>
+  </g>
+  <g fill="none" stroke="#F2771A" stroke-width="16" stroke-linecap="round">
+    <path d="M186 226a70 70 0 0 0 140 0"/>
+    <path d="M256 296v40"/>
+    <path d="M224 336h64"/>
+  </g>
+  <!-- wordmark -->
+  <text x="256" y="438" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="92" letter-spacing="2" fill="#FFFFFF">VFP</text>
+</svg>

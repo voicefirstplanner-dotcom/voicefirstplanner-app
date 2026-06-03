@@ -1,0 +1,3873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="VoiceFirstPlanner — the voice-first day planner. Just talk. We'll handle the rest.">
+<meta name="theme-color" content="#0C447C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VoiceFirstPlanner">
+<link rel="manifest" href="manifest.json">
+<title>VoiceFirstPlanner — Just talk. We'll handle the rest.</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   VOICEFIRSTPLANNER — WEB APP v1.0
+   Navy #0C447C | Orange #F2771A
+   Primary font: DM Sans
+   Display font: DM Serif Display
+   ============================================================ */
+
+:root {
+  --navy: #0C447C;
+  --navy-deep: #042C53;
+  --navy-mid: #185FA5;
+  --navy-light: #378ADD;
+  --orange: #F2771A;
+  --orange-hover: #C25E12;
+  --ice: #E6F1FB;
+  --pale: #B5D4F4;
+  --bg: #F0F5FB;
+  --white: #FFFFFF;
+  --text: #2C2C2A;
+  --text-mid: #5F5E5A;
+  --text-light: #888780;
+  --border: #B5D4F4;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(12,68,124,0.08);
+  --font: 'DM Sans', sans-serif;
+  --font-display: 'DM Serif Display', serif;
+  --nav-h: 56px;
+  --topbar-h: 72px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ============================================================
+   AUTH SCREEN
+   ============================================================ */
+#auth-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  z-index: 100;
+}
+.auth-logo {
+  font-family: var(--font-display);
+  font-size: 42px;
+  color: var(--orange);
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.auth-sub {
+  font-size: 16px;
+  font-weight: 300;
+  color: #85B7EB;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.auth-tagline {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ice);
+  margin-bottom: 40px;
+  text-align: center;
+  opacity: 0.8;
+}
+.auth-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 400px;
+}
+.auth-tabs {
+  display: flex;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 3px;
+  margin-bottom: 22px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.auth-tab.active {
+  background: var(--white);
+  color: var(--navy);
+  box-shadow: var(--shadow);
+}
+.auth-field {
+  margin-bottom: 14px;
+}
+.auth-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--navy-mid);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.auth-field input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.auth-field input:focus { border-color: var(--orange); }
+.auth-btn-primary {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--orange);
+  color: var(--navy);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.15s;
+}
+.auth-btn-primary:hover { background: var(--orange-hover); color: var(--white); }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 12px;
+  color: var(--text-light);
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.auth-btn-apple {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.auth-btn-apple:hover { background: var(--bg); }
+.auth-note {
+  font-size: 11px;
+  color: var(--text-light);
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+.auth-note a { color: var(--navy-mid); }
+
+/* ============================================================
+   ONBOARDING SCREEN
+   ============================================================ */
+#onboarding-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  z-index: 90;
+  overflow-y: auto;
+}
+.onboard-header {
+  background: var(--navy);
+  padding: 20px 24px 16px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+.onboard-step {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  transition: background 0.2s;
+}
+.step-dot.active { background: var(--orange); width: 18px; border-radius: 3px; }
+.onboard-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--white);
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.onboard-sub {
+  font-size: 14px;
+  color: #85B7EB;
+  line-height: 1.5;
+}
+.onboard-body { padding: 20px 24px; flex: 1; }
+.onboard-footer {
+  padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  background: var(--white);
+  border-top: 1px solid var(--border);
+}
+.ob-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--orange);
+  color: var(--navy);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ob-btn:hover { background: var(--orange-hover); color: var(--white); }
+.ob-skip {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+.val-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.val-item {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.val-item.selected {
+  border-color: var(--orange);
+  background: var(--ice);
+  color: var(--navy);
+}
+.val-item i { font-size: 18px; color: var(--orange); }
+
+/* ============================================================
+   MAIN APP SHELL
+   ============================================================ */
+#app {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  background: var(--bg);
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar {
+  background: var(--navy);
+  padding: 14px 16px 10px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  flex-shrink: 0;
+}
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.wm-top {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--ice);
+  letter-spacing: -0.3px;
+}
+.wm-bot {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 300;
+  color: #85B7EB;
+  letter-spacing: -0.3px;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.user-badge {
+  background: var(--orange);
+  color: var(--navy);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.topbar-date { font-size: 11px; color: #85B7EB; }
+.quote-strip {
+  background: var(--navy-mid);
+  border-radius: 0 8px 8px 0;
+  border-left: 3px solid var(--orange);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.quote-text { font-size: 12px; font-style: italic; color: var(--ice); line-height: 1.5; }
+.quote-auth { font-size: 11px; color: #85B7EB; margin-top: 3px; }
+.voice-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--orange);
+  border: none;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.voice-btn:hover { background: var(--orange-hover); }
+.voice-btn-text {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+}
+.voice-btn i { font-size: 18px; color: var(--navy); }
+.voice-hint {
+  font-size: 11px;
+  color: #85B7EB;
+  text-align: center;
+  margin-top: 6px;
+  font-style: italic;
+  min-height: 14px;
+  transition: opacity 0.3s;
+}
+.voice-listening .voice-btn { background: var(--navy-mid); }
+.voice-listening .voice-btn-text { color: var(--orange); }
+.voice-listening .voice-btn i { color: var(--orange); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.15)} }
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+.nav {
+  display: flex;
+  background: var(--navy-deep);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  flex: 1 0 auto;
+  min-width: 52px;
+  padding: 8px 4px 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  font-family: var(--font);
+  font-size: 9px;
+  font-weight: 500;
+  color: #378ADD;
+}
+.nav-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+.nav-btn i { font-size: 17px; }
+.field-mic {
+  background: var(--navy-deep);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 30px; height: 30px;
+  color: var(--orange);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle;
+  padding: 0;
+  transition: all 0.15s;
+}
+.field-mic i { font-size: 15px; }
+.field-mic:hover { background: var(--orange); color: var(--navy); }
+.field-mic.mic-on { background: var(--orange); color: var(--navy); animation: micPulse 1s infinite; }
+@keyframes micPulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+/* Edit modal inputs */
+.edit-input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--card, #fff);
+  box-sizing: border-box;
+  resize: vertical;
+}
+.edit-input:focus { outline: none; border-color: var(--orange); }
+/* Inline edit pencil on rows/cards */
+.row-edit {
+  background: none;
+  border: none;
+  color: var(--text-mid);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 14px;
+  opacity: 0.55;
+  flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.row-edit:hover { opacity: 1; color: var(--orange); }
+/* Carried-over task tag (Franklin-style persistence) */
+.carry-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  white-space: nowrap;
+  background: rgba(107,114,128,0.12);
+  color: var(--text-mid);
+  border: 1px solid rgba(107,114,128,0.2);
+}
+/* Day 3+: gentle escalation — warmer, a touch more prominent, never obnoxious */
+.carry-tag.carry-strong {
+  background: rgba(242,119,26,0.13);
+  color: var(--orange);
+  border-color: rgba(242,119,26,0.35);
+}
+/* Two-level grouped navigation */
+.nav-group {
+  display: flex;
+  background: var(--navy-deep);
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.group-btn {
+  flex: 1 1 50%;
+  padding: 11px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #6FA8E0;
+}
+.group-btn i { font-size: 16px; }
+.group-btn.active { color: #fff; border-bottom-color: var(--orange); }
+/* Only show sub-tabs belonging to the active group */
+.nav-btn[data-group] { display: none; }
+.nav-btn[data-group].in-group { display: flex; }
+
+/* ============================================================
+   CONTENT AREA
+   ============================================================ */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.content::-webkit-scrollbar { width: 3px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.sec { display: none; }
+.sec.active { display: block; }
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--navy-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 8px;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+/* ============================================================
+   DAILY FOCUS
+   ============================================================ */
+.focus-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.focus-input:focus { border-color: var(--orange); }
+.focus-set {
+  background: var(--ice);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  border-left: 3px solid var(--orange);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--navy);
+  font-weight: 500;
+  cursor: pointer;
+  display: none;
+}
+
+/* ============================================================
+   TASKS
+   ============================================================ */
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  background: var(--ice);
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: opacity 0.2s;
+}
+.task-row.done { opacity: 0.5; }
+.task-row.done .task-text { text-decoration: line-through; }
+.priority-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.pA { background: var(--navy); color: var(--orange); }
+.pB { background: var(--orange); color: var(--navy); }
+.pC { background: var(--pale); color: var(--navy-mid); }
+.task-text { flex: 1; font-size: 13px; color: var(--text); line-height: 1.5; }
+.task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s;
+}
+.task-check.done { background: var(--orange); border-color: var(--orange); }
+.task-check.done::after { content: '✓'; font-size: 11px; color: var(--navy); font-weight: 700; }
+.task-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.task-inp {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+.task-inp:focus { border-color: var(--orange); }
+.task-pri-sel {
+  padding: 9px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+.add-btn {
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--navy);
+  color: var(--orange);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.add-btn:hover { background: var(--navy-mid); }
+
+/* ============================================================
+   HABITS
+   ============================================================ */
+.habit-grid { display: flex; flex-direction: column; gap: 6px; }
+.habit-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.habit-name { font-size: 13px; color: var(--text); }
+.habit-days { display: flex; gap: 4px; }
+.h-day {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--ice);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--navy-mid);
+  transition: all 0.15s;
+  user-select: none;
+}
+.h-day.done { background: var(--orange); border-color: var(--orange); color: var(--navy); }
+.h-day.today { font-weight: 700; color: var(--orange); }
+.h-day.done.today { color: var(--navy); }
+.streak-bar {
+  background: var(--navy);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.streak-num { font-size: 32px; font-weight: 700; color: var(--orange); font-family: var(--font-display); }
+.streak-info { flex: 1; }
+.streak-label { font-size: 12px; color: #85B7EB; }
+.streak-sub { font-size: 11px; color: #378ADD; margin-top: 2px; }
+
+/* ============================================================
+   GOALS
+   ============================================================ */
+.goal-item {
+  background: var(--ice);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.goal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.goal-name { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
+.goal-role {
+  font-size: 10px;
+  background: var(--navy);
+  color: var(--orange);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.goal-bar-bg {
+  height: 6px;
+  background: var(--pale);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.goal-bar {
+  height: 100%;
+  background: var(--orange);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.goal-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--navy-light);
+}
+.goal-controls { display: flex; gap: 6px; margin-top: 8px; }
+.goal-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--navy-mid);
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+/* ============================================================
+   PROJECTS
+   ============================================================ */
+.proj-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.proj-card:hover { border-color: var(--orange); }
+.proj-top-bar { height: 4px; background: var(--orange); }
+.proj-header {
+  background: var(--navy);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.proj-emoji { font-size: 22px; }
+.proj-info { flex: 1; }
+.proj-name { font-size: 14px; font-weight: 500; color: var(--ice); }
+.proj-status-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+  background: var(--orange);
+  color: var(--navy);
+}
+.proj-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--ice);
+}
+.pstat {
+  padding: 8px;
+  text-align: center;
+  border-right: 0.5px solid var(--pale);
+}
+.pstat:last-child { border-right: none; }
+.pstat-n { font-size: 16px; font-weight: 700; color: var(--orange); }
+.pstat-l { font-size: 10px; color: var(--navy-mid); margin-top: 1px; }
+.proj-tags {
+  padding: 8px 14px;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.ptag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--navy);
+  color: var(--orange);
+  font-weight: 500;
+}
+.new-proj-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--border);
+  background: none;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--navy-mid);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.new-proj-btn:hover { border-color: var(--orange); color: var(--orange); background: var(--ice); }
+
+/* Project Detail */
+.detail-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.detail-overlay.open { display: flex; }
+.detail-header {
+  background: var(--navy);
+  padding: 14px 16px;
+  flex-shrink: 0;
+}
+.detail-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--orange);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 10px;
+  padding: 0;
+}
+.detail-name { font-family: var(--font-display); font-size: 22px; color: var(--orange); }
+.detail-desc { font-size: 12px; color: #85B7EB; margin-top: 2px; }
+.detail-body { flex: 1; overflow-y: auto; padding: 12px; }
+.capture-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cap-btn {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.cap-btn:hover { border-color: var(--orange); background: var(--ice); }
+.cap-btn i { font-size: 20px; color: var(--orange); display: block; margin-bottom: 4px; }
+.cap-label { font-size: 10px; font-weight: 500; color: var(--navy); }
+.capture-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--white);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  border: 0.5px solid var(--border);
+}
+.cap-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cap-icon i { font-size: 16px; color: var(--orange); }
+.cap-info { flex: 1; }
+.cap-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.cap-meta { font-size: 11px; color: var(--text-light); margin-top: 1px; }
+
+/* ============================================================
+   NOTES
+   ============================================================ */
+.note-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.note-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+.note-body { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 8px; }
+.note-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.ntag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--navy);
+  color: var(--orange);
+}
+.quick-cap-ta {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.quick-cap-ta:focus { border-color: var(--orange); }
+.tag-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tag-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--ice);
+  color: var(--navy-mid);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+}
+.tag-pill.on { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.cl-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.cl-box.done { background: var(--orange); border-color: var(--orange); }
+.cl-box.done::after { content: '✓'; font-size: 10px; color: var(--navy); font-weight: 700; }
+.cl-text { font-size: 13px; color: var(--text); }
+.cl-text.done { text-decoration: line-through; color: var(--text-light); }
+
+/* ============================================================
+   REFLECTION
+   ============================================================ */
+.reflect-q { margin-bottom: 12px; }
+.reflect-label { font-size: 12px; font-weight: 500; color: var(--navy-mid); margin-bottom: 5px; }
+.reflect-ta {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--ice);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+}
+.reflect-ta:focus { border-color: var(--orange); }
+.saved-badge {
+  display: none;
+  background: var(--ice);
+  border-left: 3px solid var(--orange);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy);
+  margin-top: 10px;
+}
+
+/* ============================================================
+   VALUES TAB
+   ============================================================ */
+.val-chip {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid var(--border);
+  background: var(--ice);
+  color: var(--navy);
+  user-select: none;
+}
+.val-chip.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+.role-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--ice);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+}
+.role-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.role-icon i { font-size: 17px; color: var(--orange); }
+.role-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.role-def { font-size: 11px; color: var(--navy-light); margin-top: 1px; }
+
+/* ============================================================
+   AI BUTTONS
+   ============================================================ */
+.ai-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--orange);
+  background: var(--navy);
+  color: var(--orange);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  transition: all 0.15s;
+  text-align: left;
+}
+.ai-btn:hover { background: var(--navy-mid); }
+.ai-btn i { font-size: 16px; flex-shrink: 0; }
+
+/* ============================================================
+   SAVE BUTTON
+   ============================================================ */
+.save-btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--navy);
+  color: var(--orange);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 6px;
+}
+.save-btn:hover { background: var(--navy-mid); }
+.save-btn.saved { background: var(--orange); color: var(--navy); }
+
+/* ============================================================
+   PRO UPGRADE MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4,44,83,0.7);
+  z-index: 50;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  background: var(--white);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 430px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 20px; }
+.modal-title { font-family: var(--font-display); font-size: 22px; color: var(--navy); margin-bottom: 6px; }
+.modal-sub { font-size: 14px; color: var(--text-mid); margin-bottom: 20px; line-height: 1.5; }
+.pro-feat { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; color: var(--text); }
+.pro-feat i { font-size: 16px; color: var(--orange); flex-shrink: 0; }
+.pro-price { font-size: 28px; font-weight: 700; color: var(--navy); margin: 16px 0 4px; font-family: var(--font-display); }
+.pro-price span { font-size: 14px; font-weight: 400; color: var(--text-light); }
+.modal-cta {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--orange);
+  color: var(--navy);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background 0.15s;
+}
+.modal-cta:hover { background: var(--orange-hover); color: var(--white); }
+.modal-close-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: none;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-mid);
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+.toast {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: var(--navy);
+  color: var(--orange);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 200;
+  transition: transform 0.3s ease;
+  border: 1px solid var(--orange);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ============================================================
+   SETTINGS PANEL
+   ============================================================ */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.settings-overlay.open { display: flex; }
+.settings-header {
+  background: var(--navy);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.settings-back { background: none; border: none; color: var(--orange); cursor: pointer; padding: 0; font-size: 20px; }
+.settings-title { font-family: var(--font-display); font-size: 20px; color: var(--ice); }
+.settings-body { padding: 16px; }
+.settings-section { margin-bottom: 20px; }
+.settings-section-title { font-size: 11px; font-weight: 600; color: var(--navy-mid); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--white);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  border: 0.5px solid var(--border);
+}
+.settings-row-label { font-size: 14px; color: var(--text); }
+.settings-row-value { font-size: 13px; color: var(--text-light); }
+.settings-row-action { font-size: 13px; color: var(--navy-mid); cursor: pointer; font-weight: 500; }
+.signout-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid #E24B4A;
+  background: none;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: #E24B4A;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.hidden { display: none !important; }
+.flex { display: flex; }
+.gap-8 { gap: 8px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.text-center { text-align: center; }
+.pro-lock { color: var(--orange); font-size: 12px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     AUTH SCREEN
+     ============================================================ -->
+<div id="auth-screen">
+  <div class="auth-logo">VoiceFirst<br>Planner</div>
+  <div class="auth-sub">voice-first · values-based · cross-platform</div>
+  <div class="auth-tagline">"Just talk. We'll handle the rest."</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign in</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Create account</button>
+    </div>
+    <div id="auth-msg" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;"></div>
+    <div id="auth-signin">
+      <div class="auth-field"><label>Email</label><input type="email" id="signin-email" placeholder="you@example.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="signin-pw" placeholder="Your password"></div>
+      <button class="auth-btn-primary" onclick="signIn()">Sign in to VoiceFirstPlanner</button>
+      <div class="auth-divider">or</div>
+      <button class="auth-btn-apple" onclick="signInApple()">
+        <i class="ti ti-brand-apple" style="font-size:18px"></i>
+        Continue with Apple
+      </button>
+      <button class="auth-btn-apple" onclick="demoMode()" style="margin-top:8px;border-color:var(--orange);color:#0C447C">
+        <i class="ti ti-player-play" style="font-size:16px;color:#F2771A"></i>
+        Try the demo — no account needed
+      </button>
+    </div>
+    <div id="auth-signup" class="hidden">
+      <div class="auth-field"><label>Your name</label><input type="text" id="signup-name" placeholder="Dave"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="signup-pw" placeholder="Choose a strong password"></div>
+      <button class="auth-btn-primary" onclick="signUp()">Create my free account</button>
+      <div class="auth-divider">or</div>
+      <button class="auth-btn-apple" onclick="signInApple()">
+        <i class="ti ti-brand-apple" style="font-size:18px"></i>
+        Continue with Apple
+      </button>
+    </div>
+    <p class="auth-note">Free to start. No credit card required. By continuing you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     ONBOARDING SCREEN
+     ============================================================ -->
+<div id="onboarding-screen">
+  <div class="onboard-header">
+    <div class="onboard-step" id="ob-steps">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <div class="onboard-title" id="ob-title">Welcome to VoiceFirstPlanner</div>
+    <div class="onboard-sub" id="ob-sub">Let's take 2 minutes to set up your planner. We'll start with what matters most.</div>
+  </div>
+  <div class="onboard-body" id="ob-body">
+    <p style="font-size:14px;color:var(--text-mid);margin-bottom:16px;line-height:1.6">VoiceFirstPlanner works differently to every other planner. We start with your <strong>values</strong> — not your calendar. Choose up to 5 values that guide your life:</p>
+    <div class="val-grid" id="ob-vals">
+      <div class="val-item" onclick="toggleVal(this,'Family')"><i class="ti ti-home"></i>Family</div>
+      <div class="val-item" onclick="toggleVal(this,'Integrity')"><i class="ti ti-shield-check"></i>Integrity</div>
+      <div class="val-item" onclick="toggleVal(this,'Growth')"><i class="ti ti-trending-up"></i>Growth</div>
+      <div class="val-item" onclick="toggleVal(this,'Health')"><i class="ti ti-heart-rate"></i>Health</div>
+      <div class="val-item" onclick="toggleVal(this,'Excellence')"><i class="ti ti-star"></i>Excellence</div>
+      <div class="val-item" onclick="toggleVal(this,'Service')"><i class="ti ti-users"></i>Service</div>
+      <div class="val-item" onclick="toggleVal(this,'Creativity')"><i class="ti ti-bulb"></i>Creativity</div>
+      <div class="val-item" onclick="toggleVal(this,'Learning')"><i class="ti ti-book"></i>Learning</div>
+    </div>
+  </div>
+  <div class="onboard-footer">
+    <button class="ob-btn" id="ob-next" onclick="nextOnboard()">Continue</button>
+    <div class="ob-skip" onclick="skipOnboarding()">Skip setup — I'll do this later</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="wordmark">
+        <span class="wm-top">VoiceFirst</span>
+        <span class="wm-bot">Planner</span>
+      </div>
+      <div class="topbar-right">
+        <div class="user-badge" id="user-badge">Dave</div>
+        <button onclick="openSettings()" style="background:none;border:none;cursor:pointer;color:#85B7EB;" aria-label="Settings">
+          <i class="ti ti-settings" style="font-size:20px"></i>
+        </button>
+      </div>
+    </div>
+    <div class="topbar-date" id="topbar-date"></div>
+    <div class="quote-strip" style="margin-top:8px">
+      <div class="quote-text" id="quote-text"></div>
+      <div class="quote-auth" id="quote-auth"></div>
+    </div>
+    <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" style="margin-top:10px">
+      <i class="ti ti-microphone" id="voice-icon"></i>
+      <span class="voice-btn-text" id="voice-btn-text">Tap to speak your plan</span>
+    </button>
+    <div class="voice-hint" id="voice-hint">Say: "Add review the proposal as an A priority"</div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav-group" id="group-nav">
+    <button class="group-btn active" data-group="daily-planning" onclick="showGroup('daily-planning')"><i class="ti ti-layout-grid"></i>Daily Planning</button>
+    <button class="group-btn" data-group="life-planning" onclick="showGroup('life-planning')"><i class="ti ti-compass"></i>Life Planning</button>
+  </div>
+  <div class="nav" id="main-nav">
+    <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('values',this)"><i class="ti ti-heart"></i>Values</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('habits',this)"><i class="ti ti-flame"></i>Habits</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('reflect',this)"><i class="ti ti-writing"></i>Reflect</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- DAILY TAB -->
+    <div class="sec active" id="sec-daily">
+
+      <!-- CALENDAR STRIP -->
+      <div class="card" id="cal-strip-card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="card-label" style="margin-bottom:0">Calendar</div>
+            <button onclick="goToToday()" id="go-today-btn" style="display:none;background:var(--orange);color:var(--navy);border:none;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:10px">
+          <button onclick="calShift(-1)" aria-label="Previous month" style="background:var(--navy-deep);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;color:var(--orange);cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0">‹</button>
+          <span id="cal-month-label" style="font-size:18px;color:var(--navy);font-weight:800;min-width:150px;text-align:center;letter-spacing:0.2px"></span>
+          <button onclick="calShift(1)" aria-label="Next month" style="background:var(--navy-deep);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;color:var(--orange);cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0">›</button>
+        </div>
+        <div id="cal-strip" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center"></div>
+        <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:var(--orange)"></div>Tasks</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:#4A9EF7"></div>Appointments</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:var(--navy);border:1.5px solid var(--orange)"></div>Today</div>
+        </div>
+      </div>
+
+      <!-- VIEWING DATE HEADER -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:4px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)"><span id="viewing-date-label" style="color:var(--orange)">Today</span></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="shiftViewDay(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;color:var(--text-mid);cursor:pointer;font-size:13px">‹</button>
+          <button onclick="shiftViewDay(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;color:var(--text-mid);cursor:pointer;font-size:13px">›</button>
+        </div>
+      </div>
+
+      <!-- DAILY FOCUS -->
+      <div class="card">
+        <div class="card-label">Daily focus</div>
+        <div class="focus-set" id="focus-display" onclick="editFocus()"></div>
+        <input class="focus-input" id="focus-input" placeholder="What's the one thing that matters most today?" onblur="setFocus()" onkeydown="if(event.key==='Enter')setFocus()">
+      </div>
+
+      <!-- APPOINTMENTS (time-specific) -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="card-label" style="margin-bottom:0">🗓 Appointments</div>
+          <button onclick="toggleApptForm()" style="background:var(--navy);color:var(--orange);border:1px solid var(--orange);border-radius:7px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">+ Add</button>
+        </div>
+        <!-- Add appointment form -->
+        <div id="appt-form" class="hidden" style="background:var(--bg);border-radius:10px;padding:10px;margin-bottom:10px;border:1px solid var(--border)">
+          <input class="task-inp" id="appt-title" placeholder="Appointment title (e.g. Meeting with John)" style="width:100%;margin-bottom:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            <input type="time" id="appt-time-start" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card)">
+            <span style="align-self:center;color:var(--text-mid);font-size:12px">to</span>
+            <input type="time" id="appt-time-end" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card)">
+            <input type="date" id="appt-date" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card)">
+          </div>
+          <input class="task-inp" id="appt-location" placeholder="Location or link (optional)" style="width:100%;margin-bottom:8px">
+          <div style="display:flex;gap:6px">
+            <button onclick="addAppointment()" class="add-btn" style="flex:1">Save appointment</button>
+            <button onclick="toggleApptForm()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:7px;font-family:var(--font);font-size:12px;color:var(--text-mid);cursor:pointer">Cancel</button>
+          </div>
+        </div>
+        <div id="appt-list"></div>
+        <div id="appt-empty" style="text-align:center;padding:12px 0;color:var(--text-mid);font-size:13px">No appointments for this day.<br><span style="font-size:11px;opacity:0.7">Tap + Add or say "Add meeting with John at 2pm"</span></div>
+      </div>
+
+      <!-- DAILY SCHEDULE (time-blocked view) -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+          <div class="card-label" style="margin-bottom:0">⏰ Daily schedule</div>
+          <span style="font-size:11px;color:var(--text-mid)">Tap a slot to add</span>
+        </div>
+        <div id="schedule-date" style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px"></div>
+        <div id="schedule-grid" style="position:relative"></div>
+      </div>
+
+      <!-- PRIORITISED TASKS -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-label" style="margin-bottom:0">✅ Prioritised tasks</div>
+        </div>
+        <div id="overload-notice" style="display:none;background:rgba(74,158,247,0.1);border-left:3px solid #4A9EF7;border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
+        <div id="task-list"></div>
+        <div class="task-add-row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
+          <input class="task-inp" id="task-inp" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:120px">
+          <select class="task-pri-sel" id="task-pri">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+          <input type="date" id="task-date" style="border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card);cursor:pointer" title="Schedule for a future date">
+          <button class="add-btn" onclick="addTask()">Add</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-mid);margin-top:4px;padding-left:2px">💡 Leave date as today or set a future date to schedule ahead</div>
+      </div>
+
+    </div>
+
+    <!-- HABITS TAB -->
+    <div class="sec" id="sec-habits">
+      <div class="card">
+        <div class="card-label">Weekly habits</div>
+        <div class="habit-grid" id="habit-grid"></div>
+        <div class="streak-bar">
+          <div class="streak-num" id="streak-num">0</div>
+          <div class="streak-info">
+            <div class="streak-label">day streak</div>
+            <div class="streak-sub">Keep going — consistency compounds</div>
+          </div>
+        </div>
+      </div>
+      <button class="ai-btn" onclick="aiAction('Suggest 3 new daily habits for me based on a values-based planning approach that would support my goals and life roles')">
+        <i class="ti ti-sparkles"></i>Suggest habits with AI ↗
+      </button>
+    </div>
+
+    <!-- GOALS TAB -->
+    <div class="sec" id="sec-goals">
+      <div class="card">
+        <div class="card-label">Long-term goals</div>
+        <div id="goals-list"></div>
+      </div>
+      <button class="ai-btn" onclick="aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.')">
+        <i class="ti ti-sparkles"></i>Set a new goal with AI ↗
+      </button>
+      <button class="ai-btn" onclick="aiAction('Help me break one of my long-term goals into specific weekly action steps I can add to my daily plan.')">
+        <i class="ti ti-list-check"></i>Break a goal into weekly actions ↗
+      </button>
+    </div>
+
+    <!-- PROJECTS TAB -->
+    <div class="sec" id="sec-projects">
+      <div class="card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="card-label" style="margin-bottom:0">My projects</div>
+          <button onclick="showNewProjForm()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:5px 10px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <i class="ti ti-plus" style="font-size:14px"></i> New
+          </button>
+        </div>
+        <div id="new-proj-form" class="hidden" style="margin-bottom:10px">
+          <input class="task-inp" id="np-name" placeholder="Project name (e.g. Boat Refit)" style="width:100%;margin-bottom:6px">
+          <input class="task-inp" id="np-desc" placeholder="Short description" style="width:100%;margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;color:var(--text-mid)">Icon:</span>
+            <span id="np-icon" style="font-size:22px;cursor:pointer" onclick="cycleIcon()">⛵</span>
+            <span style="font-size:11px;color:var(--text-light)">(tap to change)</span>
+          </div>
+          <button class="save-btn" onclick="createProject()" style="margin-top:0">Create project</button>
+        </div>
+      </div>
+      <div id="proj-list"></div>
+    </div>
+
+    <!-- NOTES TAB -->
+    <div class="sec" id="sec-notes">
+      <div class="card">
+        <div class="card-label">Quick capture</div>
+        <input class="task-inp" id="note-title-inp" placeholder="Title (optional)" style="width:100%;margin-bottom:6px">
+        <textarea class="quick-cap-ta" id="note-body-inp" rows="3" placeholder="Type or speak your thought…"></textarea>
+        <div class="tag-pills" id="tag-pills"></div>
+        <button class="save-btn" onclick="saveNote()">Save note</button>
+      </div>
+      <div id="notes-list"></div>
+    </div>
+
+    <!-- REFLECT TAB -->
+    <div class="sec" id="sec-reflect">
+      <div class="card">
+        <div class="card-label">Daily reflection</div>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:14px;line-height:1.5">The cornerstone of intentional living — 5 minutes to review your day and set tomorrow's intention.</p>
+        <div class="reflect-q"><div class="reflect-label">What went well today? <button class="field-mic" onclick="dictateInto('r-well',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-well" placeholder="Speak or type your answer…"></textarea></div>
+        <div class="reflect-q"><div class="reflect-label">What could I improve tomorrow? <button class="field-mic" onclick="dictateInto('r-improve',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-improve" placeholder="Speak or type your answer…"></textarea></div>
+        <div class="reflect-q"><div class="reflect-label">What am I grateful for? <button class="field-mic" onclick="dictateInto('r-grateful',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-grateful" placeholder="Speak or type your answer…"></textarea></div>
+        <div class="reflect-q"><div class="reflect-label">My intention for tomorrow <button class="field-mic" onclick="dictateInto('r-intention',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-intention" placeholder="Speak or type your answer…"></textarea></div>
+        <button class="save-btn" id="reflect-save-btn" onclick="saveReflection()">Save today's reflection</button>
+        <div class="saved-badge" id="reflect-saved">Reflection saved — well done for taking the time.</div>
+        <button id="reflection-history-btn" onclick="toggleReflectionHistory()" style="width:100%;margin-top:10px;background:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-family:var(--font);font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-history"></i>View past reflections ↗</button>
+        <div id="reflection-history" style="display:none;margin-top:8px"><div id="reflection-list"></div></div>
+      </div>
+      <button class="ai-btn" onclick="aiAction('Guide me through a values-based weekly review. Ask me reflective questions one at a time about my roles, goals, wins, and areas for growth this week.')">
+        <i class="ti ti-sparkles"></i>Guide my weekly review with AI ↗
+      </button>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-label">📖 What actually happened</div>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">One line for today — the most noteworthy thing that actually happened, good or hard. Over time this becomes an honest record of how your life really unfolded.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="happened-input" type="text" placeholder="Today, the thing that stood out was…" style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--text);box-sizing:border-box" />
+          <button class="field-mic" onclick="dictateInto('happened-input',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+          <button class="save-btn" style="width:auto;padding:0 18px;margin:0;flex-shrink:0" onclick="saveHappened()">Log</button>
+        </div>
+        <div id="happened-log" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <!-- VALUES TAB -->
+    <div class="sec" id="sec-values">
+      <div class="card">
+        <div class="card-label">Quote of the day</div>
+        <div id="val-quote" style="font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--text);line-height:1.6;margin-bottom:4px"></div>
+        <div id="val-author" style="font-size:12px;color:var(--navy-light)"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">My values</div>
+        <div id="values-chips"></div>
+        <button class="ai-btn" onclick="aiAction('Help me clarify and deepen my personal values using values-based planning principles. Walk me through identifying what matters most to me.')">
+          <i class="ti ti-sparkles"></i>Clarify my values with AI ↗
+        </button>
+      </div>
+      <div class="card">
+        <div class="card-label">My life roles</div>
+        <div id="roles-list"></div>
+        <button class="ai-btn" onclick="aiAction('Help me define what success looks like in each of my key life roles: Parent, Professional, Learner, Friend, and Community member.')">
+          <i class="ti ti-sparkles"></i>Define success in each role ↗
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- PROJECT DETAIL OVERLAY -->
+  <div class="detail-overlay" id="proj-detail">
+    <div class="detail-header">
+      <button class="detail-back" onclick="closeDetail()"><i class="ti ti-arrow-left"></i> All projects</button>
+      <div class="detail-name" id="detail-name"></div>
+      <div class="detail-desc" id="detail-desc"></div>
+    </div>
+    <div class="detail-body">
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-label">Capture</div>
+        <div class="capture-grid">
+          <div class="cap-btn" onclick="capture('voice')"><i class="ti ti-microphone"></i><div class="cap-label">Voice memo</div></div>
+          <div class="cap-btn" onclick="capture('photo')"><i class="ti ti-camera"></i><div class="cap-label">Photo</div></div>
+          <div class="cap-btn" onclick="capture('doc')"><i class="ti ti-file-text"></i><div class="cap-label">Document</div></div>
+          <div class="cap-btn" onclick="capture('link')"><i class="ti ti-link"></i><div class="cap-label">Web link</div></div>
+          <div class="cap-btn" onclick="capture('convo')"><i class="ti ti-message-circle"></i><div class="cap-label">Conversation</div></div>
+          <div class="cap-btn" onclick="capture('idea')"><i class="ti ti-bulb"></i><div class="cap-label">Idea</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Captured items</div>
+        <div id="detail-captures"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Linked tasks</div>
+        <div id="detail-tasks"></div>
+        <button class="ai-btn" onclick="aiAction('Give me an AI summary of everything I might have captured in my ' + currentProject?.name + ' project, and suggest my top 3 next actions.')">
+          <i class="ti ti-sparkles"></i>AI project summary & next steps ↗
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS OVERLAY -->
+  <div class="settings-overlay" id="settings-overlay">
+    <div class="settings-header">
+      <button class="settings-back" onclick="closeSettings()"><i class="ti ti-x"></i></button>
+      <div class="settings-title">Settings</div>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">Account</div>
+        <div class="settings-row"><span class="settings-row-label">Name</span><span class="settings-row-value" id="set-name">Dave</span></div>
+        <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
+        <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value">Free</span><span class="settings-row-action" onclick="showUpgrade()">Upgrade to Pro</span></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">App</div>
+        <div class="settings-row"><span class="settings-row-label">VoiceFirstPlanner</span><span class="settings-row-value">v1.0.0</span></div>
+        <div class="settings-row"><span class="settings-row-label">Website</span><a href="https://voicefirstdayplanner.com" style="font-size:13px;color:var(--navy-mid)">voicefirstdayplanner.com</a></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Legal</div>
+        <div class="settings-row" onclick=""><span class="settings-row-label">Privacy policy</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
+        <div class="settings-row" onclick=""><span class="settings-row-label">Terms of service</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+</div><!-- /app -->
+
+<!-- PRO UPGRADE MODAL -->
+<div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Choose your plan</div>
+    <div class="modal-sub">Voice-first planning, built around your values. Upgrade when you're ready.</div>
+    <div style="font-weight:700;color:var(--navy);margin:14px 0 2px;font-size:15px">Premium <span style="font-weight:400;color:var(--text-light);font-size:13px">— available now</span></div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Unlimited tasks, habits, and projects</div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Voice planning — speak tasks, appointments, habits, notes</div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Values, life roles, goals, and daily reflection</div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Projects with voice capture and references</div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Recurring appointments and full schedule</div>
+    <div class="pro-feat"><i class="ti ti-check"></i>Use on up to 2 devices</div>
+    <div class="pro-price">$7.99 <span>/ month USD</span></div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Or $69.99/year — save 27%</div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Launch offer: $99 once for lifetime access — first 1,000 members</div>
+    <button class="modal-cta" onclick="closeUpgrade();showToast('Premium is coming soon — we\'ll notify you at launch!')">Start 14-day free trial</button>
+    <div style="font-weight:700;color:var(--navy);margin:22px 0 2px;font-size:15px">Pro <span style="font-weight:400;color:var(--orange);font-size:13px">— coming soon, with AI</span></div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>Everything in Premium, plus:</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI voice planning — unlimited commands interpreted by AI</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI project summaries and next actions</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>Calendar sync — Apple, Google, Outlook</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>All your devices synced in real time</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>Focus and Pomodoro timer with voice activation</div>
+    <div class="pro-price">$9.99 <span>/ month USD</span></div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Or $89/year — save 26% (when Pro launches)</div>
+    <button class="modal-cta" onclick="closeUpgrade();showToast('Pro with AI is coming — we\'ll notify you at launch!')">Notify me when Pro launches</button>
+    <button class="modal-close-btn" onclick="closeUpgrade()">Maybe later</button>
+  </div>
+</div>
+
+<!-- Capture input modal -->
+<div class="modal-overlay" id="capture-modal" onclick="if(event.target===this)closeCapture()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="capture-modal-title">Add capture</div>
+    <div class="modal-sub" id="capture-modal-sub">What would you like to capture?</div>
+    <input id="capture-input-1" type="text" style="width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;color:var(--text);margin-bottom:10px;box-sizing:border-box" />
+    <textarea id="capture-input-2" rows="3" style="width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;color:var(--text);margin-bottom:4px;box-sizing:border-box;resize:vertical;display:none"></textarea>
+    <button class="modal-cta" id="capture-save-btn" onclick="saveCapture()">Save</button>
+    <button class="modal-close-btn" onclick="closeCapture()">Cancel</button>
+  </div>
+</div>
+
+<!-- Universal edit modal: edit or delete anything created (by voice or type) -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="edit-modal-title">Edit</div>
+    <div id="edit-modal-fields" style="margin-top:6px"></div>
+    <button class="modal-cta" onclick="saveEdit()">Save changes</button>
+    <button class="modal-close-btn" id="edit-modal-delete" onclick="deleteFromEdit()" style="color:#C0392B">Delete</button>
+    <button class="modal-close-btn" onclick="closeEditModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- AI coming-soon / interest modal -->
+<div class="modal-overlay" id="ai-modal" onclick="if(event.target===this)closeAiModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✨ AI coaching is coming</div>
+    <div class="modal-sub" id="ai-modal-sub">This feature uses AI to help you. It's launching with VoiceFirstPlanner Pro — want us to let you know the moment it's ready?</div>
+    <div id="ai-modal-preview" style="background:var(--bg);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text-mid);line-height:1.5;display:none"></div>
+    <button class="modal-cta" id="ai-notify-btn" onclick="registerAiInterest()">Notify me when it's ready</button>
+    <button class="modal-close-btn" onclick="closeAiModal()">Maybe later</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SUPABASE — backend config
+// ------------------------------------------------------------
+// 1. Create a free project at https://supabase.com
+// 2. Project Settings -> API -> copy the two values below.
+//    The anon key is SAFE to expose in the browser: it is a
+//    public key and your data is protected by Row-Level
+//    Security (see supabase-schema.sql). Do NOT paste the
+//    "service_role" key here.
+// 3. Run supabase-schema.sql in the SQL Editor once.
+// Until both values are filled in, the app runs in local mode
+// (no sign-in, nothing saved) exactly as before.
+// ============================================================
+const SUPABASE_URL = 'https://vudqzjdyverpdfpcpakl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_kwBiNThMV7Xf9EmSeF-jlA_UnyoGvmO';
+
+const SB_CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 30;
+const sb = (SB_CONFIGURED && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+let authUserId = null;   // cached id of the signed-in user
+let isDemo = false;      // demo mode = nothing persists
+
+// Which parts of `state` get saved. Transient UI bits are left out.
+const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','projects',
+                    'notes','happenedLog','reflections','aiInterest','values',
+                    'roles','focus','onboardStep','selectedValues'];
+
+function serializeState() {
+  const out = {};
+  STATE_KEYS.forEach(k => {
+    out[k] = (k === 'selectedValues') ? [...state.selectedValues] : state[k];
+  });
+  return out;
+}
+function applyState(data) {
+  if (!data) return;
+  STATE_KEYS.forEach(k => {
+    if (data[k] === undefined) return;
+    if (k === 'selectedValues') state.selectedValues = new Set(data[k] || []);
+    else state[k] = data[k];
+  });
+}
+
+function authMsg(text, isError) {
+  const el = document.getElementById('auth-msg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isError ? '#ff6b6b' : 'var(--orange, #F2771A)';
+  el.style.display = text ? 'block' : 'none';
+}
+
+// ---- Load the signed-in user's saved planner from Supabase ----
+async function loadState() {
+  if (!sb || !authUserId) return;
+  const { data, error } = await sb.from('planner_state')
+    .select('data').eq('user_id', authUserId).maybeSingle();
+  if (error) { console.warn('Supabase load error:', error.message); return; }
+  if (data && data.data) applyState(data.data);
+  lastSavedJSON = JSON.stringify(serializeState());
+}
+
+// ---- Save the planner (only when something actually changed) ----
+let lastSavedJSON = null;
+let saving = false;
+async function persistNow() {
+  if (!sb || !authUserId || isDemo || saving) return;
+  const snapshot = serializeState();
+  const json = JSON.stringify(snapshot);
+  if (json === lastSavedJSON) return;          // nothing changed
+  saving = true;
+  const { error } = await sb.from('planner_state').upsert(
+    { user_id: authUserId, data: snapshot, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' }
+  );
+  saving = false;
+  if (error) { console.warn('Supabase save error:', error.message); return; }
+  lastSavedJSON = json;
+}
+
+// Autosave: poll every few seconds and save only on change. This catches
+// every edit no matter which function made it, so we don't have to hook
+// each individual action. Plus a best-effort save when the tab closes.
+function startAutosave() {
+  setInterval(persistNow, 4000);
+  window.addEventListener('beforeunload', () => { try { persistNow(); } catch (e) {} });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) persistNow(); });
+}
+
+// On load: if there's an existing Supabase session, restore it and skip sign-in.
+async function restoreSession() {
+  startAutosave();
+  if (!sb) return;  // local mode -> stay on the auth screen
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  authUserId = session.user.id;
+  const meta = session.user.user_metadata || {};
+  state.user = { name: meta.name || session.user.email.split('@')[0], email: session.user.email };
+  await loadState();
+  launchApp();
+}
+
+// ============================================================
+// DATA
+// ============================================================
+const QUOTES = [
+  { t: "The key is not to prioritise what's on your schedule, but to schedule your priorities.", a: "Stephen R. Covey" },
+  { t: "Either you run the day, or the day runs you.", a: "Jim Rohn" },
+  { t: "Begin with the end in mind.", a: "Stephen R. Covey" },
+  { t: "Motivation is what gets you started. Habit is what keeps you going.", a: "Jim Rohn" },
+  { t: "An investment in knowledge pays the best interest.", a: "Benjamin Franklin" },
+  { t: "The main thing is to keep the main thing the main thing.", a: "Stephen R. Covey" },
+  { t: "We are what we repeatedly do. Excellence is not an act but a habit.", a: "Aristotle" },
+];
+
+const VOICE_HINTS = [
+  'Say: "Add review the proposal as an A priority"',
+  'Say: "I exercised today"',
+  'Say: "Focus for 25 minutes on the report"',
+  'Say: "Add idea to my Boat Refit project"',
+  'Say: "Note: call the supplier tomorrow"',
+  'Say: "What should I focus on today?"',
+];
+
+const DAYS = ['M','T','W','T','F','S','S'];
+
+const DEFAULT_HABITS = [
+  { id: 1, name: 'Morning reflection' },
+  { id: 2, name: 'Exercise' },
+  { id: 3, name: 'Read 20 minutes' },
+  { id: 4, name: 'Review goals' },
+];
+
+const DEFAULT_GOALS = [
+  { id: 1, name: 'Read 24 books this year', cur: 0, tot: 24, role: 'Learner' },
+  { id: 2, name: 'Run a half-marathon', cur: 0, tot: 21, unit: 'km', role: 'Health' },
+  { id: 3, name: 'Complete leadership course', cur: 0, tot: 8, unit: 'modules', role: 'Professional' },
+];
+
+const DEFAULT_PROJECTS = [
+  { id: 1, name: 'Boat refit', desc: 'Full restoration of the 38ft sloop', icon: '⛵', status: 'Active', progress: 35, tags: ['sailing','2026'], captures: [
+    { type: 'voice', title: 'Outboard motor notes — boat show', meta: '2 min voice memo', icon: 'ti-microphone' },
+    { type: 'photo', title: 'Hull damage photos', meta: '6 photos', icon: 'ti-camera' },
+    { type: 'doc', title: 'Yamaha 150hp spec sheet', meta: 'PDF · 2.4MB', icon: 'ti-file-text' },
+  ]},
+  { id: 2, name: 'House renovation', desc: 'Kitchen and bathroom upgrade', icon: '🏠', status: 'Planning', progress: 15, tags: ['property','kitchen'], captures: [
+    { type: 'photo', title: 'Inspiration photos from home show', meta: '12 photos', icon: 'ti-camera' },
+    { type: 'doc', title: 'Kitchen quotes — 3 suppliers', meta: '3 PDFs', icon: 'ti-file-text' },
+  ]},
+];
+
+const DEFAULT_NOTES = [
+  { id: 1, title: 'Book notes — Atomic Habits', body: 'Identity-based habits — focus on who you want to become, not what you want to achieve. Every action is a vote for your identity.', tags: ['reading','personal'], checklist: null },
+  { id: 2, title: 'Q3 project checklist', body: '', tags: ['work'], checklist: [
+    { text: 'Define project scope', done: true },
+    { text: 'Stakeholder sign-off', done: true },
+    { text: 'Build prototype', done: false },
+    { text: 'User testing', done: false },
+  ]},
+];
+
+const DEFAULT_VALUES = ['Family','Integrity','Growth','Health','Excellence'];
+const DEFAULT_ROLES = [
+  { name: 'Parent', icon: 'ti-home', def: 'Present, patient, and supportive' },
+  { name: 'Professional', icon: 'ti-briefcase', def: 'Skilled, reliable, and growth-focused' },
+  { name: 'Learner', icon: 'ti-book', def: 'Curious, open-minded, and consistent' },
+  { name: 'Friend', icon: 'ti-users', def: 'Loyal, generous, and encouraging' },
+  { name: 'Community', icon: 'ti-world', def: 'Contributing, aware, and engaged' },
+];
+
+const TAGS = ['work','personal','idea','reading','goals'];
+const ICONS = ['⛵','🏠','🔧','🚗','💼','📐','🌿','🏗','🎨','💡','📦','🔑','✈️','🎯','💻'];
+
+// ============================================================
+// STATE
+// ============================================================
+// Returns a YYYY-MM-DD (local) date string for N days before today.
+// Used so the example journal entries always look recent, never stale.
+function daysAgoKey(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+let state = {
+  user: null,
+  tasks: [
+    { id: 1, text: 'Review team proposal', p: 'A', done: false, date: null },
+    { id: 2, text: 'Call Mum', p: 'B', done: false, date: null },
+    { id: 3, text: 'Organise desk', p: 'C', done: true, date: null },
+  ],
+  appointments: [],
+  habits: DEFAULT_HABITS.map(h => ({ ...h })),
+  habitLog: {},
+  goals: DEFAULT_GOALS.map(g => ({ ...g })),
+  projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
+  notes: DEFAULT_NOTES.map(n => ({ ...n })),
+  happenedLog: [
+    { date: daysAgoKey(1), text: 'Finished something I\'d been putting off — felt good to finally clear it.' },
+    { date: daysAgoKey(2), text: 'Slower day, but made time for a proper walk and a bit of reading.' },
+  ],
+  reflections: [],
+  aiInterest: false,
+  values: [...DEFAULT_VALUES],
+  roles: [...DEFAULT_ROLES],
+  focus: '',
+  selectedTags: [],
+  onboardStep: 0,
+  selectedValues: new Set(['Family','Growth','Health']),
+  iconIdx: 0,
+};
+
+let currentProject = null;
+let voiceActive = false;
+let hintIdx = 0;
+let hintTimer = null;
+
+const today = new Date();
+const todayDow = (today.getDay() + 6) % 7;
+const weekKey = `w${today.getFullYear()}-${Math.ceil(today.getDate()/7)}`;
+
+// Calendar state
+function dateKey(d) {
+  // Use LOCAL date parts, not toISOString() (which converts to UTC and rolls the
+  // date back a day for users ahead of UTC, e.g. NZ).
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`; // YYYY-MM-DD, local
+}
+let viewingDate = dateKey(today);
+let calViewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  setTopbarDate();
+  setQuote();
+  startHintRotation();
+  renderCalStrip();
+  renderTasks();
+  renderAppointments();
+  renderScheduleGrid();
+  checkCarryForward();
+  // Set today as default date in inputs
+  document.getElementById('task-date').value = dateKey(today);
+  document.getElementById('appt-date').value = dateKey(today);
+  // Set default appointment times
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(Math.ceil(now.getMinutes()/15)*15 % 60).padStart(2,'0');
+  const h2 = String((now.getHours() + 1) % 24).padStart(2,'0');
+  document.getElementById('appt-time-start').value = `${h}:${m}`;
+  document.getElementById('appt-time-end').value = `${h2}:${m}`;
+}
+
+function setTopbarDate() {
+  document.getElementById('topbar-date').textContent = today.toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+}
+
+function setQuote() {
+  const q = QUOTES[today.getDate() % QUOTES.length];
+  document.getElementById('quote-text').textContent = '"' + q.t + '"';
+  document.getElementById('quote-auth').textContent = '— ' + q.a;
+  document.getElementById('val-quote').textContent = '"' + q.t + '"';
+  document.getElementById('val-author').textContent = '— ' + q.a;
+}
+
+function startHintRotation() {
+  hintTimer = setInterval(() => {
+    if (!voiceActive) {
+      hintIdx = (hintIdx + 1) % VOICE_HINTS.length;
+      const el = document.getElementById('voice-hint');
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = VOICE_HINTS[hintIdx];
+        el.style.opacity = '1';
+      }, 300);
+    }
+  }, 3500);
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'signin') || (i === 1 && tab === 'signup'));
+  });
+  document.getElementById('auth-signin').classList.toggle('hidden', tab !== 'signin');
+  document.getElementById('auth-signup').classList.toggle('hidden', tab !== 'signup');
+}
+
+async function signIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const pw = document.getElementById('signin-pw').value;
+  if (!email || !pw) { showToast('Please enter your email and password'); return; }
+  if (!sb) {  // local mode (backend not configured yet)
+    state.user = { name: email.split('@')[0], email };
+    launchApp();
+    return;
+  }
+  authMsg('Signing in…');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { authMsg(error.message, true); return; }
+  authUserId = data.user.id;
+  state.user = { name: data.user.user_metadata?.name || email.split('@')[0], email };
+  authMsg('');
+  await loadState();
+  launchApp();
+}
+
+async function signUp() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pw = document.getElementById('signup-pw').value;
+  if (!name || !email || !pw) { showToast('Please fill in all fields'); return; }
+  if (!sb) {  // local mode
+    state.user = { name, email };
+    document.getElementById('auth-screen').style.display = 'none';
+    startOnboarding();
+    return;
+  }
+  authMsg('Creating your account…');
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name } } });
+  if (error) { authMsg(error.message, true); return; }
+  if (!data.session) {
+    // Email confirmation is enabled in Supabase — user must confirm first.
+    authMsg('Account created. Check your email to confirm, then sign in.');
+    switchAuthTab('signin');
+    return;
+  }
+  authUserId = data.user.id;
+  state.user = { name, email };
+  authMsg('');
+  document.getElementById('auth-screen').style.display = 'none';
+  startOnboarding();
+}
+
+function signInApple() {
+  if (!sb) { state.user = { name: 'Dave', email: 'dave@icloud.com' }; launchApp(); return; }
+  // Real Apple sign-in needs an Apple OAuth provider configured in the
+  // Supabase dashboard (Apple Developer Services ID + key). Until that's
+  // set up, point people at email sign-in.
+  showToast('Apple sign-in is coming soon — use email for now');
+}
+
+function demoMode() {
+  isDemo = true;  // demo data lives only in this tab and is never saved
+  state.user = { name: 'Dave', email: 'demo@voicefirstdayplanner.com' };
+  launchApp();
+}
+
+async function signOut() {
+  if (sb && !isDemo) {
+    try { await persistNow(); } catch (e) {}
+    await sb.auth.signOut();
+  }
+  // Full reset of in-memory state so the next person starts clean.
+  location.reload();
+}
+
+function launchApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('onboarding-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('user-badge').textContent = (state.user?.name || 'You').split(' ')[0];
+  document.getElementById('set-name').textContent = state.user?.name || 'User';
+  document.getElementById('set-email').textContent = state.user?.email || '';
+  renderAll();
+  showGroup('daily-planning', 'daily');
+}
+
+// ============================================================
+// ONBOARDING
+// ============================================================
+const OB_STEPS = [
+  {
+    title: 'Choose your values',
+    sub: 'VoiceFirstPlanner starts with what matters most. Choose up to 5 values that guide your life.',
+    render: renderObValues,
+    next: 'Continue to life roles'
+  },
+  {
+    title: 'Your life roles',
+    sub: 'What roles do you play? These connect your daily tasks to your bigger picture.',
+    render: renderObRoles,
+    next: 'Continue to voice setup'
+  },
+  {
+    title: 'Your first voice command',
+    sub: 'VoiceFirstPlanner is built around your voice. Try saying something to add your first task.',
+    render: renderObVoice,
+    next: 'Start planning my day'
+  }
+];
+
+let obStep = 0;
+
+function startOnboarding() {
+  const os = document.getElementById('onboarding-screen');
+  os.style.display = 'flex';
+  renderObStep();
+}
+
+function renderObStep() {
+  const s = OB_STEPS[obStep];
+  document.getElementById('ob-title').textContent = s.title;
+  document.getElementById('ob-sub').textContent = s.sub;
+  document.getElementById('ob-next').textContent = s.next;
+  const dots = document.getElementById('ob-steps').querySelectorAll('.step-dot');
+  dots.forEach((d, i) => { d.className = 'step-dot' + (i === obStep ? ' active' : ''); });
+  s.render();
+}
+
+function renderObValues() {
+  const body = document.getElementById('ob-body');
+  body.innerHTML = '<div class="val-grid" id="ob-vals"></div>';
+  const vals = ['Family','Integrity','Growth','Health','Excellence','Service','Creativity','Learning','Adventure','Balance'];
+  const icons = ['ti-home','ti-shield-check','ti-trending-up','ti-heart-rate','ti-star','ti-users','ti-bulb','ti-book','ti-mountain','ti-yin-yang'];
+  const grid = document.getElementById('ob-vals');
+  vals.forEach((v, i) => {
+    const el = document.createElement('div');
+    el.className = 'val-item' + (state.selectedValues.has(v) ? ' selected' : '');
+    el.innerHTML = `<i class="ti ${icons[i]}"></i>${v}`;
+    el.onclick = () => {
+      if (state.selectedValues.has(v)) state.selectedValues.delete(v);
+      else if (state.selectedValues.size < 5) state.selectedValues.add(v);
+      el.classList.toggle('selected', state.selectedValues.has(v));
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderObRoles() {
+  const body = document.getElementById('ob-body');
+  body.innerHTML = `
+    <p style="font-size:14px;color:var(--text-mid);margin-bottom:14px;line-height:1.6">These are the roles that matter most in your life. Each goal and task you set can link back to a role.</p>
+    ${DEFAULT_ROLES.map(r => `
+      <div class="role-row" style="margin-bottom:6px">
+        <div class="role-icon"><i class="ti ${r.icon}"></i></div>
+        <div style="flex:1"><div class="role-name">${r.name}</div><div class="role-def">${r.def}</div></div>
+        <i class="ti ti-check" style="font-size:16px;color:var(--orange)"></i>
+      </div>`).join('')}
+    <p style="font-size:12px;color:var(--text-light);margin-top:10px">You can customise your roles in the Values tab after setup.</p>`;
+}
+
+function renderObVoice() {
+  const body = document.getElementById('ob-body');
+  body.innerHTML = `
+    <div style="background:var(--navy);border-radius:var(--radius-lg);padding:20px;text-align:center;margin-bottom:16px">
+      <i class="ti ti-microphone" style="font-size:40px;color:var(--orange);display:block;margin-bottom:10px"></i>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--ice);margin-bottom:6px">Just tap and speak</div>
+      <div style="font-size:13px;color:#85B7EB;line-height:1.5">The orange microphone button is always available. Tap it and say anything — tasks, habits, ideas, project notes.</div>
+    </div>
+    <div style="font-size:13px;color:var(--text-mid);margin-bottom:10px;font-weight:500">Try saying:</div>
+    ${['"Add finish the report as an A priority"','"I exercised today"','"Note: great idea for the project"'].map(ex =>
+      `<div style="background:var(--ice);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;font-size:13px;color:var(--navy);border-left:3px solid var(--orange)">${ex}</div>`
+    ).join('')}`;
+}
+
+function toggleVal(el, val) {
+  if (state.selectedValues.has(val)) {
+    state.selectedValues.delete(val);
+    el.classList.remove('selected');
+  } else if (state.selectedValues.size < 5) {
+    state.selectedValues.add(val);
+    el.classList.add('selected');
+  }
+}
+
+function nextOnboard() {
+  obStep++;
+  if (obStep >= OB_STEPS.length) {
+    state.values = [...state.selectedValues];
+    launchApp();
+  } else {
+    renderObStep();
+  }
+}
+
+function skipOnboarding() {
+  launchApp();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+// Maps each content tab to its parent group
+const TAB_GROUP = { daily:'daily-planning', projects:'daily-planning', notes:'daily-planning',
+                    goals:'life-planning', values:'life-planning', habits:'life-planning', reflect:'life-planning' };
+
+function showGroup(group, activeTab) {
+  // top-level group buttons
+  document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.group === group));
+  // show only this group's sub-tabs
+  document.querySelectorAll('.nav-btn[data-group]').forEach(b => b.classList.toggle('in-group', b.dataset.group === group));
+  // pick which sub-tab to land on: the requested one, else the first in this group
+  const groupBtns = Array.from(document.querySelectorAll('.nav-btn.in-group'));
+  let target = activeTab && TAB_GROUP[activeTab] === group ? activeTab
+             : (groupBtns[0] ? groupBtns[0].getAttribute('onclick').match(/showTab\('([^']+)'/)[1] : 'daily');
+  const targetBtn = groupBtns.find(b => b.getAttribute('onclick').includes(`showTab('${target}'`));
+  showTab(target, targetBtn, true);
+}
+
+function showTab(name, btn, skipGroupSync) {
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const sec = document.getElementById('sec-' + name);
+  if (sec) sec.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // keep the correct group open and its sub-tabs visible
+  if (!skipGroupSync) {
+    const group = TAB_GROUP[name] || 'daily-planning';
+    document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.group === group));
+    document.querySelectorAll('.nav-btn[data-group]').forEach(b => b.classList.toggle('in-group', b.dataset.group === group));
+    if (!btn) {
+      const real = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(`showTab('${name}'`));
+      if (real) real.classList.add('active');
+    }
+  }
+}
+
+// ============================================================
+// VOICE
+// ============================================================
+function toggleVoice() {
+  if (voiceActive) { stopVoice(); return; }
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    startVoiceRecognition();
+  } else {
+    showToast('Voice not supported in this browser — try Chrome or Safari');
+    document.getElementById('voice-hint').textContent = 'Type a command instead — use the task input below';
+  }
+}
+
+function startVoiceRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
+  voiceActive = true;
+  document.getElementById('voice-btn').classList.add('voice-listening');
+  const appEl = document.getElementById('app');
+  appEl.classList.add('voice-listening');
+  document.getElementById('voice-btn-text').textContent = 'Listening…';
+  document.getElementById('voice-hint').textContent = 'Speak now — I\'m listening';
+  r.start();
+  r.onresult = e => {
+    const txt = e.results[0][0].transcript;
+    processVoice(txt);
+    stopVoice();
+  };
+  r.onerror = () => { stopVoice(); showToast('Could not hear you — please try again'); };
+  r.onend = () => { stopVoice(); };
+}
+
+function stopVoice() {
+  voiceActive = false;
+  document.getElementById('voice-btn').classList.remove('voice-listening');
+  document.getElementById('app').classList.remove('voice-listening');
+  document.getElementById('voice-btn-text').textContent = 'Tap to speak your plan';
+}
+
+// Dictate speech directly into a specific text field (used by reflection + happened log)
+function dictateInto(fieldId, btnEl) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Voice needs Chrome or Safari — you can type instead'); return; }
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  const r = new SR();
+  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
+  if (btnEl) btnEl.classList.add('mic-on');
+  field.focus();
+  try { r.start(); } catch (err) { if (btnEl) btnEl.classList.remove('mic-on'); return; }
+  r.onresult = e => {
+    const txt = e.results[0][0].transcript;
+    field.value = field.value ? (field.value.trim() + ' ' + txt) : txt;
+    field.dispatchEvent(new Event('input'));
+  };
+  r.onerror = () => { showToast('Could not hear you — please try again'); };
+  r.onend = () => { if (btnEl) btnEl.classList.remove('mic-on'); };
+}
+
+// Auto-attach a speak-mic to every free-text field listed here.
+const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','capture-input-1','capture-input-2'];
+function attachFieldMics() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return; // no voice support → don't add mics that can't work
+  MIC_FIELDS.forEach(id => {
+    const field = document.getElementById(id);
+    if (!field || field.dataset.micAttached) return;
+    const mic = document.createElement('button');
+    mic.type = 'button';
+    mic.className = 'field-mic';
+    mic.title = 'Speak';
+    mic.innerHTML = '<i class="ti ti-microphone"></i>';
+    mic.onclick = (e) => { e.preventDefault(); e.stopPropagation(); dictateInto(id, mic); };
+    mic.style.flexShrink = '0';
+    // Wrap the field + mic in a flex row so the mic sits neatly to the right
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:flex-start;gap:6px;width:100%';
+    field.parentNode.insertBefore(wrap, field);
+    // normalise field width inside the flex row
+    field.style.flex = '1';
+    field.style.width = 'auto';
+    field.style.boxSizing = 'border-box';
+    wrap.appendChild(field);
+    wrap.appendChild(mic);
+    field.dataset.micAttached = '1';
+  });
+}
+
+function processVoice(text) {
+  const t = text.toLowerCase();
+  document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
+  // Check for appointment/meeting voice command — a clock time plus event/schedule intent
+  const hasClockTime = /\b\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?\b/i.test(t) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(t) || /\bat \d{1,2}\b/i.test(t);
+  const apptIntent = ['meeting','appointment','appt','calendar','schedule','diary','dinner','lunch','breakfast','brunch','coffee','drinks','catch up','catchup',' with ','call ','meet ','dentist','doctor','session','interview','review','standup','stand-up','reminder','workshop','class','gym ','training','viewing','inspection','consultation','webinar','demo','presentation'].some(k => t.includes(k));
+  // A recurrence phrase + a clock time is itself appointment intent, even without a keyword
+  // (e.g. "take vitamins every day at 8am", "pay rent weekly at 5pm", "pilates every Thursday at 6:30pm").
+  const hasRecurrence = /\bevery\s+week\s*days?\b/i.test(t) || /\bon\s+weekdays\b/i.test(t) || /\bevery\s+weekday\b/i.test(t)
+    || /\bevery\s+(?:sun|mon|tues?|wednes?|thurs?|fri|satur)(?:day)?s?\b/i.test(t)
+    || /\bevery\s*day\b/i.test(t) || /\bdaily\b/i.test(t) || /\beach\s+day\b/i.test(t)
+    || /\bweekly\b/i.test(t) || /\bevery\s+week\b/i.test(t);
+  if (hasClockTime && (apptIntent || hasRecurrence)) {
+    const toMin = (h, m) => h * 60 + m;
+    const fromMin = tot => { tot = ((tot % 1440) + 1440) % 1440; return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; };
+    const parseClock = (str) => {
+      const m = str.match(/(\d{1,2})\s*[:.;\s]\s*(\d{2})\s*(am|pm)?/i) || str.match(/(\d{1,2})\s*(am|pm)/i);
+      if (!m) return null;
+      let h = parseInt(m[1]); let mins = 0; let ampm = '';
+      if (m.length === 4) { mins = parseInt(m[2] || '0'); ampm = (m[3]||'').toLowerCase(); }
+      else { ampm = (m[2]||'').toLowerCase(); }
+      if (ampm === 'pm' && h !== 12) h += 12;
+      if (ampm === 'am' && h === 12) h = 0;
+      if (h > 23) h = 9; if (mins > 59) mins = 0;
+      return { h, mins, ampm };
+    };
+    // Start time — prefer the time right after "at", else the first time token
+    let timeStart = '09:00', timeEnd = '10:00', startMin = 540, endMin = null;
+    const atMatch = t.match(/\bat\s+(\d{1,2}(?:[:.\s]\d{2})?\s*(?:am|pm)?)/i);
+    const sc = atMatch ? parseClock(atMatch[1]) : parseClock(t);
+    if (sc) { startMin = toMin(sc.h, sc.mins); timeStart = fromMin(startMin); }
+
+    // Explicit end time: "to/until/till/through/- Y" (the time after the connector)
+    const rangeMatch = t.match(/(?:to|until|till|through|-|–)\s*(\d{1,2}(?:[:.\s]\d{2})?\s*(?:am|pm)?)\b/i);
+    // Duration: "for 30 minutes", "for 1 hour", "for an hour and a half", "for 90 mins", "for 2 hrs"
+    const numWordsD = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, half:0.5 };
+    const dNum = w => { if (w == null) return null; const s = String(w).toLowerCase(); return numWordsD[s] != null ? numWordsD[s] : (isNaN(+s) ? null : +s); };
+    const durTok = '(\\d+(?:\\.\\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)';
+    const durHalf = /\b(an?\s+hour\s+and\s+a\s+half|1\.5\s*h(?:ours?|rs?)?|90\s*min)/i.test(t);
+    const durHrs = t.match(new RegExp('for\\s+'+durTok+'\\s*(?:hours?|hrs?|h)\\b','i')) || t.match(new RegExp('\\b'+durTok+'\\s*(?:hours?|hrs?)\\b','i'));
+    const durMins = t.match(new RegExp('for\\s+'+durTok+'\\s*(?:minutes?|mins?|m)\\b','i')) || t.match(new RegExp('\\b'+durTok+'\\s*(?:minutes?|mins?)\\b','i'));
+    const durHalfHour = /\b(half\s+an?\s+hour|30\s*min)/i.test(t);
+
+    if (rangeMatch) {
+      const ec = parseClock(rangeMatch[1]);
+      if (ec) {
+        let em = toMin(ec.h, ec.mins);
+        if (!ec.ampm && em <= startMin) em += (em + 720 > startMin ? 720 : 0);
+        endMin = em;
+      }
+    } else if (durHalf) { endMin = startMin + 90; }
+    else if (durHalfHour && !durMins) { endMin = startMin + 30; }
+    else if (durHrs && durMins) { endMin = startMin + Math.round((dNum(durHrs[1])||1)*60) + Math.round(dNum(durMins[1])||0); }
+    else if (durHrs) { endMin = startMin + Math.round((dNum(durHrs[1])||1)*60); }
+    else if (durMins) { endMin = startMin + Math.round(dNum(durMins[1])||0); }
+
+    if (endMin === null) endMin = startMin + 60;            // default 1 hour
+    if (endMin <= startMin) endMin = startMin + 60;          // guard
+    timeEnd = fromMin(endMin);
+    // Parse date
+    let apptDate = viewingDate;
+    const numWordsA = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
+    const numTokA = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an)';
+    const toNumA = w => isNaN(+w) ? (numWordsA[w] || 1) : +w;
+    const monthsA = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const onDateA = t.match(/on (?:the )?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?/i);
+    const inDaysA = t.match(new RegExp('in '+numTokA+' days?'));
+    const inWeeksA = t.match(new RegExp('in '+numTokA+' weeks?'));
+    if (t.includes('tomorrow')) { const d = new Date(today); d.setDate(today.getDate()+1); apptDate = dateKey(d); }
+    else if (t.includes('next week')) { const d = new Date(today); d.setDate(today.getDate()+7); apptDate = dateKey(d); }
+    else if (inDaysA) { const d = new Date(today); d.setDate(today.getDate()+toNumA(inDaysA[1])); apptDate = dateKey(d); }
+    else if (inWeeksA) { const d = new Date(today); d.setDate(today.getDate()+toNumA(inWeeksA[1])*7); apptDate = dateKey(d); }
+    else if (onDateA) {
+      const dayNum = parseInt(onDateA[1]);
+      const monStr = onDateA[2] ? onDateA[2].toLowerCase().slice(0,3) : null;
+      const monNum = monStr ? monthsA[monStr] : today.getMonth();
+      const d = new Date(today.getFullYear(), monNum, dayNum);
+      if (d < today && !monStr) d.setMonth(d.getMonth()+1); // bare "the 13th" already passed → next month
+      if (d < today && monStr) d.setFullYear(today.getFullYear()+1); // named month already passed → next year
+      apptDate = dateKey(d);
+    }
+    else if (t.includes('today') || t.includes('tonight')) { apptDate = dateKey(today); }
+    let clean = text
+      .replace(/\bfor\s+an?\s+hour\s+and\s+a\s+half\b/gi,'')
+      .replace(/\bfor\s+half\s+an?\s+hour\b/gi,'')
+      .replace(/\bfor\s+\d+(?:\.\d+)?\s*(?:hours?|hrs?|h|minutes?|mins?|m)\b/gi,'')
+      .replace(/\b\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?)\b/gi,'')
+      .replace(/(?:from\s+)?\d{1,2}(?:[:.\s]\d{2})?\s*(?:am|pm)?\s*(?:to|until|till|through|-|–)\s*\d{1,2}(?:[:.\s]\d{2})?\s*(?:am|pm)?/gi,'')
+      .replace(/\bat\s+\d{1,2}\s*[:.\s]\s*\d{2}\s*(?:am|pm)?\b/gi,'')
+      .replace(/\bat\s+\d{1,2}\s*(?:am|pm)?\b/gi,'')
+      .replace(/\b\d{1,2}\s*[:.]\s*\d{2}\s*(?:am|pm)?\b/gi,'')
+      .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi,'')
+      .replace(/\bon (?:the )?\d{1,2}(?:st|nd|rd|th)?(?:\s+of)?\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?\b/gi,'')
+      .replace(new RegExp('in '+numTokA+' (?:days?|weeks?)','gi'),'')
+      .replace(/\b(today|tonight|tomorrow|this evening|this morning|this afternoon|next week)\b/gi,'')
+      .replace(/\b(into|in|on|to)\s+(my\s+|the\s+)?(daily\s+)?(schedule|calendar|diary)\b/gi,'')
+      .replace(/^(add|put|schedule|book|set up|set-up|create)\s+/i,'')
+      .replace(/^(make|set)\s+(an?\s+)?(appointment|meeting|reminder)\s*(for\s+|with\s+)?/i,'')
+      .replace(/^(an?\s+)?(appointment|meeting)\s+(for|with)\s+/i,'')
+      .replace(/\bfor\s+for\b/gi,'for')
+      .replace(/\b(at|to|from|until|till)\s*$/gi,'')
+      .replace(/^\s*(at|to|from)\s+/gi,'')
+      .replace(/\s+for\s+/gi,' for ')
+      .replace(/^for\s+/i,'')
+      .replace(/\s{2,}/g,' ')
+      .trim();
+    // ---------- Recurring commands ----------
+    // Detect a recurrence pattern and build a descriptor:
+    //   { type: 'daily' | 'weekdays' | 'weekly', weekday: 0-6 | null }
+    // weekday uses JS getDay(): 0=Sun ... 6=Sat.
+    const dayNamesR = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    let recurrence = null, recurLabel = '';
+    const namedDayR = t.match(/\bevery\s+(sun|mon|tues?|wednes?|thurs?|fri|satur)(?:day)?s?\b/i);
+    if (/\bevery\s+week\s*days?\b/i.test(t) || /\bon\s+weekdays\b/i.test(t) || /\bevery\s+weekday\b/i.test(t)) {
+      recurrence = { type: 'weekdays', weekday: null };
+      recurLabel = 'every weekday';
+    } else if (namedDayR) {
+      const stub = namedDayR[1].toLowerCase().replace(/s$/,'');
+      const wd = dayNamesR.findIndex(n => n.startsWith(stub));
+      recurrence = { type: 'weekly', weekday: wd >= 0 ? wd : null };
+      recurLabel = wd >= 0 ? 'every ' + dayNamesR[wd][0].toUpperCase() + dayNamesR[wd].slice(1) : 'weekly';
+    } else if (/\bevery\s*day\b/i.test(t) || /\bdaily\b/i.test(t) || /\beach\s+day\b/i.test(t)) {
+      recurrence = { type: 'daily', weekday: null };
+      recurLabel = 'every day';
+    } else if (/\bweekly\b/i.test(t) || /\bevery\s+week\b/i.test(t)) {
+      recurrence = { type: 'weekly', weekday: null }; // weekday taken from the start date below
+      recurLabel = 'weekly';
+    }
+
+    // Strip the recurrence phrase from the title so it reads cleanly.
+    if (recurrence) {
+      clean = clean
+        .replace(/\bevery\s+(?:sun|mon|tues?|wednes?|thurs?|fri|satur)(?:day)?s?\b/gi,'')
+        .replace(/\bevery\s+week\s*days?\b/gi,'')
+        .replace(/\bon\s+weekdays\b/gi,'')
+        .replace(/\bevery\s+weekday\b/gi,'')
+        .replace(/\beach\s+day\b/gi,'')
+        .replace(/\bevery\s*day\b/gi,'')
+        .replace(/\bevery\s+week\b/gi,'')
+        .replace(/\bweekdays?\b/gi,'')
+        .replace(/\bdaily\b/gi,'')
+        .replace(/\bweekly\b/gi,'')
+        .replace(/\b(at|to|from|on|every)\s*$/gi,'')
+        .replace(/^\s*(at|to|from|on)\s+/gi,'')
+        .replace(/\s{2,}/g,' ')
+        .trim();
+    }
+    const apptTitle = clean || text;
+
+    if (recurrence) {
+      // First occurrence as a Date (noon avoids DST edge cases).
+      let firstDate = new Date(apptDate + 'T12:00:00');
+      let guard = 0;
+      if (recurrence.type === 'weekly') {
+        if (recurrence.weekday === null) recurrence.weekday = firstDate.getDay();
+        while (firstDate.getDay() !== recurrence.weekday && guard < 7) { firstDate.setDate(firstDate.getDate()+1); guard++; }
+      } else if (recurrence.type === 'weekdays') {
+        while ((firstDate.getDay() === 0 || firstDate.getDay() === 6) && guard < 7) { firstDate.setDate(firstDate.getDate()+1); guard++; }
+      }
+
+      const OCCURRENCES = 12;
+      const seriesId = Date.now();
+      const dates = [];
+      let cursor = new Date(firstDate);
+      if (recurrence.type === 'daily') {
+        for (let i = 0; i < OCCURRENCES; i++) { dates.push(dateKey(cursor)); cursor.setDate(cursor.getDate()+1); }
+      } else if (recurrence.type === 'weekly') {
+        for (let i = 0; i < OCCURRENCES; i++) { dates.push(dateKey(cursor)); cursor.setDate(cursor.getDate()+7); }
+      } else { // weekdays: Mon–Fri only
+        let safety = 0;
+        while (dates.length < OCCURRENCES && safety < 400) {
+          const dow = cursor.getDay();
+          if (dow !== 0 && dow !== 6) dates.push(dateKey(cursor));
+          cursor.setDate(cursor.getDate()+1);
+          safety++;
+        }
+      }
+
+      dates.forEach((dk, i) => {
+        state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', done: false, recurring: true, seriesId });
+      });
+
+      const firstKey = dates[0];
+      viewingDate = firstKey;
+      calViewMonth = new Date(firstKey + 'T12:00:00'); calViewMonth.setDate(1);
+      updateViewingDateLabel();
+      renderAppointments();
+      renderScheduleGrid();
+      renderCalStrip();
+      showTab('daily', null);
+      showToast(`Recurring appointment added: "${apptTitle}" ${recurLabel} at ${fmt12(timeStart)} (${dates.length} added)`);
+      return;
+    }
+
+    state.appointments.push({ id: Date.now(), title: clean || text, timeStart, timeEnd, date: apptDate, location: '', done: false });
+    viewingDate = apptDate;
+    calViewMonth = new Date(apptDate + 'T12:00:00'); calViewMonth.setDate(1);
+    updateViewingDateLabel();
+    renderAppointments();
+    renderScheduleGrid();
+    renderCalStrip();
+    showTab('daily', null);
+    showToast(`Appointment added: "${clean}" at ${fmt12(timeStart)}`);
+    return;
+  } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
+    // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
+    let p = 'C';
+    const mPr = t.match(/\b(?:as an?\s+)?([abc])\s+priority\b/) || t.match(/\bas an?\s+([abc])\b/);
+    if (mPr) p = mPr[1].toUpperCase();
+    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').trim();
+
+    // Parse date from voice
+    const numWords = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
+    const numToken = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an)';
+    let taskDate = dateKey(today);
+    const tomorrowMatch = t.match(/tomorrow/);
+    const nextWeekMatch = t.match(/next week/);
+    const inDaysMatch = t.match(new RegExp('in '+numToken+' days?'));
+    const inWeeksMatch = t.match(new RegExp('in '+numToken+' weeks?'));
+    const onDateMatch = t.match(/on (?:the )?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?/i);
+    const toNum = w => isNaN(+w) ? (numWords[w] || 1) : +w;
+
+    if (tomorrowMatch) {
+      const d = new Date(today); d.setDate(today.getDate() + 1);
+      taskDate = dateKey(d);
+      clean = clean.replace(/tomorrow/i,'').trim();
+    } else if (nextWeekMatch) {
+      const d = new Date(today); d.setDate(today.getDate() + 7);
+      taskDate = dateKey(d);
+      clean = clean.replace(/next week/i,'').trim();
+    } else if (inDaysMatch) {
+      const d = new Date(today); d.setDate(today.getDate() + toNum(inDaysMatch[1]));
+      taskDate = dateKey(d);
+      clean = clean.replace(new RegExp('in '+numToken+' days?','i'),'').trim();
+    } else if (inWeeksMatch) {
+      const d = new Date(today); d.setDate(today.getDate() + toNum(inWeeksMatch[1]) * 7);
+      taskDate = dateKey(d);
+      clean = clean.replace(new RegExp('in '+numToken+' weeks?','i'),'').trim();
+    } else if (onDateMatch) {
+      const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+      const dayNum = parseInt(onDateMatch[1]);
+      const monthStr = onDateMatch[2] ? onDateMatch[2].toLowerCase().slice(0,3) : null;
+      const monthNum = monthStr ? months[monthStr] : today.getMonth();
+      const d = new Date(today.getFullYear(), monthNum, dayNum);
+      if (d < today) d.setFullYear(today.getFullYear() + 1);
+      taskDate = dateKey(d);
+      clean = clean.replace(onDateMatch[0],'').trim();
+    }
+
+    state.tasks.push({ id: Date.now(), text: (clean || text).replace(/\s{2,}/g,' ').trim(), p, done: false, date: taskDate, origDate: taskDate });
+    viewingDate = taskDate;
+    updateViewingDateLabel();
+    renderTasks();
+    renderCalStrip();
+    showTab('daily', null);
+    const dateLabel = taskDate === dateKey(today) ? 'today' : formatDateNice(taskDate);
+    showToast(`Task added for ${dateLabel}: "${(clean || text).slice(0,25)}"`);
+  } else if (t.includes('exercise') || t.includes('gym') || t.includes('run') || t.includes('walk') || t.includes('workout')) {
+    const k = weekKey + '-2-' + todayDow;
+    state.habitLog[k] = true;
+    renderHabits();
+    showToast('Exercise logged for today!');
+  } else if (t.includes('morning reflection') || t.includes('meditat') || t.includes('journa')) {
+    const k = weekKey + '-1-' + todayDow;
+    state.habitLog[k] = true;
+    renderHabits();
+    showToast('Morning reflection logged!');
+  } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
+    const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
+    state.notes.unshift({ id: Date.now(), title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
+    renderNotes();
+    showToast('Saved to notes');
+  } else if (t.includes('focus')) {
+    const clean = text.replace(/^(set|my) focus (is|to)?/i,'').replace(/focus on/i,'').trim();
+    setFocusText(clean || text);
+    showToast('Daily focus set');
+  } else {
+    showToast('Processing: "' + text.slice(0,40) + '"');
+    setTimeout(() => {
+      document.getElementById('voice-hint').textContent = 'Command sent to AI — check your tasks';
+    }, 500);
+  }
+}
+
+// ============================================================
+// DAY NAVIGATION
+// ============================================================
+function shiftViewDay(dir) {
+  const d = new Date(viewingDate + 'T12:00:00');
+  d.setDate(d.getDate() + dir);
+  viewingDate = dateKey(d);
+  // Keep calendar month in sync
+  calViewMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  document.getElementById('task-date').value = viewingDate;
+  document.getElementById('appt-date').value = viewingDate;
+  updateViewingDateLabel();
+  renderTasks();
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+  checkCarryForward();
+}
+
+// ============================================================
+// CARRY FORWARD — automatic. Any unfinished task rolls to today,
+// every day, until it's ticked done or deleted. (Franklin principle:
+// the task keeps coming back until you deal with it.)
+// Completed tasks stay on the day they were finished, as a record.
+// ============================================================
+function checkCarryForward() {
+  const todayKey = dateKey(today);
+  let moved = 0;
+  state.tasks.forEach(t => {
+    const d = t.date || todayKey;
+    // Roll forward only past, still-incomplete tasks. Done tasks stay put.
+    if (!t.done && d < todayKey) {
+      if (!t.origDate) t.origDate = d;   // remember when it first appeared
+      t.date = todayKey;                  // bring it to today
+      moved++;
+    }
+  });
+  if (moved > 0) {
+    renderTasks();
+    renderCalStrip();
+  }
+}
+
+// Whole days a still-open task has been chasing the user (0 = created today).
+function taskCarryDays(t) {
+  const origin = t.origDate || t.date || dateKey(today);
+  const a = new Date(origin + 'T12:00:00');
+  const b = new Date(dateKey(today) + 'T12:00:00');
+  const days = Math.round((b - a) / 86400000);
+  return days > 0 ? days : 0;
+}
+
+// ============================================================
+// APPOINTMENTS
+// ============================================================
+function toggleApptForm() {
+  const f = document.getElementById('appt-form');
+  f.classList.toggle('hidden');
+  if (!f.classList.contains('hidden')) {
+    document.getElementById('appt-date').value = viewingDate;
+    document.getElementById('appt-title').focus();
+  }
+}
+
+function addAppointment() {
+  const title = document.getElementById('appt-title').value.trim();
+  if (!title) { showToast('Please enter an appointment title'); return; }
+  const timeStart = document.getElementById('appt-time-start').value;
+  const timeEnd = document.getElementById('appt-time-end').value;
+  const date = document.getElementById('appt-date').value || viewingDate;
+  const location = document.getElementById('appt-location').value.trim();
+  state.appointments.push({
+    id: Date.now(), title, timeStart, timeEnd, date, location, done: false
+  });
+  // Reset form
+  document.getElementById('appt-title').value = '';
+  document.getElementById('appt-location').value = '';
+  document.getElementById('appt-form').classList.add('hidden');
+  // Navigate to appointment date
+  viewingDate = date;
+  calViewMonth = new Date(date + 'T12:00:00');
+  calViewMonth.setDate(1);
+  updateViewingDateLabel();
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+  showToast(`Appointment saved: "${title}" at ${timeStart}`);
+}
+
+function deleteAppointment(id) {
+  state.appointments = state.appointments.filter(a => a.id !== id);
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+}
+
+function fmt12(m) {
+  if (!m) return '';
+  let [hh, mm] = m.split(':').map(Number);
+  const ap = hh >= 12 ? 'pm' : 'am';
+  let h12 = hh % 12; if (h12 === 0) h12 = 12;
+  return `${h12}:${String(mm).padStart(2,'0')}${ap}`;
+}
+function renderAppointments() {
+  const el = document.getElementById('appt-list');
+  const empty = document.getElementById('appt-empty');
+  const appts = state.appointments
+    .filter(a => a.date === viewingDate)
+    .sort((a,b) => a.timeStart.localeCompare(b.timeStart));
+  if (appts.length === 0) {
+    el.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  el.innerHTML = '';
+  appts.forEach(a => {
+    const d = document.createElement('div');
+    d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:rgba(74,158,247,0.1);border-left:3px solid #4A9EF7;margin-bottom:6px';
+    d.innerHTML = `
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${a.title}</div>
+        <div style="font-size:11px;color:#4A9EF7;margin-top:2px">
+          ${fmt12(a.timeStart)}${a.timeEnd ? ' – ' + fmt12(a.timeEnd) : ''}
+          ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}
+        </div>
+      </div>
+      <button onclick="editAppointment(${a.id})" title="Edit" style="background:none;border:none;color:#4A9EF7;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.75"><i class="ti ti-pencil"></i></button>
+      <button onclick="deleteAppointment(${a.id})" title="Delete" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 4px;opacity:0.6">×</button>`;
+    el.appendChild(d);
+  });
+}
+
+// ============================================================
+// SCHEDULE GRID (Franklin-style hourly timeline)
+// ============================================================
+function renderScheduleGrid() {
+  const grid = document.getElementById('schedule-grid');
+  if (!grid) return;
+  // Full date header so you always know which day you're working in
+  const dateEl = document.getElementById('schedule-date');
+  if (dateEl) {
+    const d = new Date(viewingDate + 'T12:00:00');
+    const full = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const isToday = viewingDate === dateKey(today);
+    dateEl.innerHTML = full + (isToday ? ' <span style="font-size:11px;font-weight:700;color:var(--orange);background:rgba(242,119,26,0.12);padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:4px">TODAY</span>' : '');
+  }
+  grid.innerHTML = '';
+  const hours = [];
+  for (let h = 6; h <= 21; h++) hours.push(h);
+
+  // Get appointments and tasks for this day
+  const appts = state.appointments.filter(a => a.date === viewingDate);
+  const tasks = state.tasks.filter(t => (t.date || dateKey(today)) === viewingDate && !t.done);
+
+  // Current time marker
+  const nowH = today.getHours();
+  const nowM = today.getMinutes();
+  const isToday = viewingDate === dateKey(today);
+
+  hours.forEach(h => {
+    const slotAppts = appts.filter(a => {
+      if (!a.timeStart) return false;
+      const ah = parseInt(a.timeStart.split(':')[0]);
+      return ah === h;
+    });
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:36px;position:relative;cursor:pointer';
+    row.onclick = () => quickAddAppt(h);
+
+    const timeLabel = document.createElement('div');
+    timeLabel.style.cssText = 'width:38px;font-size:10px;color:var(--text-mid);padding-top:4px;flex-shrink:0;font-weight:500';
+    timeLabel.textContent = h === 12 ? '12pm' : h < 12 ? h + 'am' : (h-12) + 'pm';
+
+    const slotContent = document.createElement('div');
+    slotContent.style.cssText = 'flex:1;border-top:1px solid var(--border);padding:4px 0;min-height:36px;position:relative';
+
+    // Current time indicator
+    if (isToday && nowH === h) {
+      const indicator = document.createElement('div');
+      const pct = (nowM / 60) * 100;
+      indicator.style.cssText = `position:absolute;top:${pct}%;left:0;right:0;height:2px;background:var(--orange);z-index:2;border-radius:1px`;
+      const dot = document.createElement('div');
+      dot.style.cssText = 'position:absolute;top:-4px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--orange)';
+      indicator.appendChild(dot);
+      slotContent.appendChild(indicator);
+    }
+
+    // Appointments in this slot
+    slotAppts.forEach(a => {
+      const sm = parseInt((a.timeStart.split(':')[1]) || '0');
+      // duration in minutes (for height) — default 60 if no end
+      let durMin = 60;
+      if (a.timeEnd) {
+        const [eh, em] = a.timeEnd.split(':').map(Number);
+        const [shh, smm] = a.timeStart.split(':').map(Number);
+        durMin = Math.max(15, (eh * 60 + em) - (shh * 60 + smm));
+      }
+      const PX_PER_MIN = 36 / 60; // each hour row ≈ 36px
+      const apptEl = document.createElement('div');
+      const topPct = Math.min(85, (sm / 60) * 100);
+      const heightPx = Math.max(26, Math.round(durMin * PX_PER_MIN));
+      apptEl.style.cssText = `position:relative;background:rgba(74,158,247,0.15);border-left:3px solid #4A9EF7;border-radius:0 6px 6px 0;padding:3px 8px;margin-bottom:2px;cursor:pointer;box-sizing:border-box;height:${heightPx}px;overflow:hidden;${sm ? `margin-top:${topPct*0.32}px;` : ''}`;
+      const t12 = m => fmt12(m);
+      apptEl.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--text);padding-right:18px">${a.title}</div><div style="font-size:10px;color:#4A9EF7">${t12(a.timeStart)}${a.timeEnd ? '–'+t12(a.timeEnd) : ''}</div>
+        <div class="appt-del" title="Delete" style="position:absolute;top:2px;right:4px;font-size:15px;line-height:1;color:var(--text-mid);opacity:0.6;padding:2px">×</div>`;
+      apptEl.onclick = (e) => {
+        e.stopPropagation();
+        if (e.target.classList.contains('appt-del')) {
+          if (confirm(`Delete "${a.title}"?`)) deleteAppointment(a.id);
+        }
+      };
+      slotContent.appendChild(apptEl);
+    });
+
+    // Hover hint
+    row.onmouseenter = () => { if (!slotAppts.length) slotContent.style.background = 'rgba(242,119,26,0.04)'; };
+    row.onmouseleave = () => { slotContent.style.background = ''; };
+
+    row.appendChild(timeLabel);
+    row.appendChild(slotContent);
+    grid.appendChild(row);
+  });
+
+  // Show unscheduled tasks below the grid
+  if (tasks.length > 0) {
+    const unscheduled = tasks.filter(t => !t.timeScheduled);
+    if (unscheduled.length > 0) {
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:11px;color:var(--text-mid);margin-top:8px;margin-bottom:4px;font-weight:600';
+      label.textContent = `${unscheduled.length} unscheduled task${unscheduled.length > 1 ? 's' : ''}`;
+      grid.appendChild(label);
+    }
+  }
+}
+
+function quickAddAppt(hour) {
+  const h = String(hour).padStart(2,'0');
+  const h2 = String(hour + 1).padStart(2,'0');
+  document.getElementById('appt-time-start').value = `${h}:00`;
+  document.getElementById('appt-time-end').value = `${h2}:00`;
+  document.getElementById('appt-date').value = viewingDate;
+  document.getElementById('appt-form').classList.remove('hidden');
+  document.getElementById('appt-title').focus();
+  showToast(`Adding appointment at ${hour < 12 ? hour+'am' : hour === 12 ? '12pm' : (hour-12)+'pm'}`);
+}
+function setFocus() {
+  const inp = document.getElementById('focus-input');
+  if (inp.value.trim()) setFocusText(inp.value.trim());
+}
+
+function setFocusText(text) {
+  state.focus = text;
+  document.getElementById('focus-input').value = text;
+  document.getElementById('focus-display').textContent = text;
+  document.getElementById('focus-display').style.display = 'block';
+  document.getElementById('focus-input').style.display = 'none';
+}
+
+function editFocus() {
+  document.getElementById('focus-display').style.display = 'none';
+  document.getElementById('focus-input').style.display = 'block';
+  document.getElementById('focus-input').focus();
+}
+
+function addTask() {
+  const inp = document.getElementById('task-inp');
+  const p = document.getElementById('task-pri').value;
+  const dateInp = document.getElementById('task-date');
+  if (!inp.value.trim()) return;
+  const taskDate = dateInp.value || dateKey(today);
+  state.tasks.push({ id: Date.now(), text: inp.value.trim(), p, done: false, date: taskDate, origDate: taskDate });
+  inp.value = '';
+  dateInp.value = dateKey(today);
+  // Switch to the day the task was added if it's not today
+  if (taskDate !== dateKey(today)) {
+    viewingDate = taskDate;
+    updateViewingDateLabel();
+  }
+  renderTasks();
+  renderCalStrip();
+  if (taskDate !== dateKey(today)) {
+    showToast(`Task scheduled for ${formatDateNice(taskDate)}`);
+  }
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (t) { t.done = !t.done; renderTasks(); renderCalStrip(); }
+}
+
+// ============================================================
+// EDIT ENGINE — typed (and voice) editing for anything created.
+// Any item made by voice can also be edited or deleted by typing.
+// ============================================================
+let editCtx = null;
+
+function editTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  editCtx = { kind: 'task', id };
+  openEditModal('Edit task', [
+    { id: 'edit-f1', label: 'Task', value: t.text, mic: true },
+    { id: 'edit-f2', label: 'Priority', value: t.p, type: 'select', options: [['A','A \u2014 must do today'],['B','B \u2014 should do'],['C','C \u2014 nice to do']] }
+  ]);
+}
+
+function editNote(id) {
+  const n = state.notes.find(x => x.id === id);
+  if (!n) return;
+  editCtx = { kind: 'note', id };
+  openEditModal('Edit note', [
+    { id: 'edit-f1', label: 'Title', value: n.title, mic: true },
+    { id: 'edit-f2', label: 'Note', value: n.body || '', mic: true, big: true }
+  ]);
+}
+
+function editAppointment(id) {
+  const a = state.appointments.find(x => x.id === id);
+  if (!a) return;
+  editCtx = { kind: 'appt', id };
+  openEditModal('Edit appointment', [
+    { id: 'edit-f1', label: 'Title', value: a.title, mic: true },
+    { id: 'edit-t1', label: 'Start', value: a.timeStart || '', type: 'time' },
+    { id: 'edit-t2', label: 'End (optional)', value: a.timeEnd || '', type: 'time' },
+    { id: 'edit-f2', label: 'Location (optional)', value: a.location || '', mic: true }
+  ]);
+}
+
+function editCapture(idx) {
+  if (!currentProject) return;
+  const c = currentProject.captures[idx];
+  if (!c) return;
+  editCtx = { kind: 'capture', idx };
+  openEditModal('Edit item', [
+    { id: 'edit-f1', label: 'Title', value: c.title, mic: true },
+    { id: 'edit-f2', label: 'Detail', value: c.body || '', mic: true, big: true }
+  ]);
+}
+
+function openEditModal(title, fields) {
+  document.getElementById('edit-modal-title').textContent = title;
+  const wrap = document.getElementById('edit-modal-fields');
+  wrap.innerHTML = '';
+  fields.forEach(f => {
+    const row = document.createElement('div');
+    row.style.cssText = 'margin-bottom:12px';
+    const lab = document.createElement('label');
+    lab.textContent = f.label;
+    lab.style.cssText = 'display:block;font-size:12px;font-weight:600;color:var(--text-mid);margin-bottom:4px';
+    row.appendChild(lab);
+    let inputEl;
+    if (f.type === 'select') {
+      inputEl = document.createElement('select');
+      inputEl.id = f.id; inputEl.className = 'edit-input';
+      f.options.forEach(([v, labelTxt]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = labelTxt;
+        if (v === f.value) o.selected = true;
+        inputEl.appendChild(o);
+      });
+      row.appendChild(inputEl);
+    } else if (f.big) {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'display:flex;gap:6px;align-items:flex-start';
+      inputEl = document.createElement('textarea');
+      inputEl.id = f.id; inputEl.className = 'edit-input'; inputEl.rows = 3;
+      inputEl.value = f.value || '';
+      cell.appendChild(inputEl);
+      if (f.mic) cell.appendChild(makeEditMic(f.id));
+      row.appendChild(cell);
+    } else {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'display:flex;gap:6px;align-items:center';
+      inputEl = document.createElement('input');
+      inputEl.id = f.id; inputEl.className = 'edit-input';
+      inputEl.type = f.type || 'text';
+      inputEl.value = f.value || '';
+      cell.appendChild(inputEl);
+      if (f.mic) cell.appendChild(makeEditMic(f.id));
+      row.appendChild(cell);
+    }
+    wrap.appendChild(row);
+  });
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function makeEditMic(fieldId) {
+  const mic = document.createElement('button');
+  mic.type = 'button';
+  mic.className = 'field-mic';
+  mic.title = 'Speak';
+  mic.style.flexShrink = '0';
+  mic.innerHTML = '<i class="ti ti-microphone"></i>';
+  mic.onclick = (e) => { e.preventDefault(); e.stopPropagation(); dictateInto(fieldId, mic); };
+  return mic;
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editCtx = null;
+}
+
+function saveEdit() {
+  if (!editCtx) return;
+  const v1El = document.getElementById('edit-f1');
+  const v2El = document.getElementById('edit-f2');
+  const v1 = v1El ? v1El.value.trim() : '';
+  const v2 = v2El ? v2El.value.trim() : '';
+  if (editCtx.kind === 'task') {
+    const t = state.tasks.find(x => x.id === editCtx.id);
+    if (t) { if (!v1) { showToast('Task can\u2019t be empty'); return; } t.text = v1; t.p = v2 || t.p; }
+    renderTasks(); renderCalStrip();
+  } else if (editCtx.kind === 'note') {
+    const n = state.notes.find(x => x.id === editCtx.id);
+    if (n) { n.title = v1 || 'Quick capture'; n.body = v2; }
+    renderNotes();
+  } else if (editCtx.kind === 'appt') {
+    const a = state.appointments.find(x => x.id === editCtx.id);
+    if (a) {
+      if (!v1) { showToast('Appointment needs a title'); return; }
+      a.title = v1;
+      a.timeStart = document.getElementById('edit-t1').value || a.timeStart;
+      a.timeEnd = document.getElementById('edit-t2').value;
+      a.location = v2;
+    }
+    renderAppointments(); renderScheduleGrid(); renderCalStrip();
+  } else if (editCtx.kind === 'capture') {
+    const c = currentProject && currentProject.captures[editCtx.idx];
+    if (c) { if (!v1) { showToast('Title can\u2019t be empty'); return; } c.title = v1; c.body = v2; }
+    renderDetailCaptures();
+  }
+  showToast('Saved');
+  closeEditModal();
+}
+
+function deleteFromEdit() {
+  if (!editCtx) return;
+  if (editCtx.kind === 'task') { state.tasks = state.tasks.filter(x => x.id !== editCtx.id); renderTasks(); renderCalStrip(); }
+  else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); renderNotes(); }
+  else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
+  else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
+  showToast('Deleted');
+  closeEditModal();
+}
+
+function renderTasks() {
+  renderOverloadNotice();
+  const el = document.getElementById('task-list');
+  el.innerHTML = '';
+  const tasksForDay = state.tasks.filter(t => (t.date || dateKey(today)) === viewingDate);
+  if (tasksForDay.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">No tasks for this day yet.<br><span style="font-size:12px;opacity:0.7">Add one below or speak to the microphone.</span></div>`;
+    return;
+  }
+  [...tasksForDay].sort((a,b) => a.p.localeCompare(b.p)).forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'task-row' + (t.done ? ' done' : '');
+    // Carried-over tag: only on still-open tasks that have been chasing the user.
+    const days = t.done ? 0 : taskCarryDays(t);
+    let carryTag = '';
+    if (days >= 1) {
+      const strong = days >= 3;                       // gentle escalation from day 3
+      const label = days === 1 ? 'carried · day 1' : `carried · ${days} days`;
+      carryTag = `<span class="carry-tag${strong ? ' carry-strong' : ''}" title="Persistent Task \u2014 carries forward every day until you tick it done">${label}</span>`;
+    }
+    d.innerHTML = `
+      <div class="priority-badge p${t.p}">${t.p}</div>
+      <div class="task-text">${t.text}${carryTag}</div>
+      <button class="row-edit" title="Edit" onclick="event.stopPropagation();editTask(${t.id})"><i class="ti ti-pencil"></i></button>
+      <div class="task-check${t.done ? ' done' : ''}"></div>`;
+    d.onclick = () => toggleTask(t.id);
+    el.appendChild(d);
+  });
+}
+
+// Gentle "don't overload your day" guidance — quality over quantity
+function renderOverloadNotice() {
+  const el = document.getElementById('overload-notice');
+  if (!el) return;
+  const dayTasks = state.tasks.filter(t => (t.date || dateKey(today)) === viewingDate && !t.done);
+  const dayAppts = state.appointments.filter(a => a.date === viewingDate);
+  // Estimate committed hours from appointments
+  let apptHours = 0;
+  dayAppts.forEach(a => {
+    if (a.timeStart && a.timeEnd) {
+      const [sh, sm] = a.timeStart.split(':').map(Number);
+      const [eh, em] = a.timeEnd.split(':').map(Number);
+      apptHours += Math.max(0, ((eh * 60 + em) - (sh * 60 + sm)) / 60);
+    } else { apptHours += 1; }
+  });
+  const aCount = dayTasks.filter(t => t.p === 'A').length;
+  const total = dayTasks.length;
+
+  let msg = '';
+  // Too many top priorities — the classic "everything is priority A" trap
+  if (aCount >= 4) {
+    msg = `You've set <strong>${aCount} A-priority tasks</strong> for this day. When everything is the top priority, nothing is. Which one or two truly matter most? The rest can be B's.`;
+  }
+  // Heavy overall load relative to a realistic day
+  else if (total >= 8 && apptHours >= 3) {
+    msg = `That's <strong>${total} tasks and about ${Math.round(apptHours)} hours of appointments</strong> in one day. That's a lot to carry. Consider moving a few tasks to another day — protecting your time is part of planning well.`;
+  }
+  else if (total >= 10) {
+    msg = `<strong>${total} tasks</strong> for one day is ambitious. The most effective planners pick a few that matter and let the rest wait. What could move to tomorrow?`;
+  }
+  else if (apptHours >= 7) {
+    msg = `Your schedule has <strong>about ${Math.round(apptHours)} hours</strong> of appointments today. Make sure you've left room to breathe between them.`;
+  }
+
+  if (msg) { el.innerHTML = '💭 ' + msg; el.style.display = 'block'; }
+  else { el.style.display = 'none'; }
+}
+
+// ============================================================
+// CALENDAR STRIP
+// ============================================================
+function formatDateNice(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const tk = dateKey(today);
+  if (dateStr === tk) return 'today';
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  if (dateStr === dateKey(tomorrow)) return 'tomorrow';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function updateViewingDateLabel() {
+  const lbl = document.getElementById('viewing-date-label');
+  const btn = document.getElementById('go-today-btn');
+  lbl.textContent = formatDateNice(viewingDate);
+  btn.style.display = viewingDate === dateKey(today) ? 'none' : 'block';
+}
+
+function goToToday() {
+  viewingDate = dateKey(today);
+  updateViewingDateLabel();
+  renderTasks();
+  renderCalStrip();
+}
+
+function calShift(dir) {
+  calViewMonth.setMonth(calViewMonth.getMonth() + dir);
+  renderCalStrip();
+}
+
+function renderCalStrip() {
+  const strip = document.getElementById('cal-strip');
+  const lbl = document.getElementById('cal-month-label');
+  if (!strip) return;
+
+  lbl.textContent = calViewMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const year = calViewMonth.getFullYear();
+  const month = calViewMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+  const todayKey = dateKey(today);
+
+  // Task dots map
+  const taskDots = {};
+  state.tasks.forEach(t => {
+    const k = t.date || todayKey;
+    if (!taskDots[k]) taskDots[k] = 0;
+    if (!t.done) taskDots[k]++;
+  });
+  // Appointment dots map
+  const apptDots = {};
+  state.appointments.forEach(a => {
+    const k = a.date || todayKey;
+    apptDots[k] = (apptDots[k] || 0) + 1;
+  });
+
+  strip.innerHTML = '';
+
+  // Day headers
+  ['M','T','W','T','F','S','S'].forEach(d => {
+    const h = document.createElement('div');
+    h.textContent = d;
+    h.style.cssText = 'font-size:10px;font-weight:700;color:var(--text-mid);padding:2px 0';
+    strip.appendChild(h);
+  });
+
+  // Empty cells before first day
+  for (let i = 0; i < startDow; i++) {
+    strip.appendChild(document.createElement('div'));
+  }
+
+  // Day cells
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const cellDate = dateKey(new Date(year, month, d));
+    const isToday = cellDate === todayKey;
+    const isViewing = cellDate === viewingDate;
+    const hasTasks = taskDots[cellDate] > 0;
+    const hasAppts = apptDots[cellDate] > 0;
+
+    const cell = document.createElement('div');
+    cell.style.cssText = `
+      position:relative;
+      cursor:pointer;
+      border-radius:50%;
+      width:28px;
+      height:28px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:${isToday ? '700' : '400'};
+      margin:1px auto;
+      background:${isViewing ? 'var(--orange)' : isToday ? 'var(--navy)' : 'transparent'};
+      color:${isViewing ? 'var(--navy)' : isToday ? 'var(--orange)' : 'var(--text)'};
+      border:${isToday && !isViewing ? '2px solid var(--orange)' : '2px solid transparent'};
+      transition:all 0.15s;
+    `;
+    cell.textContent = d;
+
+    if ((hasTasks || hasAppts) && !isViewing) {
+      const dotWrap = document.createElement('div');
+      dotWrap.style.cssText = 'position:absolute;bottom:2px;left:50%;transform:translateX(-50%);display:flex;gap:2px';
+      if (hasTasks) {
+        const d1 = document.createElement('div');
+        d1.style.cssText = 'width:4px;height:4px;border-radius:50%;background:var(--orange)';
+        dotWrap.appendChild(d1);
+      }
+      if (hasAppts) {
+        const d2 = document.createElement('div');
+        d2.style.cssText = 'width:4px;height:4px;border-radius:50%;background:#378ADD';
+        dotWrap.appendChild(d2);
+      }
+      cell.appendChild(dotWrap);
+    }
+
+    cell.onclick = () => {
+      viewingDate = cellDate;
+      // Keep calendar on same month if user clicks a day
+      calViewMonth = new Date(year, month, 1);
+      updateViewingDateLabel();
+      renderTasks();
+      renderAppointments();
+      renderScheduleGrid();
+      renderCalStrip();
+      // Update date picker to match (if present)
+      const dp = document.getElementById('task-date');
+      if (dp) dp.value = cellDate;
+    };
+    strip.appendChild(cell);
+  }
+  updateViewingDateLabel();
+}
+
+// ============================================================
+// HABITS TAB
+// ============================================================
+function renderHabits() {
+  const el = document.getElementById('habit-grid');
+  el.innerHTML = '';
+  let maxStreak = 0;
+  state.habits.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'habit-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'habit-name';
+    lbl.textContent = h.name;
+    const days = document.createElement('div');
+    days.className = 'habit-days';
+    DAYS.forEach((d, i) => {
+      const k = weekKey + '-' + h.id + '-' + i;
+      const done = !!state.habitLog[k];
+      const cell = document.createElement('div');
+      cell.className = 'h-day' + (done ? ' done' : '') + (i === todayDow ? ' today' : '');
+      cell.innerHTML = done ? '<i class="ti ti-check" style="font-size:13px"></i>' : d;
+      cell.onclick = () => {
+        state.habitLog[k] = !state.habitLog[k];
+        renderHabits();
+      };
+      days.appendChild(cell);
+    });
+    row.appendChild(lbl);
+    row.appendChild(days);
+    el.appendChild(row);
+  });
+  let streak = 0;
+  for (let i = todayDow; i >= 0; i--) {
+    if (state.habits.some(h => state.habitLog[weekKey + '-' + h.id + '-' + i])) streak++;
+    else break;
+  }
+  document.getElementById('streak-num').textContent = streak;
+}
+
+// ============================================================
+// GOALS TAB
+// ============================================================
+function changeGoal(id, delta) {
+  const g = state.goals.find(x => x.id === id);
+  if (!g) return;
+  g.cur = Math.max(0, Math.min(g.tot, g.cur + delta));
+  renderGoals();
+}
+
+function renderGoals() {
+  const el = document.getElementById('goals-list');
+  el.innerHTML = '';
+  state.goals.forEach(g => {
+    const pct = Math.round((g.cur / g.tot) * 100);
+    const d = document.createElement('div');
+    d.className = 'goal-item';
+    d.innerHTML = `
+      <div class="goal-header">
+        <div class="goal-name">${g.name}</div>
+        <div class="goal-role">${g.role}</div>
+      </div>
+      <div class="goal-bar-bg"><div class="goal-bar" style="width:${pct}%"></div></div>
+      <div class="goal-meta">
+        <span>${g.cur}${g.unit ? ' ' + g.unit : ''} of ${g.tot}${g.unit ? ' ' + g.unit : ''}</span>
+        <span>${pct}%</span>
+      </div>
+      <div class="goal-controls">
+        <button class="goal-btn" onclick="changeGoal(${g.id},-1)">− Progress</button>
+        <button class="goal-btn" onclick="changeGoal(${g.id},1)">+ Progress</button>
+      </div>`;
+    el.appendChild(d);
+  });
+}
+
+// ============================================================
+// PROJECTS TAB
+// ============================================================
+function showNewProjForm() {
+  const f = document.getElementById('new-proj-form');
+  f.classList.toggle('hidden');
+}
+
+function cycleIcon() {
+  state.iconIdx = (state.iconIdx + 1) % ICONS.length;
+  document.getElementById('np-icon').textContent = ICONS[state.iconIdx];
+}
+
+function createProject() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { showToast('Please enter a project name'); return; }
+  const desc = document.getElementById('np-desc').value.trim();
+  const icon = document.getElementById('np-icon').textContent;
+  state.projects.push({
+    id: Date.now(), name, desc, icon, status: 'Planning',
+    progress: 0, tags: [], captures: []
+  });
+  document.getElementById('np-name').value = '';
+  document.getElementById('np-desc').value = '';
+  document.getElementById('new-proj-form').classList.add('hidden');
+  renderProjects();
+  showToast('Project "' + name + '" created!');
+}
+
+function renderProjects() {
+  const el = document.getElementById('proj-list');
+  el.innerHTML = '';
+  state.projects.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'proj-card';
+    card.innerHTML = `
+      <div class="proj-top-bar"></div>
+      <div class="proj-header">
+        <div class="proj-emoji">${p.icon}</div>
+        <div class="proj-info">
+          <div class="proj-name">${p.name}</div>
+          <div style="font-size:11px;color:#85B7EB;margin-top:2px">${p.desc || 'No description'}</div>
+        </div>
+        <div class="proj-status-badge">${p.status}</div>
+      </div>
+      <div class="proj-stats">
+        <div class="pstat"><div class="pstat-n">${p.captures.length}</div><div class="pstat-l">Items</div></div>
+        <div class="pstat"><div class="pstat-n">${p.captures.filter(c=>c.type==='voice').length}</div><div class="pstat-l">Voice</div></div>
+        <div class="pstat"><div class="pstat-n">${p.captures.filter(c=>c.type==='photo').length}</div><div class="pstat-l">Photos</div></div>
+        <div class="pstat"><div class="pstat-n">${p.captures.filter(c=>c.type==='doc').length}</div><div class="pstat-l">Docs</div></div>
+      </div>
+      ${p.tags.length ? `<div class="proj-tags">${p.tags.map(t=>`<span class="ptag">#${t}</span>`).join('')}</div>` : ''}`;
+    card.onclick = () => openDetail(p);
+    el.appendChild(card);
+  });
+}
+
+function openDetail(p) {
+  currentProject = p;
+  document.getElementById('detail-name').textContent = p.icon + ' ' + p.name;
+  document.getElementById('detail-desc').textContent = (p.desc || '') + ' · ' + p.status + ' · ' + p.progress + '% complete';
+  renderDetailCaptures();
+  renderDetailTasks();
+  document.getElementById('proj-detail').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('proj-detail').classList.remove('open');
+  currentProject = null;
+  renderProjects();
+}
+
+const CAP_ICONS = { voice: 'ti-microphone', photo: 'ti-camera', doc: 'ti-file-text', link: 'ti-link', convo: 'ti-message-circle', idea: 'ti-bulb' };
+const CAP_NAMES = { voice: 'Voice memo', photo: 'Photo', doc: 'Document', link: 'Web link', convo: 'Conversation', idea: 'Idea' };
+
+// Capture flow: real input via modal. Photo is an honest "mobile app" stub.
+const CAP_CONFIG = {
+  voice: { title: 'Voice memo', sub: 'Type the note (full voice recording comes with the mobile app).', field1: 'Title (optional)', field2: 'What do you want to remember?', big: true },
+  doc:   { title: 'Document', sub: 'Note a document for this project so you can find it later (file upload comes with the mobile app).', field1: 'Document name or reference', field2: 'Where it is / notes (optional)', big: true },
+  link:  { title: 'Web link', sub: 'Paste the URL you want to save.', field1: 'https://…', field2: 'Why it matters (optional)', big: false },
+  convo: { title: 'Conversation', sub: 'Capture who you spoke to and what was said.', field1: 'Who with?', field2: 'Key points', big: true },
+  idea:  { title: 'Idea', sub: 'Capture the idea before it\'s gone.', field1: 'The idea', field2: 'Detail (optional)', big: true }
+};
+let captureType = null;
+
+function capture(type) {
+  if (!currentProject) return;
+  if (type === 'photo') {
+    showToast('📷 Photo capture comes with the VoiceFirstPlanner mobile app');
+    return;
+  }
+  const cfg = CAP_CONFIG[type];
+  if (!cfg) return;
+  captureType = type;
+  document.getElementById('capture-modal-title').textContent = cfg.title;
+  document.getElementById('capture-modal-sub').textContent = cfg.sub;
+  const i1 = document.getElementById('capture-input-1');
+  const i2 = document.getElementById('capture-input-2');
+  i1.value = ''; i2.value = '';
+  i1.placeholder = cfg.field1;
+  i2.placeholder = cfg.field2;
+  i2.style.display = cfg.big ? 'block' : 'none';
+  document.getElementById('capture-modal').classList.add('open');
+  setTimeout(() => i1.focus(), 100);
+}
+
+function closeCapture() {
+  document.getElementById('capture-modal').classList.remove('open');
+  captureType = null;
+}
+
+function saveCapture() {
+  if (!currentProject || !captureType) return;
+  const v1 = document.getElementById('capture-input-1').value.trim();
+  const v2 = document.getElementById('capture-input-2').value.trim();
+  if (!v1 && !v2) { showToast('Type something first, or tap Cancel'); return; }
+  const cfg = CAP_CONFIG[captureType];
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const title = v1 || cfg.title;
+  const meta = v2 ? v2.slice(0, 60) : (cfg.title + ' · ' + time);
+  currentProject.captures.unshift({
+    type: captureType, title, meta, body: v2 || '', icon: CAP_ICONS[captureType]
+  });
+  renderDetailCaptures();
+  closeCapture();
+  showToast(cfg.title + ' saved');
+}
+
+function renderDetailCaptures() {
+  const el = document.getElementById('detail-captures');
+  if (!currentProject || !currentProject.captures.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:12px">No items yet — tap a capture button above.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  currentProject.captures.forEach((c, idx) => {
+    const d = document.createElement('div');
+    d.className = 'capture-item';
+    d.style.flexWrap = 'wrap';
+    const body = (c.body || '').trim();
+    const isLink = c.type === 'link';
+    d.innerHTML = `
+      <div class="cap-icon"><i class="ti ${c.icon}"></i></div>
+      <div class="cap-info"><div class="cap-title">${c.title}</div><div class="cap-meta">${c.meta}</div></div>
+      <i class="ti ti-chevron-down cap-chev" style="font-size:14px;color:var(--text-light);transition:transform 0.15s"></i>
+      <div class="cap-detail" style="display:none;width:100%;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text);line-height:1.5"></div>`;
+    const detail = d.querySelector('.cap-detail');
+    let detailHtml = '';
+    if (isLink && (c.title.startsWith('http') || c.body.startsWith('http'))) {
+      const url = c.title.startsWith('http') ? c.title : c.body;
+      detailHtml += `<a href="${url}" target="_blank" rel="noopener" style="color:#4A9EF7;word-break:break-all">${url} ↗</a>`;
+      if (body && c.body !== url) detailHtml += `<div style="margin-top:6px">${body}</div>`;
+    } else if (body) {
+      detailHtml += body;
+    } else {
+      detailHtml += '<span style="color:var(--text-light)">No further detail — tap a capture button to add more.</span>';
+    }
+    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px"><button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:#4A9EF7;cursor:pointer">Edit</button><button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
+    detail.innerHTML = detailHtml;
+    d.onclick = (e) => {
+      if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+      const open = detail.style.display === 'block';
+      detail.style.display = open ? 'none' : 'block';
+      const chev = d.querySelector('.cap-chev');
+      chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    };
+    el.appendChild(d);
+  });
+}
+
+function deleteCapture(idx) {
+  if (!currentProject) return;
+  currentProject.captures.splice(idx, 1);
+  renderDetailCaptures();
+  showToast('Item deleted');
+}
+
+function renderDetailTasks() {
+  const el = document.getElementById('detail-tasks');
+  const projTasks = state.tasks.filter(t => t.projId === currentProject?.id);
+  if (!projTasks.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-light);padding:4px 0">No tasks linked to this project yet.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  projTasks.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'task-row' + (t.done ? ' done' : '');
+    d.style.marginBottom = '6px';
+    d.innerHTML = `<div class="priority-badge p${t.p}">${t.p}</div><div class="task-text">${t.text}</div>`;
+    d.onclick = () => toggleTask(t.id);
+    el.appendChild(d);
+  });
+}
+
+// ============================================================
+// NOTES TAB
+// ============================================================
+function saveNote() {
+  const body = document.getElementById('note-body-inp').value.trim();
+  if (!body) { showToast('Please enter a note'); return; }
+  const title = document.getElementById('note-title-inp').value.trim() || 'Quick capture';
+  state.notes.unshift({ id: Date.now(), title, body, tags: [...state.selectedTags], checklist: null });
+  document.getElementById('note-body-inp').value = '';
+  document.getElementById('note-title-inp').value = '';
+  state.selectedTags = [];
+  renderNotes();
+  showToast('Note saved!');
+}
+
+function toggleNoteTag(tag) {
+  const idx = state.selectedTags.indexOf(tag);
+  if (idx >= 0) state.selectedTags.splice(idx, 1);
+  else state.selectedTags.push(tag);
+  renderTagPills();
+}
+
+function toggleChecklistItem(noteId, idx) {
+  const n = state.notes.find(x => x.id === noteId);
+  if (n && n.checklist) { n.checklist[idx].done = !n.checklist[idx].done; renderNotes(); }
+}
+
+function renderTagPills() {
+  const el = document.getElementById('tag-pills');
+  el.innerHTML = '';
+  TAGS.forEach(tag => {
+    const s = document.createElement('span');
+    s.className = 'tag-pill' + (state.selectedTags.includes(tag) ? ' on' : '');
+    s.textContent = '#' + tag;
+    s.onclick = () => toggleNoteTag(tag);
+    el.appendChild(s);
+  });
+}
+
+function renderNotes() {
+  renderTagPills();
+  const el = document.getElementById('notes-list');
+  el.innerHTML = '';
+  state.notes.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
+    if (n.body) inner += `<div class="note-body">${n.body}</div>`;
+    if (n.checklist) {
+      inner += n.checklist.map((c, i) => `
+        <div class="checklist-item" onclick="toggleChecklistItem(${n.id},${i})">
+          <div class="cl-box${c.done ? ' done' : ''}"></div>
+          <div class="cl-text${c.done ? ' done' : ''}">${c.text}</div>
+        </div>`).join('');
+    }
+    if (n.tags.length) {
+      inner += `<div class="note-tags" style="margin-top:8px">${n.tags.map(t => `<span class="ntag">#${t}</span>`).join('')}</div>`;
+    }
+    card.innerHTML = inner;
+    el.appendChild(card);
+  });
+}
+
+// ============================================================
+// REFLECTION TAB
+// ============================================================
+function saveReflection() {
+  const well = document.getElementById('r-well').value.trim();
+  const improve = document.getElementById('r-improve').value.trim();
+  const grateful = document.getElementById('r-grateful').value.trim();
+  const intention = document.getElementById('r-intention').value.trim();
+  if (!well && !improve && !grateful && !intention) {
+    showToast('Write or speak at least one answer first');
+    return;
+  }
+  const todayK = dateKey(today);
+  const entry = { date: todayK, well, improve, grateful, intention };
+  const existing = state.reflections.findIndex(r => r.date === todayK);
+  if (existing >= 0) state.reflections[existing] = entry;
+  else state.reflections.push(entry);
+
+  const btn = document.getElementById('reflect-save-btn');
+  const saved = document.getElementById('reflect-saved');
+  btn.classList.add('saved');
+  btn.textContent = 'Saved!';
+  saved.style.display = 'block';
+  renderReflectionList();
+  setTimeout(() => {
+    btn.classList.remove('saved');
+    btn.textContent = 'Save today\'s reflection';
+  }, 3000);
+}
+
+function renderReflectionList() {
+  const el = document.getElementById('reflection-list');
+  if (!el) return;
+  if (!state.reflections.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:10px">No saved reflections yet — your first one starts here.</div>';
+    return;
+  }
+  const sorted = [...state.reflections].sort((a,b) => b.date.localeCompare(a.date));
+  el.innerHTML = sorted.map(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const label = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const row = (lbl, val) => val ? `<div style="margin-top:6px"><span style="font-size:11px;font-weight:700;color:var(--orange)">${lbl}</span><div style="font-size:13px;color:var(--text);line-height:1.45">${val}</div></div>` : '';
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;color:var(--navy)">${label}</div>
+      ${row('Went well', r.well)}${row('To improve', r.improve)}${row('Grateful for', r.grateful)}${row('Tomorrow\'s intention', r.intention)}
+    </div>`;
+  }).join('');
+}
+
+function toggleReflectionHistory() {
+  const wrap = document.getElementById('reflection-history');
+  const btn = document.getElementById('reflection-history-btn');
+  const open = wrap.style.display === 'block';
+  wrap.style.display = open ? 'none' : 'block';
+  btn.innerHTML = open ? '<i class="ti ti-history"></i>View past reflections ↗' : '<i class="ti ti-x"></i>Hide past reflections';
+  if (!open) renderReflectionList();
+}
+
+// "What actually happened" daily log
+function saveHappened() {
+  const input = document.getElementById('happened-input');
+  const text = input.value.trim();
+  if (!text) { showToast('Write one line about today first'); return; }
+  const todayK = dateKey(today);
+  // One entry per day — replace today's if it exists
+  const existing = state.happenedLog.find(e => e.date === todayK);
+  if (existing) existing.text = text;
+  else state.happenedLog.push({ date: todayK, text });
+  input.value = '';
+  renderHappened();
+  showToast('Logged — that\'s today on the record');
+}
+
+function renderHappened() {
+  const el = document.getElementById('happened-log');
+  if (!el) return;
+  if (!state.happenedLog.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:10px">Nothing logged yet — your record starts today.</div>';
+    return;
+  }
+  // Group by month, newest first
+  const sorted = [...state.happenedLog].sort((a,b) => b.date.localeCompare(a.date));
+  let html = '';
+  let lastMonth = '';
+  sorted.forEach(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    const monthLabel = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    if (monthLabel !== lastMonth) {
+      html += `<div style="font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px">${monthLabel}</div>`;
+      lastMonth = monthLabel;
+    }
+    const dayLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+    const isToday = e.date === dateKey(today);
+    html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:${isToday ? 'var(--orange)' : 'var(--text-mid)'};min-width:46px;flex-shrink:0;padding-top:1px">${dayLabel}</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.45">${e.text}</div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ============================================================
+// VALUES TAB
+// ============================================================
+function renderValues() {
+  const el = document.getElementById('values-chips');
+  el.innerHTML = '';
+  if (!state.inactiveValues) state.inactiveValues = new Set();
+  state.values.forEach(v => {
+    const s = document.createElement('span');
+    const isActive = !state.inactiveValues.has(v);
+    s.className = 'val-chip' + (isActive ? ' active' : '');
+    s.textContent = v;
+    s.style.cursor = 'pointer';
+    s.onclick = () => {
+      if (state.inactiveValues.has(v)) state.inactiveValues.delete(v);
+      else state.inactiveValues.add(v);
+      renderValues();
+    };
+    el.appendChild(s);
+  });
+  // Add-value chip
+  const add = document.createElement('span');
+  add.className = 'val-chip';
+  add.style.cssText = 'cursor:pointer;border-style:dashed';
+  add.textContent = '+ Add value';
+  add.onclick = () => {
+    const v = prompt('Add a value (something that matters most to you):');
+    if (v && v.trim()) { state.values.push(v.trim()); renderValues(); showToast('Value added'); }
+  };
+  el.appendChild(add);
+
+  const rl = document.getElementById('roles-list');
+  rl.innerHTML = '';
+  state.roles.forEach((r, idx) => {
+    const d = document.createElement('div');
+    d.className = 'role-row';
+    d.style.cursor = 'pointer';
+    d.innerHTML = `
+      <div class="role-icon"><i class="ti ${r.icon}"></i></div>
+      <div style="flex:1">
+        <div class="role-name">${r.name}</div>
+        <div class="role-def">${r.def}</div>
+      </div>
+      <i class="ti ti-pencil" style="font-size:14px;color:var(--text-light)"></i>`;
+    d.onclick = () => {
+      const newDef = prompt(`Define success as a ${r.name}:`, r.def);
+      if (newDef !== null && newDef.trim()) { state.roles[idx].def = newDef.trim(); renderValues(); showToast('Role updated'); }
+    };
+    rl.appendChild(d);
+  });
+}
+
+// ============================================================
+// AI ACTIONS
+// ============================================================
+function aiAction(prompt) {
+  // AI coaching needs a backend (Phase 2). Be honest: show what it would do and collect interest.
+  const sub = document.getElementById('ai-modal-sub');
+  const preview = document.getElementById('ai-modal-preview');
+  sub.textContent = 'AI coaching is launching with VoiceFirstPlanner Pro. Want us to let you know the moment it\'s ready?';
+  if (prompt) {
+    preview.innerHTML = '<strong style="color:var(--navy)">What this will do:</strong><br>' + prompt;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+  const btn = document.getElementById('ai-notify-btn');
+  btn.textContent = state.aiInterest ? 'You\'re on the list ✓' : 'Notify me when it\'s ready';
+  btn.disabled = false;
+  document.getElementById('ai-modal').classList.add('open');
+}
+
+function closeAiModal() { document.getElementById('ai-modal').classList.remove('open'); }
+
+function registerAiInterest() {
+  state.aiInterest = true;
+  const btn = document.getElementById('ai-notify-btn');
+  btn.textContent = 'You\'re on the list ✓';
+  showToast('Thanks — we\'ll notify you when AI coaching launches');
+  setTimeout(closeAiModal, 900);
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+
+// ============================================================
+// UPGRADE MODAL
+// ============================================================
+function showUpgrade() { document.getElementById('upgrade-modal').classList.add('open'); }
+function closeUpgrade() { document.getElementById('upgrade-modal').classList.remove('open'); }
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderTasks();
+  renderHabits();
+  renderGoals();
+  renderProjects();
+  renderNotes();
+  renderValues();
+  renderHappened();
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+attachFieldMics();
+restoreSession();
+</script>
+</body>
+</html>
