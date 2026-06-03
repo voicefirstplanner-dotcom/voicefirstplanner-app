@@ -1395,6 +1395,7 @@ html, body {
     <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('values',this)"><i class="ti ti-heart"></i>Values</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('habits',this)"><i class="ti ti-flame"></i>Habits</button>
@@ -1566,6 +1567,24 @@ html, body {
         <button class="save-btn" onclick="saveNote()">Save note</button>
       </div>
       <div id="notes-list"></div>
+    </div>
+
+    <!-- SHOPPING TAB -->
+    <div class="sec" id="sec-shopping">
+      <div class="card">
+        <div class="card-label">Shopping list</div>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk, eggs and bread to my shopping list" — or type below. Tick items off as you go.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="shopping-input" type="text" placeholder="Add an item — or a few, separated by commas…" style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')addShoppingItem()" />
+          <button class="field-mic" onclick="dictateInto('shopping-input',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+          <button class="save-btn" style="width:auto;padding:0 18px;margin:0;flex-shrink:0" onclick="addShoppingItem()">Add</button>
+        </div>
+        <div id="shopping-list" style="margin-top:12px"></div>
+        <div id="shopping-footer" style="display:none;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <span id="shopping-count" style="font-size:12px;color:var(--text-mid)"></span>
+          <button id="shopping-clear-btn" onclick="clearTickedShopping()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear ticked</button>
+        </div>
+      </div>
     </div>
 
     <!-- REFLECT TAB -->
@@ -1783,7 +1802,7 @@ let isDemo = false;      // demo mode = nothing persists
 
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','projects',
-                    'notes','happenedLog','reflections','aiInterest','values',
+                    'notes','shopping','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues'];
 
 function serializeState() {
@@ -1958,6 +1977,11 @@ let state = {
   goals: DEFAULT_GOALS.map(g => ({ ...g })),
   projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
+  shopping: [
+    { id: 1, text: 'Milk', done: false },
+    { id: 2, text: 'Eggs', done: false },
+    { id: 3, text: 'Bread', done: true },
+  ],
   happenedLog: [
     { date: daysAgoKey(1), text: 'Finished something I\'d been putting off — felt good to finally clear it.' },
     { date: daysAgoKey(2), text: 'Slower day, but made time for a proper walk and a bit of reading.' },
@@ -2253,7 +2277,7 @@ function skipOnboarding() {
 // NAVIGATION
 // ============================================================
 // Maps each content tab to its parent group
-const TAB_GROUP = { daily:'daily-planning', projects:'daily-planning', notes:'daily-planning',
+const TAB_GROUP = { daily:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
                     goals:'life-planning', values:'life-planning', habits:'life-planning', reflect:'life-planning' };
 
 function showGroup(group, activeTab) {
@@ -2579,6 +2603,19 @@ function processVoice(text) {
     renderCalStrip();
     showTab('daily', null);
     showToast(`Appointment added: "${clean}" at ${fmt12(timeStart)}`);
+    return;
+  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:\s]/.test(t)) {
+    // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
+    let items = text
+      .replace(/^\s*add\s+/i, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\s+list\b/gi, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/gi, '')
+      .replace(/^\s*(?:shopping|grocery|groceries)\s+list\b[:\s]*/i, '')
+      .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
+      .trim();
+    const n = addShoppingItems(items);
+    showTab('shopping', null);
+    if (!n) showToast('Tell me what to add — e.g. "add milk to my shopping list"');
     return;
   } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
     // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
@@ -3645,6 +3682,94 @@ function renderNotes() {
 }
 
 // ============================================================
+// SHOPPING LIST  (Daily Planning)
+// ============================================================
+// Split a spoken or typed string into individual items.
+// Handles "milk, eggs and bread", "apples & pears", line breaks, "plus".
+function parseShoppingItems(raw) {
+  return String(raw || '')
+    .replace(/\band\b/gi, ',')
+    .split(/[,&\n]|\bplus\b/i)
+    .map(s => s.replace(/\s{2,}/g, ' ').trim())
+    .filter(Boolean)
+    .map(s => s.charAt(0).toUpperCase() + s.slice(1));
+}
+
+function addShoppingItems(raw, opts) {
+  const items = parseShoppingItems(raw);
+  if (!items.length) return 0;
+  let added = 0;
+  items.forEach(text => { state.shopping.push({ id: Date.now() + added, text, done: false }); added++; });
+  renderShopping();
+  if (!(opts && opts.silent)) {
+    showToast(added === 1 ? `Added "${items[0]}" to your shopping list` : `Added ${added} items to your shopping list`);
+  }
+  return added;
+}
+
+function addShoppingItem() {
+  const inp = document.getElementById('shopping-input');
+  const val = inp.value.trim();
+  if (!val) { showToast('Type an item to add'); return; }
+  if (addShoppingItems(val)) inp.value = '';
+  inp.focus();
+}
+
+function toggleShoppingItem(id) {
+  const it = state.shopping.find(x => x.id === id);
+  if (it) { it.done = !it.done; renderShopping(); }
+}
+
+function deleteShoppingItem(id) {
+  state.shopping = state.shopping.filter(x => x.id !== id);
+  renderShopping();
+}
+
+function clearTickedShopping() {
+  const before = state.shopping.length;
+  state.shopping = state.shopping.filter(x => !x.done);
+  renderShopping();
+  const removed = before - state.shopping.length;
+  if (removed > 0) showToast(removed === 1 ? 'Cleared 1 ticked item' : `Cleared ${removed} ticked items`);
+}
+
+function renderShopping() {
+  const el = document.getElementById('shopping-list');
+  if (!el) return;
+  const items = state.shopping || [];
+  el.innerHTML = '';
+  if (!items.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">Your shopping list is empty.<br><span style="font-size:12px;opacity:0.7">Tap the microphone and say "add milk to my shopping list" — or type above.</span></div>`;
+  } else {
+    // Unticked items first; ticked items sink to the bottom.
+    [...items].sort((a, b) => (a.done === b.done) ? 0 : (a.done ? 1 : -1)).forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'task-row' + (it.done ? ' done' : '');
+      row.innerHTML = `
+        <div class="task-text">${it.text}</div>
+        <button class="row-edit" title="Remove" onclick="event.stopPropagation();deleteShoppingItem(${it.id})"><i class="ti ti-trash"></i></button>
+        <div class="task-check${it.done ? ' done' : ''}"></div>`;
+      row.onclick = () => toggleShoppingItem(it.id);
+      el.appendChild(row);
+    });
+  }
+  const footer = document.getElementById('shopping-footer');
+  const countEl = document.getElementById('shopping-count');
+  const clearBtn = document.getElementById('shopping-clear-btn');
+  if (!footer) return;
+  const total = items.length;
+  const ticked = items.filter(i => i.done).length;
+  if (total > 0) {
+    footer.style.display = 'flex';
+    const left = total - ticked;
+    countEl.textContent = ticked > 0 ? `${left} to get · ${ticked} ticked` : `${left} item${left === 1 ? '' : 's'} to get`;
+    clearBtn.style.display = ticked > 0 ? 'block' : 'none';
+  } else {
+    footer.style.display = 'none';
+  }
+}
+
+// ============================================================
 // REFLECTION TAB
 // ============================================================
 function saveReflection() {
@@ -3858,6 +3983,7 @@ function renderAll() {
   renderGoals();
   renderProjects();
   renderNotes();
+  renderShopping();
   renderValues();
   renderHappened();
 }
