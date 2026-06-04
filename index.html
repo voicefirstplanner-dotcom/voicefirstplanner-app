@@ -360,6 +360,21 @@ html, body {
   font-weight: 600;
 }
 .topbar-date { font-size: 11px; color: #85B7EB; }
+.topbar-icon-btn { background: none; border: none; cursor: pointer; color: #85B7EB; padding: 0; display: flex; align-items: center; }
+.fb-chips { display: flex; gap: 8px; margin-bottom: 14px; }
+.fb-chip {
+  flex: 1; padding: 10px 6px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--white);
+  font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-mid);
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.fb-chip.active { background: var(--ice); border-color: var(--navy-mid); color: var(--navy); }
+.fb-textarea {
+  width: 100%; min-height: 96px; padding: 12px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--white);
+  font-family: var(--font); font-size: 14px; color: var(--text); resize: vertical; box-sizing: border-box;
+}
+.fb-textarea:focus { outline: none; border-color: var(--navy-mid); }
 .quote-strip {
   background: var(--navy-mid);
   border-radius: 0 8px 8px 0;
@@ -1382,6 +1397,9 @@ html, body {
       </div>
       <div class="topbar-right">
         <div class="user-badge" id="user-badge">Dave</div>
+        <button class="topbar-icon-btn" onclick="openFeedback()" aria-label="Send feedback">
+          <i class="ti ti-message-circle" style="font-size:20px"></i>
+        </button>
         <button onclick="openSettings()" style="background:none;border:none;cursor:pointer;color:#85B7EB;" aria-label="Settings">
           <i class="ti ti-settings" style="font-size:20px"></i>
         </button>
@@ -1701,6 +1719,7 @@ html, body {
       <div class="settings-section">
         <div class="settings-section-title">App</div>
         <div class="settings-row"><span class="settings-row-label">VoiceFirstPlanner</span><span class="settings-row-value">v1.0.0</span></div>
+        <div class="settings-row"><span class="settings-row-label">Send feedback</span><span class="settings-row-action" onclick="closeSettings();openFeedback()">Open</span></div>
         <div class="settings-row"><span class="settings-row-label">Website</span><a href="https://voicefirstdayplanner.com" style="font-size:13px;color:var(--navy-mid)">voicefirstdayplanner.com</a></div>
       </div>
       <div class="settings-section">
@@ -1718,6 +1737,21 @@ html, body {
 </div><!-- /app -->
 
 <!-- PRO UPGRADE MODAL -->
+<div class="modal-overlay" id="feedback-modal" onclick="if(event.target===this)closeFeedback()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Share feedback</div>
+    <div class="modal-sub">Spotted a problem or have an idea? Tell us — it goes straight to the team.</div>
+    <div class="fb-chips">
+      <button type="button" class="fb-chip active" id="fb-good" onclick="setFbKind('good',this)">👍 Good</button>
+      <button type="button" class="fb-chip" id="fb-bug" onclick="setFbKind('bug',this)">🐞 Problem</button>
+      <button type="button" class="fb-chip" id="fb-idea" onclick="setFbKind('idea',this)">💡 Idea</button>
+    </div>
+    <textarea class="fb-textarea" id="fb-message" placeholder="What's on your mind?"></textarea>
+    <button class="modal-cta" onclick="submitFeedback()">Send feedback</button>
+    <button class="modal-close-btn" onclick="closeFeedback()">Cancel</button>
+  </div>
+</div>
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -2983,6 +3017,11 @@ function addTask() {
   const dateInp = document.getElementById('task-date');
   if (!inp.value.trim()) return;
   const taskDate = dateInp.value || dateKey(today);
+  if (!isPremium() && state.tasks.filter(t => t.date === taskDate).length >= 5) {
+    showToast('Free plan: up to 5 tasks per day — upgrade for unlimited');
+    showUpgrade();
+    return;
+  }
   state.tasks.push({ id: Date.now(), text: inp.value.trim(), p, done: false, date: taskDate, origDate: taskDate });
   inp.value = '';
   dateInp.value = dateKey(today);
@@ -3440,6 +3479,11 @@ function renderGoals() {
 // PROJECTS TAB
 // ============================================================
 function showNewProjForm() {
+  if (!isPremium() && state.projects.length >= 2) {
+    showToast('Free plan: up to 2 projects — upgrade for unlimited');
+    showUpgrade();
+    return;
+  }
   const f = document.getElementById('new-proj-form');
   f.classList.toggle('hidden');
 }
@@ -3452,6 +3496,11 @@ function cycleIcon() {
 function createProject() {
   const name = document.getElementById('np-name').value.trim();
   if (!name) { showToast('Please enter a project name'); return; }
+  if (!isPremium() && state.projects.length >= 2) {
+    showToast('Free plan: up to 2 projects — upgrade for unlimited');
+    showUpgrade();
+    return;
+  }
   const desc = document.getElementById('np-desc').value.trim();
   const icon = document.getElementById('np-icon').textContent;
   state.projects.push({
@@ -3977,9 +4026,9 @@ function closeSettings() { document.getElementById('settings-overlay').classList
 // Sandbox/test price IDs. When you switch to your LIVE Stripe account the
 // prices get new IDs — swap these three and redeploy.
 const STRIPE_PRICES = {
-  monthly:  'price_1Te7KS0H03YcCNF93dl264YU',
-  annual:   'price_1Te7l90H03YcCNF90xj77huH',
-  lifetime: 'price_1Te7cz0H03YcCNF9FYBKLQWt',
+  monthly:  'price_1TeP8p1EGD58JnWmvhAXnF2T',
+  annual:   'price_1TeP8o1EGD58JnWmHuObRMEy',
+  lifetime: 'price_1TeP8n1EGD58JnWmyG1H9LV7',
 };
 
 async function startCheckout(priceId) {
@@ -4079,6 +4128,42 @@ function handleCheckoutReturn() {
 
 function showUpgrade() { document.getElementById('upgrade-modal').classList.add('open'); }
 function closeUpgrade() { document.getElementById('upgrade-modal').classList.remove('open'); }
+
+// ---- Feedback ----
+let fbKind = 'good';
+function setFbKind(kind, el) {
+  fbKind = kind;
+  document.querySelectorAll('.fb-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+function openFeedback() {
+  setFbKind('good', document.getElementById('fb-good'));
+  const m = document.getElementById('fb-message');
+  if (m) m.value = '';
+  document.getElementById('feedback-modal').classList.add('open');
+}
+function closeFeedback() { document.getElementById('feedback-modal').classList.remove('open'); }
+async function submitFeedback() {
+  const msgEl = document.getElementById('fb-message');
+  const msg = (msgEl ? msgEl.value : '').trim();
+  if (!msg) { showToast('Add a quick note first'); return; }
+  if (!sb || isDemo) { showToast('Thanks for the feedback!'); closeFeedback(); return; }
+  try {
+    const context = {
+      ver: 'v1.0.0',
+      tab: (typeof currentTab !== 'undefined' ? currentTab : null),
+      ua: navigator.userAgent
+    };
+    const { error } = await sb.from('feedback').insert({
+      user_id: authUserId || null, kind: fbKind, message: msg, context
+    });
+    if (error) { showToast('Could not send — please try again'); return; }
+    showToast('Thanks — feedback sent!');
+    closeFeedback();
+  } catch (e) {
+    showToast('Could not send — please try again');
+  }
+}
 
 // ============================================================
 // TOAST
