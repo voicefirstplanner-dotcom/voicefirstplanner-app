@@ -1572,6 +1572,7 @@ html, body {
         <div class="card-label">Bucket list</div>
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="task-inp" id="bucket-inp" placeholder="Something you want to do someday…" style="flex:1" onkeydown="if(event.key==='Enter')addBucketItem()">
+          <button class="field-mic" onclick="dictateInto('bucket-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addBucketItem()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 16px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <div id="bucket-list"></div>
@@ -1760,7 +1761,10 @@ html, body {
       <button type="button" class="fb-chip" id="fb-bug" onclick="setFbKind('bug',this)">🐞 Problem</button>
       <button type="button" class="fb-chip" id="fb-idea" onclick="setFbKind('idea',this)">💡 Idea</button>
     </div>
-    <textarea class="fb-textarea" id="fb-message" placeholder="What's on your mind?"></textarea>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <textarea class="fb-textarea" id="fb-message" placeholder="What's on your mind?" style="flex:1"></textarea>
+      <button class="field-mic" onclick="dictateInto('fb-message',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+    </div>
     <button class="modal-cta" onclick="submitFeedback()">Send feedback</button>
     <button class="modal-close-btn" onclick="closeFeedback()">Cancel</button>
   </div>
@@ -2681,6 +2685,40 @@ function processVoice(text) {
     const n = addShoppingItems(items);
     showTab('shopping', null);
     if (!n) showToast('Tell me what to add — e.g. "add milk to my shopping list"');
+    return;
+  } else if (/\bbucket\s*list\b/.test(t) || /\bto\s+(?:my|the)\s+bucket\b/.test(t)) {
+    // Bucket list capture — e.g. "add visit Japan to my bucket list"
+    let item = text
+      .replace(/^\s*(?:add|put|note)\s+/i, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+bucket\s*list\b/gi, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+bucket\b/gi, '')
+      .replace(/\bbucket\s*list\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (!item) { showToast('Tell me what to add — e.g. "add visit Japan to my bucket list"'); return; }
+    state.bucket = state.bucket || [];
+    state.bucket.push({ id: Date.now(), text: item, done: false });
+    renderBucket();
+    showTab('bucket', null);
+    showToast(`Added to your bucket list: "${item}"`);
+    return;
+  } else if (/\bfeedback\b/.test(t) || /\breport\s+(?:a\s+)?(?:problem|bug|issue)\b/.test(t)) {
+    // Feedback capture — opens the feedback sheet pre-filled; user reviews and taps Send.
+    let kind = 'good';
+    if (/\b(problem|bug|issue|broken|crash|error|wrong|doesn'?t\s+work|not\s+working)\b/.test(t)) kind = 'bug';
+    else if (/\b(idea|suggest|suggestion|feature|wish|would\s+be|could\s+you)\b/.test(t)) kind = 'idea';
+    let msg = text
+      .replace(/^\s*(?:add|send|log|leave|give|submit|note)\s+/i, '')
+      .replace(/^\s*(?:this|that)\s+(?:problem|bug|issue|idea|suggestion|comment)\b/i, '')
+      .replace(/\b(?:as|to|in|into|on)\s+(?:my|the)?\s*feedback\b/gi, '')
+      .replace(/\bfeedback\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    openFeedback();
+    setFbKind(kind, document.getElementById('fb-' + kind));
+    const m = document.getElementById('fb-message');
+    if (m) { m.value = msg; m.dispatchEvent(new Event('input')); }
+    showToast('Opened feedback — review and tap Send');
     return;
   } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
     // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
