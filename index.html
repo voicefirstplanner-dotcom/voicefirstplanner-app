@@ -1429,6 +1429,7 @@ html, body {
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('values',this)"><i class="ti ti-heart"></i>Values</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('bucket',this)"><i class="ti ti-flag"></i>Bucket List</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('habits',this)"><i class="ti ti-flame"></i>Habits</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('reflect',this)"><i class="ti ti-writing"></i>Reflect</button>
   </div>
@@ -1563,6 +1564,18 @@ html, body {
       <button class="ai-btn" onclick="aiAction('Help me break one of my long-term goals into specific weekly action steps I can add to my daily plan.')">
         <i class="ti ti-list-check"></i>AI weekly action breakdown<span class="soon-badge">Pro · soon</span>
       </button>
+    </div>
+
+    <!-- BUCKET LIST TAB -->
+    <div class="sec" id="sec-bucket">
+      <div class="card">
+        <div class="card-label">Bucket list</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input class="task-inp" id="bucket-inp" placeholder="Something you want to do someday…" style="flex:1" onkeydown="if(event.key==='Enter')addBucketItem()">
+          <button onclick="addBucketItem()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 16px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+        </div>
+        <div id="bucket-list"></div>
+      </div>
     </div>
 
     <!-- PROJECTS TAB -->
@@ -1847,7 +1860,7 @@ let authUserId = null;   // cached id of the signed-in user
 let isDemo = false;      // demo mode = nothing persists
 
 // Which parts of `state` get saved. Transient UI bits are left out.
-const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','projects',
+const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shopping','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues'];
 
@@ -2021,6 +2034,10 @@ let state = {
   habits: DEFAULT_HABITS.map(h => ({ ...h })),
   habitLog: {},
   goals: DEFAULT_GOALS.map(g => ({ ...g })),
+  bucket: [
+    { id: 1, text: 'See the southern lights', done: false },
+    { id: 2, text: 'Learn to sail', done: false },
+  ],
   projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
   shopping: [
@@ -2326,7 +2343,7 @@ function skipOnboarding() {
 // ============================================================
 // Maps each content tab to its parent group
 const TAB_GROUP = { daily:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
-                    goals:'life-planning', values:'life-planning', habits:'life-planning', reflect:'life-planning' };
+                    goals:'life-planning', values:'life-planning', bucket:'life-planning', habits:'life-planning', reflect:'life-planning' };
 
 function showGroup(group, activeTab) {
   // top-level group buttons
@@ -4178,10 +4195,51 @@ function showToast(msg) {
 // ============================================================
 // RENDER ALL
 // ============================================================
+// ---- Bucket list ----
+function renderBucket() {
+  const el = document.getElementById('bucket-list');
+  if (!el) return;
+  const items = state.bucket || [];
+  el.innerHTML = '';
+  if (!items.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">Your bucket list is empty.<br><span style="font-size:12px;opacity:0.7">Add a dream above — somewhere to go, something to try, someone to become.</span></div>`;
+    return;
+  }
+  [...items].sort((a, b) => (a.done === b.done) ? 0 : (a.done ? 1 : -1)).forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'task-row' + (it.done ? ' done' : '');
+    row.innerHTML = `
+      <div class="task-text">${it.text}</div>
+      <button class="row-edit" title="Remove" onclick="event.stopPropagation();deleteBucketItem(${it.id})"><i class="ti ti-trash"></i></button>
+      <div class="task-check${it.done ? ' done' : ''}"></div>`;
+    row.onclick = () => toggleBucketItem(it.id);
+    el.appendChild(row);
+  });
+}
+function addBucketItem() {
+  const inp = document.getElementById('bucket-inp');
+  if (!inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  state.bucket = state.bucket || [];
+  state.bucket.push({ id: Date.now(), text, done: false });
+  inp.value = '';
+  renderBucket();
+}
+function toggleBucketItem(id) {
+  const it = (state.bucket || []).find(x => x.id === id);
+  if (it) { it.done = !it.done; renderBucket(); if (it.done) showToast('Ticked off your bucket list — nice one!'); }
+}
+function deleteBucketItem(id) {
+  state.bucket = (state.bucket || []).filter(x => x.id !== id);
+  renderBucket();
+}
+
 function renderAll() {
   renderTasks();
   renderHabits();
   renderGoals();
+  renderBucket();
   renderProjects();
   renderNotes();
   renderShopping();
