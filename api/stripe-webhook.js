@@ -49,6 +49,42 @@ async function findUserIdByCustomer(customerId) {
   return data?.user_id || null;
 }
 
+// Write the entitlement for a subscription based on its CURRENT state.
+// We re-fetch the subscription from Stripe rather than trusting the status frozen
+// into the event, so out-of-order or replayed events (e.g. a stale "incomplete"
+// subscription.created arriving AFTER the subscription is already active) can never
+// downgrade an active subscriber back to free.
+async function syncSubscriptionById(subscriptionId, fallbackSub) {
+  let sub = fallbackSub || null;
+  try {
+    sub = await stripe.subscriptions.retrieve(subscriptionId);
+  } catch (e) {
+    console.warn('Could not re-fetch subscription, using event payload:', e.message);
+  }
+  if (!sub) return;
+
+  const userId =
+    sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
+  if (!userId) {
+    console.warn('No user mapped for subscription', sub.id);
+    return;
+  }
+
+  const price = sub.items?.data?.[0]?.price;
+  const interval = price?.recurring?.interval; // 'month' | 'year'
+  const active = ['active', 'trialing', 'past_due'].includes(sub.status);
+
+  await upsertEntitlement({
+    user_id: userId,
+    plan: active ? planFromPrice(price) : 'free',
+    source: interval === 'year' ? 'annual' : 'monthly',
+    status: sub.status,
+    stripe_customer_id: sub.customer,
+    stripe_subscription_id: sub.id,
+    current_period_end: periodEnd(sub),
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -88,18 +124,16 @@ export default async function handler(req, res) {
             current_period_end: null,
           });
         } else if (session.mode === 'subscription') {
-          const sub = await stripe.subscriptions.retrieve(session.subscription);
-          const price = sub.items.data[0]?.price;
-          const interval = price?.recurring?.interval; // 'month' | 'year'
+          // Seed the row so the customer -> user mapping exists, then sync the
+          // subscription's CURRENT state (premium/active when paid).
           await upsertEntitlement({
             user_id: userId,
-            plan: planFromPrice(price),
-            source: interval === 'year' ? 'annual' : 'monthly',
-            status: sub.status,
+            plan: 'free',
+            status: 'incomplete',
             stripe_customer_id: customerId,
-            stripe_subscription_id: sub.id,
-            current_period_end: periodEnd(sub),
+            stripe_subscription_id: session.subscription,
           });
+          await syncSubscriptionById(session.subscription);
         }
         break;
       }
@@ -107,24 +141,7 @@ export default async function handler(req, res) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object;
-        const userId =
-          sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
-        if (!userId) {
-          console.warn('No user mapped for subscription', sub.id);
-          break;
-        }
-        const price = sub.items.data[0]?.price;
-        const interval = price?.recurring?.interval;
-        const active = ['active', 'trialing', 'past_due'].includes(sub.status);
-        await upsertEntitlement({
-          user_id: userId,
-          plan: active ? planFromPrice(price) : 'free',
-          source: interval === 'year' ? 'annual' : 'monthly',
-          status: sub.status,
-          stripe_customer_id: sub.customer,
-          stripe_subscription_id: sub.id,
-          current_period_end: periodEnd(sub),
-        });
+        await syncSubscriptionById(sub.id, sub);
         break;
       }
 
