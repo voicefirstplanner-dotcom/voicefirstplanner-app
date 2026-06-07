@@ -2387,68 +2387,146 @@ function showTab(name, btn, skipGroupSync) {
 // ============================================================
 // VOICE
 // ============================================================
-function toggleVoice() {
-  if (voiceActive) { stopVoice(); return; }
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    startVoiceRecognition();
-  } else {
-    showToast('Voice not supported in this browser — try Chrome or Safari');
-    document.getElementById('voice-hint').textContent = 'Type a command instead — use the task input below';
+// --- Recording-based voice: records a short audio clip and transcribes it
+// server-side via /api/transcribe. Reliable across iOS, Android and desktop,
+// and not dependent on the browser's built-in speech engine. ---
+let mediaRecorder = null;
+let audioChunks = [];
+let voiceStream = null;
+let voiceAutoStop = null;
+
+function pickAudioMime() {
+  const candidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/aac','audio/ogg'];
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+    for (const c of candidates) { try { if (MediaRecorder.isTypeSupported(c)) return c; } catch (e) {} }
   }
+  return '';
 }
 
-function startVoiceRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const r = new SR();
-  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
+function cleanupVoiceStream() {
+  if (voiceStream) { try { voiceStream.getTracks().forEach(t => t.stop()); } catch (e) {} voiceStream = null; }
+}
+
+// Generic recorder: opens the mic, records until stopRecording() is called,
+// then sends the audio off for transcription.
+//   onText(text)  -> receives the transcribed words
+//   onStart()     -> update UI when recording begins
+//   onStop()      -> update UI when recording ends (before text comes back)
+async function startRecording(onText, onStart, onStop) {
+  if (voiceActive) { stopRecording(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    showToast('This browser can\'t record audio — try the latest Chrome or Safari'); return;
+  }
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    showToast('Microphone access is blocked — allow the mic and try again'); return;
+  }
+  const mime = pickAudioMime();
+  try {
+    mediaRecorder = mime ? new MediaRecorder(voiceStream, { mimeType: mime }) : new MediaRecorder(voiceStream);
+  } catch (e) {
+    try { mediaRecorder = new MediaRecorder(voiceStream); }
+    catch (e2) { cleanupVoiceStream(); showToast('Couldn\'t start recording — try again'); return; }
+  }
+  audioChunks = [];
   voiceActive = true;
-  document.getElementById('voice-btn').classList.add('voice-listening');
-  const appEl = document.getElementById('app');
-  appEl.classList.add('voice-listening');
-  document.getElementById('voice-btn-text').textContent = 'Listening…';
-  document.getElementById('voice-hint').textContent = 'Speak now — I\'m listening';
-  r.start();
-  r.onresult = e => {
-    const txt = e.results[0][0].transcript;
-    processVoice(txt);
-    stopVoice();
+  if (onStart) onStart();
+  mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    clearTimeout(voiceAutoStop);
+    const usedType = (mediaRecorder && mediaRecorder.mimeType) || mime || 'audio/webm';
+    cleanupVoiceStream();
+    if (onStop) onStop();
+    const blob = new Blob(audioChunks, { type: usedType });
+    audioChunks = [];
+    if (!blob.size) { showToast('Didn\'t catch any audio — try again'); return; }
+    try {
+      const text = await transcribeBlob(blob);
+      if (text) { onText(text); }
+      else { showToast('Couldn\'t make out any words — try again'); }
+    } catch (err) {
+      showToast('Voice service is unavailable right now — try again in a moment');
+    }
   };
-  r.onerror = () => { stopVoice(); showToast('Could not hear you — please try again'); };
-  r.onend = () => { stopVoice(); };
+  try { mediaRecorder.start(); }
+  catch (e) { voiceActive = false; cleanupVoiceStream(); if (onStop) onStop(); showToast('Couldn\'t start recording — try again'); return; }
+  // Safety net: never record longer than 25 seconds.
+  voiceAutoStop = setTimeout(() => { if (voiceActive) stopRecording(); }, 25000);
 }
 
-function stopVoice() {
+function stopRecording() {
+  if (!voiceActive) return;
   voiceActive = false;
-  document.getElementById('voice-btn').classList.remove('voice-listening');
-  document.getElementById('app').classList.remove('voice-listening');
-  document.getElementById('voice-btn-text').textContent = 'Tap to speak your plan';
+  clearTimeout(voiceAutoStop);
+  try { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); }
+  catch (e) { cleanupVoiceStream(); }
 }
 
-// Dictate speech directly into a specific text field (used by reflection + happened log)
+// Send the recorded audio to our own server, which transcribes it and returns text.
+async function transcribeBlob(blob) {
+  const b64 = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+  const resp = await fetch('/api/transcribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audio: b64, mime: blob.type || 'audio/webm' })
+  });
+  if (!resp.ok) throw new Error('transcribe http ' + resp.status);
+  const data = await resp.json();
+  return ((data && data.text) || '').trim();
+}
+
+function resetVoiceButton() {
+  const b = document.getElementById('voice-btn'); if (b) b.classList.remove('voice-listening');
+  const a = document.getElementById('app'); if (a) a.classList.remove('voice-listening');
+  const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Tap to speak your plan';
+}
+
+// Main orange microphone button: tap to start, tap again to finish.
+function toggleVoice() {
+  if (voiceActive) { stopRecording(); return; }
+  startRecording(
+    (text) => { processVoice(text); resetVoiceButton(); },
+    () => {
+      const b = document.getElementById('voice-btn'); if (b) b.classList.add('voice-listening');
+      const a = document.getElementById('app'); if (a) a.classList.add('voice-listening');
+      const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Listening… tap to finish';
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'Speak now, then tap the mic again';
+    },
+    () => {
+      const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Got it — writing that down…';
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'One moment…';
+    }
+  );
+}
+
+// Kept as an alias in case anything else calls it.
+function stopVoice() { stopRecording(); resetVoiceButton(); }
+
+// Dictate speech directly into a specific text field (tap to start, tap again to finish).
 function dictateInto(fieldId, btnEl) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Voice needs Chrome or Safari — you can type instead'); return; }
+  if (voiceActive) { stopRecording(); return; }
   const field = document.getElementById(fieldId);
   if (!field) return;
-  const r = new SR();
-  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
-  if (btnEl) btnEl.classList.add('mic-on');
-  field.focus();
-  try { r.start(); } catch (err) { if (btnEl) btnEl.classList.remove('mic-on'); return; }
-  r.onresult = e => {
-    const txt = e.results[0][0].transcript;
-    field.value = field.value ? (field.value.trim() + ' ' + txt) : txt;
-    field.dispatchEvent(new Event('input'));
-  };
-  r.onerror = () => { showToast('Could not hear you — please try again'); };
-  r.onend = () => { if (btnEl) btnEl.classList.remove('mic-on'); };
+  startRecording(
+    (text) => {
+      field.value = field.value ? (field.value.trim() + ' ' + text) : text;
+      field.dispatchEvent(new Event('input'));
+    },
+    () => { if (btnEl) btnEl.classList.add('mic-on'); field.focus(); },
+    () => { if (btnEl) btnEl.classList.remove('mic-on'); }
+  );
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
 const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','capture-input-1','capture-input-2'];
 function attachFieldMics() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return; // no voice support → don't add mics that can't work
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
     const field = document.getElementById(id);
     if (!field || field.dataset.micAttached) return;
@@ -2459,11 +2537,9 @@ function attachFieldMics() {
     mic.innerHTML = '<i class="ti ti-microphone"></i>';
     mic.onclick = (e) => { e.preventDefault(); e.stopPropagation(); dictateInto(id, mic); };
     mic.style.flexShrink = '0';
-    // Wrap the field + mic in a flex row so the mic sits neatly to the right
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;align-items:flex-start;gap:6px;width:100%';
     field.parentNode.insertBefore(wrap, field);
-    // normalise field width inside the flex row
     field.style.flex = '1';
     field.style.width = 'auto';
     field.style.boxSizing = 'border-box';
