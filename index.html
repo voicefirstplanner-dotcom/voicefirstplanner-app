@@ -2387,68 +2387,146 @@ function showTab(name, btn, skipGroupSync) {
 // ============================================================
 // VOICE
 // ============================================================
-function toggleVoice() {
-  if (voiceActive) { stopVoice(); return; }
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    startVoiceRecognition();
-  } else {
-    showToast('Voice not supported in this browser — try Chrome or Safari');
-    document.getElementById('voice-hint').textContent = 'Type a command instead — use the task input below';
+// --- Recording-based voice: records a short audio clip and transcribes it
+// server-side via /api/transcribe. Reliable across iOS, Android and desktop,
+// and not dependent on the browser's built-in speech engine. ---
+let mediaRecorder = null;
+let audioChunks = [];
+let voiceStream = null;
+let voiceAutoStop = null;
+
+function pickAudioMime() {
+  const candidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/aac','audio/ogg'];
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+    for (const c of candidates) { try { if (MediaRecorder.isTypeSupported(c)) return c; } catch (e) {} }
   }
+  return '';
 }
 
-function startVoiceRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const r = new SR();
-  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
+function cleanupVoiceStream() {
+  if (voiceStream) { try { voiceStream.getTracks().forEach(t => t.stop()); } catch (e) {} voiceStream = null; }
+}
+
+// Generic recorder: opens the mic, records until stopRecording() is called,
+// then sends the audio off for transcription.
+//   onText(text)  -> receives the transcribed words
+//   onStart()     -> update UI when recording begins
+//   onStop()      -> update UI when recording ends (before text comes back)
+async function startRecording(onText, onStart, onStop) {
+  if (voiceActive) { stopRecording(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    showToast('This browser can\'t record audio — try the latest Chrome or Safari'); return;
+  }
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    showToast('Microphone access is blocked — allow the mic and try again'); return;
+  }
+  const mime = pickAudioMime();
+  try {
+    mediaRecorder = mime ? new MediaRecorder(voiceStream, { mimeType: mime }) : new MediaRecorder(voiceStream);
+  } catch (e) {
+    try { mediaRecorder = new MediaRecorder(voiceStream); }
+    catch (e2) { cleanupVoiceStream(); showToast('Couldn\'t start recording — try again'); return; }
+  }
+  audioChunks = [];
   voiceActive = true;
-  document.getElementById('voice-btn').classList.add('voice-listening');
-  const appEl = document.getElementById('app');
-  appEl.classList.add('voice-listening');
-  document.getElementById('voice-btn-text').textContent = 'Listening…';
-  document.getElementById('voice-hint').textContent = 'Speak now — I\'m listening';
-  r.start();
-  r.onresult = e => {
-    const txt = e.results[0][0].transcript;
-    processVoice(txt);
-    stopVoice();
+  if (onStart) onStart();
+  mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    clearTimeout(voiceAutoStop);
+    const usedType = (mediaRecorder && mediaRecorder.mimeType) || mime || 'audio/webm';
+    cleanupVoiceStream();
+    if (onStop) onStop();
+    const blob = new Blob(audioChunks, { type: usedType });
+    audioChunks = [];
+    if (!blob.size) { showToast('Didn\'t catch any audio — try again'); return; }
+    try {
+      const text = await transcribeBlob(blob);
+      if (text) { onText(text); }
+      else { showToast('Couldn\'t make out any words — try again'); }
+    } catch (err) {
+      showToast('Voice service is unavailable right now — try again in a moment');
+    }
   };
-  r.onerror = () => { stopVoice(); showToast('Could not hear you — please try again'); };
-  r.onend = () => { stopVoice(); };
+  try { mediaRecorder.start(); }
+  catch (e) { voiceActive = false; cleanupVoiceStream(); if (onStop) onStop(); showToast('Couldn\'t start recording — try again'); return; }
+  // Safety net: never record longer than 25 seconds.
+  voiceAutoStop = setTimeout(() => { if (voiceActive) stopRecording(); }, 25000);
 }
 
-function stopVoice() {
+function stopRecording() {
+  if (!voiceActive) return;
   voiceActive = false;
-  document.getElementById('voice-btn').classList.remove('voice-listening');
-  document.getElementById('app').classList.remove('voice-listening');
-  document.getElementById('voice-btn-text').textContent = 'Tap to speak your plan';
+  clearTimeout(voiceAutoStop);
+  try { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); }
+  catch (e) { cleanupVoiceStream(); }
 }
 
-// Dictate speech directly into a specific text field (used by reflection + happened log)
+// Send the recorded audio to our own server, which transcribes it and returns text.
+async function transcribeBlob(blob) {
+  const b64 = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+  const resp = await fetch('/api/transcribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audio: b64, mime: blob.type || 'audio/webm' })
+  });
+  if (!resp.ok) throw new Error('transcribe http ' + resp.status);
+  const data = await resp.json();
+  return ((data && data.text) || '').trim();
+}
+
+function resetVoiceButton() {
+  const b = document.getElementById('voice-btn'); if (b) b.classList.remove('voice-listening');
+  const a = document.getElementById('app'); if (a) a.classList.remove('voice-listening');
+  const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Tap to speak your plan';
+}
+
+// Main orange microphone button: tap to start, tap again to finish.
+function toggleVoice() {
+  if (voiceActive) { stopRecording(); return; }
+  startRecording(
+    (text) => { processVoice(text); resetVoiceButton(); },
+    () => {
+      const b = document.getElementById('voice-btn'); if (b) b.classList.add('voice-listening');
+      const a = document.getElementById('app'); if (a) a.classList.add('voice-listening');
+      const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Listening… tap to finish';
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'Speak now, then tap the mic again';
+    },
+    () => {
+      const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Got it — writing that down…';
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'One moment…';
+    }
+  );
+}
+
+// Kept as an alias in case anything else calls it.
+function stopVoice() { stopRecording(); resetVoiceButton(); }
+
+// Dictate speech directly into a specific text field (tap to start, tap again to finish).
 function dictateInto(fieldId, btnEl) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Voice needs Chrome or Safari — you can type instead'); return; }
+  if (voiceActive) { stopRecording(); return; }
   const field = document.getElementById(fieldId);
   if (!field) return;
-  const r = new SR();
-  r.lang = 'en-GB'; r.interimResults = false; r.maxAlternatives = 1;
-  if (btnEl) btnEl.classList.add('mic-on');
-  field.focus();
-  try { r.start(); } catch (err) { if (btnEl) btnEl.classList.remove('mic-on'); return; }
-  r.onresult = e => {
-    const txt = e.results[0][0].transcript;
-    field.value = field.value ? (field.value.trim() + ' ' + txt) : txt;
-    field.dispatchEvent(new Event('input'));
-  };
-  r.onerror = () => { showToast('Could not hear you — please try again'); };
-  r.onend = () => { if (btnEl) btnEl.classList.remove('mic-on'); };
+  startRecording(
+    (text) => {
+      field.value = field.value ? (field.value.trim() + ' ' + text) : text;
+      field.dispatchEvent(new Event('input'));
+    },
+    () => { if (btnEl) btnEl.classList.add('mic-on'); field.focus(); },
+    () => { if (btnEl) btnEl.classList.remove('mic-on'); }
+  );
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
 const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','capture-input-1','capture-input-2'];
 function attachFieldMics() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return; // no voice support → don't add mics that can't work
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
     const field = document.getElementById(id);
     if (!field || field.dataset.micAttached) return;
@@ -2459,11 +2537,9 @@ function attachFieldMics() {
     mic.innerHTML = '<i class="ti ti-microphone"></i>';
     mic.onclick = (e) => { e.preventDefault(); e.stopPropagation(); dictateInto(id, mic); };
     mic.style.flexShrink = '0';
-    // Wrap the field + mic in a flex row so the mic sits neatly to the right
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;align-items:flex-start;gap:6px;width:100%';
     field.parentNode.insertBefore(wrap, field);
-    // normalise field width inside the flex row
     field.style.flex = '1';
     field.style.width = 'auto';
     field.style.boxSizing = 'border-box';
@@ -2538,20 +2614,46 @@ function processVoice(text) {
     const numTokA = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an)';
     const toNumA = w => isNaN(+w) ? (numWordsA[w] || 1) : +w;
     const monthsA = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const monthReA = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+    const dayNamesA = {sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6};
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const onDateA = t.match(/on (?:the )?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?/i);
     const inDaysA = t.match(new RegExp('in '+numTokA+' days?'));
     const inWeeksA = t.match(new RegExp('in '+numTokA+' weeks?'));
+    // Month-name date, either order: "june 11", "june 11th", "11 june", "the 11th of june".
+    let mnMon = null, mnDay = null;
+    const mnM = t.match(new RegExp(monthReA + '\\s+(\\d{1,2})(?:st|nd|rd|th)?', 'i'));
+    if (mnM) { mnMon = monthsA[mnM[1].slice(0,3).toLowerCase()]; mnDay = parseInt(mnM[2]); }
+    else {
+      const mnM2 = t.match(new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + monthReA, 'i'));
+      if (mnM2) { mnDay = parseInt(mnM2[1]); mnMon = monthsA[mnM2[2].slice(0,3).toLowerCase()]; }
+    }
+    // Weekday name: "tuesday", "next friday" -> next upcoming occurrence.
+    const wdM = t.match(/\b(?:next\s+|this\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
     if (t.includes('tomorrow')) { const d = new Date(today); d.setDate(today.getDate()+1); apptDate = dateKey(d); }
     else if (t.includes('next week')) { const d = new Date(today); d.setDate(today.getDate()+7); apptDate = dateKey(d); }
     else if (inDaysA) { const d = new Date(today); d.setDate(today.getDate()+toNumA(inDaysA[1])); apptDate = dateKey(d); }
     else if (inWeeksA) { const d = new Date(today); d.setDate(today.getDate()+toNumA(inWeeksA[1])*7); apptDate = dateKey(d); }
+    else if (mnMon !== null && mnDay) {
+      const d = new Date(today.getFullYear(), mnMon, mnDay);
+      if (d < todayMid) d.setFullYear(d.getFullYear()+1); // date already passed this year -> next year
+      apptDate = dateKey(d);
+    }
     else if (onDateA) {
       const dayNum = parseInt(onDateA[1]);
       const monStr = onDateA[2] ? onDateA[2].toLowerCase().slice(0,3) : null;
       const monNum = monStr ? monthsA[monStr] : today.getMonth();
       const d = new Date(today.getFullYear(), monNum, dayNum);
-      if (d < today && !monStr) d.setMonth(d.getMonth()+1); // bare "the 13th" already passed → next month
-      if (d < today && monStr) d.setFullYear(today.getFullYear()+1); // named month already passed → next year
+      if (d < todayMid && !monStr) d.setMonth(d.getMonth()+1); // bare "the 13th" already passed -> next month
+      if (d < todayMid && monStr) d.setFullYear(today.getFullYear()+1); // named month already passed -> next year
+      apptDate = dateKey(d);
+    }
+    else if (wdM) {
+      const target = dayNamesA[wdM[1].toLowerCase()];
+      const d = new Date(today);
+      let diff = (target - d.getDay() + 7) % 7;
+      if (diff === 0) diff = 7; // a weekday name means the next one, never today
+      d.setDate(d.getDate() + diff);
       apptDate = dateKey(d);
     }
     else if (t.includes('today') || t.includes('tonight')) { apptDate = dateKey(today); }
@@ -2566,6 +2668,9 @@ function processVoice(text) {
       .replace(/\b\d{1,2}\s*[:.]\s*\d{2}\s*(?:am|pm)?\b/gi,'')
       .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi,'')
       .replace(/\bon (?:the )?\d{1,2}(?:st|nd|rd|th)?(?:\s+of)?\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?\b/gi,'')
+      .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?'+monthReA+'\\s+\\d{1,2}(?:st|nd|rd|th)?\\b','gi'),'')
+      .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?'+monthReA+'\\b','gi'),'')
+      .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
       .replace(new RegExp('in '+numTokA+' (?:days?|weeks?)','gi'),'')
       .replace(/\b(today|tonight|tomorrow|this evening|this morning|this afternoon|next week)\b/gi,'')
       .replace(/\b(into|in|on|to)\s+(my\s+|the\s+)?(daily\s+)?(schedule|calendar|diary)\b/gi,'')
@@ -2735,12 +2840,30 @@ function processVoice(text) {
     const numWords = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
     const numToken = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an)';
     let taskDate = dateKey(today);
+    const tdMonths = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const tdMonthRe = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+    const tdDayNames = {sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6};
+    const tdTodayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const tomorrowMatch = t.match(/tomorrow/);
     const nextWeekMatch = t.match(/next week/);
     const inDaysMatch = t.match(new RegExp('in '+numToken+' days?'));
     const inWeeksMatch = t.match(new RegExp('in '+numToken+' weeks?'));
     const onDateMatch = t.match(/on (?:the )?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s*(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?/i);
     const toNum = w => isNaN(+w) ? (numWords[w] || 1) : +w;
+    // Month-name date, either order: "june 11", "11 june", "the 11th of june".
+    let tdMon = null, tdDay = null;
+    const tdM1 = t.match(new RegExp(tdMonthRe + '\\s+(\\d{1,2})(?:st|nd|rd|th)?', 'i'));
+    if (tdM1) { tdMon = tdMonths[tdM1[1].slice(0,3).toLowerCase()]; tdDay = parseInt(tdM1[2]); }
+    else {
+      const tdM2 = t.match(new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + tdMonthRe, 'i'));
+      if (tdM2) { tdDay = parseInt(tdM2[1]); tdMon = tdMonths[tdM2[2].slice(0,3).toLowerCase()]; }
+    }
+    const tdWd = t.match(/\b(?:next\s+|this\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+    const stripTdDate = s => s
+      .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?' + tdMonthRe + '\\s+\\d{1,2}(?:st|nd|rd|th)?\\b','gi'),'')
+      .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + tdMonthRe + '\\b','gi'),'')
+      .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
+      .replace(/\s{2,}/g,' ').trim();
 
     if (tomorrowMatch) {
       const d = new Date(today); d.setDate(today.getDate() + 1);
@@ -2758,15 +2881,28 @@ function processVoice(text) {
       const d = new Date(today); d.setDate(today.getDate() + toNum(inWeeksMatch[1]) * 7);
       taskDate = dateKey(d);
       clean = clean.replace(new RegExp('in '+numToken+' weeks?','i'),'').trim();
+    } else if (tdMon !== null && tdDay) {
+      const d = new Date(today.getFullYear(), tdMon, tdDay);
+      if (d < tdTodayMid) d.setFullYear(d.getFullYear() + 1); // already passed -> next year
+      taskDate = dateKey(d);
+      clean = stripTdDate(clean);
     } else if (onDateMatch) {
       const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
       const dayNum = parseInt(onDateMatch[1]);
       const monthStr = onDateMatch[2] ? onDateMatch[2].toLowerCase().slice(0,3) : null;
       const monthNum = monthStr ? months[monthStr] : today.getMonth();
       const d = new Date(today.getFullYear(), monthNum, dayNum);
-      if (d < today) d.setFullYear(today.getFullYear() + 1);
+      if (d < tdTodayMid) d.setFullYear(today.getFullYear() + 1);
       taskDate = dateKey(d);
       clean = clean.replace(onDateMatch[0],'').trim();
+    } else if (tdWd) {
+      const target = tdDayNames[tdWd[1].toLowerCase()];
+      const d = new Date(today);
+      let diff = (target - d.getDay() + 7) % 7;
+      if (diff === 0) diff = 7; // a weekday name means the next one, never today
+      d.setDate(d.getDate() + diff);
+      taskDate = dateKey(d);
+      clean = stripTdDate(clean);
     }
 
     state.tasks.push({ id: Date.now(), text: (clean || text).replace(/\s{2,}/g,' ').trim(), p, done: false, date: taskDate, origDate: taskDate });
