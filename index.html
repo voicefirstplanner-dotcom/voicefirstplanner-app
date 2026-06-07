@@ -1542,6 +1542,10 @@ html, body {
       <div class="card">
         <div class="card-label">Weekly habits</div>
         <div class="habit-grid" id="habit-grid"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <input class="task-inp" id="habit-inp" placeholder="New habit…" style="flex:1" onkeydown="if(event.key==='Enter')addHabit()">
+          <button onclick="addHabit()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+        </div>
         <div class="streak-bar">
           <div class="streak-num" id="streak-num">0</div>
           <div class="streak-info">
@@ -1560,6 +1564,11 @@ html, body {
       <div class="card">
         <div class="card-label">Long-term goals</div>
         <div id="goals-list"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <input class="task-inp" id="goal-inp" placeholder="New goal…" style="flex:1" onkeydown="if(event.key==='Enter')addGoal()">
+          <input class="task-inp" id="goal-target" type="number" min="1" placeholder="#" style="width:62px;flex:none">
+          <button onclick="addGoal()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+        </div>
       </div>
       <button class="ai-btn" onclick="aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.')">
         <i class="ti ti-sparkles"></i>AI goal setting<span class="soon-badge">Pro · soon</span>
@@ -1696,6 +1705,7 @@ html, body {
       <button class="detail-back" onclick="closeDetail()"><i class="ti ti-arrow-left"></i> All projects</button>
       <div class="detail-name" id="detail-name"></div>
       <div class="detail-desc" id="detail-desc"></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="detail-back" onclick="editProject()" style="background:rgba(255,255,255,.12)"><i class="ti ti-pencil"></i> Rename</button><button class="detail-back" onclick="deleteProject(currentProject.id)" style="background:rgba(255,138,138,.2);color:#ffd9d9"><i class="ti ti-trash"></i> Delete</button></div>
     </div>
     <div class="detail-body">
       <div class="card" style="margin-bottom:10px">
@@ -1814,6 +1824,10 @@ html, body {
         <div class="settings-section-title">Legal</div>
         <div class="settings-row" onclick=""><span class="settings-row-label">Privacy policy</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
         <div class="settings-row" onclick=""><span class="settings-row-label">Terms of service</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Data</div>
+        <div class="settings-row" onclick="startFresh()"><span class="settings-row-label">Start fresh - clear sample data</span><span class="settings-row-action" style="color:#c0392b">Clear</span></div>
       </div>
       <button class="signout-btn" onclick="signOut()">Sign out</button>
     </div>
@@ -3993,8 +4007,16 @@ function renderHabits() {
       };
       days.appendChild(cell);
     });
+    lbl.style.cursor = 'pointer';
+    lbl.title = 'Tap to rename';
+    lbl.onclick = () => editHabit(h.id);
+    const hdel = document.createElement('button');
+    hdel.innerHTML = '×'; hdel.title = 'Remove habit';
+    hdel.style.cssText = 'background:none;border:none;color:var(--text-light);font-size:17px;line-height:1;cursor:pointer;padding:0 2px;flex-shrink:0';
+    hdel.onclick = (e) => { e.stopPropagation(); deleteHabit(h.id); };
     row.appendChild(lbl);
     row.appendChild(days);
+    row.appendChild(hdel);
     el.appendChild(row);
   });
   let streak = 0;
@@ -4015,6 +4037,88 @@ function changeGoal(id, delta) {
   renderGoals();
 }
 
+function deleteGoal(id) {
+  if (!confirm('Delete this goal?')) return;
+  state.goals = state.goals.filter(x => x.id !== id);
+  renderGoals(); showToast('Goal deleted');
+}
+function editGoal(id) {
+  const g = state.goals.find(x => x.id === id); if (!g) return;
+  const name = prompt('Goal name:', g.name); if (name === null) return;
+  if (name.trim()) g.name = name.trim();
+  const tot = prompt('Target number (e.g. 24):', g.tot);
+  if (tot !== null) { const n = parseInt(tot); if (!isNaN(n) && n > 0) { g.tot = n; g.cur = Math.min(g.cur, n); } }
+  renderGoals(); showToast('Goal updated');
+}
+function addGoal() {
+  const inp = document.getElementById('goal-inp'); const tEl = document.getElementById('goal-target');
+  const name = (inp.value || '').trim(); if (!name) { showToast('Type a goal first'); return; }
+  let tot = parseInt(tEl && tEl.value); if (isNaN(tot) || tot < 1) tot = 1;
+  state.goals = state.goals || [];
+  state.goals.push({ id: Date.now(), name, cur: 0, tot, role: '' });
+  inp.value = ''; if (tEl) tEl.value = '';
+  renderGoals(); showToast('Goal added');
+}
+function addHabit() {
+  const inp = document.getElementById('habit-inp');
+  const name = (inp.value || '').trim(); if (!name) { showToast('Type a habit first'); return; }
+  state.habits = state.habits || [];
+  state.habits.push({ id: Date.now(), name });
+  inp.value = '';
+  renderHabits(); showToast('Habit added');
+}
+function editHabit(id) {
+  const h = state.habits.find(x => x.id === id); if (!h) return;
+  const name = prompt('Habit name:', h.name); if (name === null) return;
+  if (name.trim()) h.name = name.trim();
+  renderHabits(); showToast('Habit updated');
+}
+function deleteHabit(id) {
+  if (!confirm('Remove this habit?')) return;
+  state.habits = state.habits.filter(x => x.id !== id);
+  renderHabits(); showToast('Habit removed');
+}
+function deleteProject(id) {
+  if (!confirm('Delete this project and everything in it?')) return;
+  state.projects = state.projects.filter(p => p.id !== id);
+  if (currentProject && currentProject.id === id) { currentProject = null; try { closeDetail(); } catch (e) {} }
+  renderProjects(); showToast('Project deleted');
+}
+function editProject() {
+  if (!currentProject) return;
+  const name = prompt('Project name:', currentProject.name); if (name === null) return;
+  if (name.trim()) currentProject.name = name.trim();
+  const desc = prompt('Description:', currentProject.desc || ''); if (desc !== null) currentProject.desc = desc.trim();
+  const dn = document.getElementById('detail-name'); if (dn) dn.textContent = currentProject.icon + ' ' + currentProject.name;
+  const dd = document.getElementById('detail-desc'); if (dd) dd.textContent = currentProject.desc || '';
+  renderProjects(); showToast('Project updated');
+}
+function deleteReflection(date) {
+  if (!confirm('Delete this reflection?')) return;
+  state.reflections = state.reflections.filter(r => r.date !== date);
+  renderReflectionList(); showToast('Reflection deleted');
+}
+function deleteHappened(date) {
+  if (!confirm('Delete this entry?')) return;
+  state.happenedLog = state.happenedLog.filter(e => e.date !== date);
+  renderHappened(); showToast('Entry deleted');
+}
+function startFresh() {
+  if (!confirm('Clear all sample tasks, appointments, goals, projects, notes, habits, shopping and bucket items so you can start with a clean slate? Your values, roles and account stay. This cannot be undone.')) return;
+  state.tasks = []; state.appointments = []; state.goals = []; state.projects = [];
+  state.notes = []; state.habits = []; state.habitLog = {}; state.bucket = [];
+  state.shopping = []; state.reflections = []; state.happenedLog = []; state.focus = '';
+  currentProject = null; try { closeDetail(); } catch (e) {}
+  const fd = document.getElementById('focus-display'); if (fd) { fd.textContent = ''; fd.style.display = 'none'; }
+  const fi = document.getElementById('focus-input'); if (fi) fi.value = '';
+  try { renderAll(); } catch (e) {}
+  try { renderAppointments(); } catch (e) {}
+  try { renderScheduleGrid(); } catch (e) {}
+  try { renderCalStrip(); } catch (e) {}
+  try { renderReflectionList(); } catch (e) {}
+  closeSettings();
+  showToast('Cleared - a clean slate to make your own');
+}
 function renderGoals() {
   const el = document.getElementById('goals-list');
   el.innerHTML = '';
@@ -4035,6 +4139,8 @@ function renderGoals() {
       <div class="goal-controls">
         <button class="goal-btn" onclick="changeGoal(${g.id},-1)">− Progress</button>
         <button class="goal-btn" onclick="changeGoal(${g.id},1)">+ Progress</button>
+        <button class="goal-btn" onclick="editGoal(${g.id})">Edit</button>
+        <button class="goal-btn" onclick="deleteGoal(${g.id})" style="color:#c0392b">Delete</button>
       </div>`;
     el.appendChild(d);
   });
@@ -4100,6 +4206,12 @@ function renderProjects() {
         <div class="pstat"><div class="pstat-n">${p.captures.filter(c=>c.type==='voice').length}</div><div class="pstat-l">Voice</div></div>
       </div>
       ${p.tags.length ? `<div class="proj-tags">${p.tags.map(t=>`<span class="ptag">#${t}</span>`).join('')}</div>` : ''}`;
+    card.style.position = 'relative';
+    const pdel = document.createElement('button');
+    pdel.innerHTML = '×'; pdel.title = 'Delete project';
+    pdel.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(0,0,0,.06);border:none;color:var(--text-mid);width:24px;height:24px;border-radius:50%;font-size:15px;line-height:1;cursor:pointer;z-index:3';
+    pdel.onclick = (e) => { e.stopPropagation(); deleteProject(p.id); };
+    card.appendChild(pdel);
     card.onclick = () => openDetail(p);
     el.appendChild(card);
   });
@@ -4438,7 +4550,7 @@ function renderReflectionList() {
     const label = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
     const row = (lbl, val) => val ? `<div style="margin-top:6px"><span style="font-size:11px;font-weight:700;color:var(--orange)">${lbl}</span><div style="font-size:13px;color:var(--text);line-height:1.45">${val}</div></div>` : '';
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
-      <div style="font-size:13px;font-weight:700;color:var(--navy)">${label}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700;color:var(--navy)">${label}</div><button onclick="deleteReflection('${r.date}')" title="Delete" style="background:none;border:none;color:var(--text-light);font-size:16px;line-height:1;cursor:pointer">×</button></div>
       ${row('Went well', r.well)}${row('To improve', r.improve)}${row('Grateful for', r.grateful)}${row('Tomorrow\'s intention', r.intention)}
     </div>`;
   }).join('');
@@ -4490,7 +4602,8 @@ function renderHappened() {
     const isToday = e.date === dateKey(today);
     html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="font-size:11px;font-weight:700;color:${isToday ? 'var(--orange)' : 'var(--text-mid)'};min-width:46px;flex-shrink:0;padding-top:1px">${dayLabel}</div>
-      <div style="font-size:13px;color:var(--text);line-height:1.45">${e.text}</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.45;flex:1">${e.text}</div>
+      <button onclick="deleteHappened('${e.date}')" title="Delete" style="background:none;border:none;color:var(--text-light);font-size:15px;line-height:1;cursor:pointer;flex-shrink:0">×</button>
     </div>`;
   });
   el.innerHTML = html;
