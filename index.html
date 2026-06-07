@@ -1756,6 +1756,10 @@ html, body {
     .vt-foot{padding:13px 18px;border-top:1px solid var(--ice);display:flex;gap:12px;align-items:center;justify-content:space-between;}
     .vt-retry{background:none;border:none;color:var(--navy-mid);font-size:13px;cursor:pointer;text-decoration:underline;font-family:var(--font);}
     .vt-next{border:none;border-radius:11px;background:var(--navy);color:#fff;font-weight:700;font-size:15px;padding:13px 22px;cursor:pointer;font-family:var(--font);}
+    .vt-help-row{display:flex;justify-content:flex-end;margin:0 0 10px;}
+    .vt-help-chip{display:inline-flex;align-items:center;gap:5px;background:var(--ice);color:var(--navy,#0C447C);border:1px solid var(--border,#B5D4F4);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);}
+    .vt-help-chip i{font-size:14px;color:var(--orange);}
+    .vt-help-chip:hover{background:#DCEafe;}
   </style>
   <div class="vt-overlay" id="voice-tut">
     <div class="vt-card">
@@ -2297,6 +2301,7 @@ function launchApp() {
   document.getElementById('set-email').textContent = state.user?.email || '';
   renderAll();
   showGroup('daily-planning', 'daily');
+  try { addHelpChips(); } catch (e) {}
   loadEntitlement();
   handleCheckoutReturn();
 }
@@ -2599,44 +2604,102 @@ function dictateInto(fieldId, btnEl) {
 // works, then restores the planner so practice entries don't persist.
 // ============================================================
 const VT_STEPS = [
-  { title: 'Add a task',
-    what: 'Tasks are your to-dos. Start with the word \u201cadd\u201d \u2014 everything after it becomes the task.',
-    say: 'Add buy milk',
-    expect: 'A task is added to today.' },
-  { title: 'Schedule something',
-    what: 'For anything with a time, use a cue word like \u201cmeeting\u201d or \u201ccall\u201d, then the time. Always say am or pm.',
-    say: 'Meeting tomorrow at 10am',
-    expect: 'An appointment appears tomorrow, 10\u201311am.' },
-  { title: 'Make it repeat',
-    what: 'Add \u201cevery day\u201d, \u201cweekly\u201d, or a weekday name to repeat something automatically.',
-    say: 'Take vitamins every day at 8am',
-    expect: 'A daily repeating appointment is created.' },
-  { title: 'Capture a note',
-    what: 'Start with \u201cnote\u201d to jot an idea \u2014 it goes to Notes instead of becoming a task.',
-    say: 'Note great idea for the website',
-    expect: 'It\u2019s saved in your Notes.' },
-  { title: 'Now try your own',
-    what: 'Your turn \u2014 say a task, an appointment, or a note however feels natural. The four habits: \u201cadd\u201d for tasks, a time + cue word for appointments, am/pm on times, and A/B/C for priorities.',
-    say: 'Add call the dentist on Friday as an A priority',
-    expect: 'Whatever you say, you\u2019ll see it land in your planner.' },
+  // ---- Daily planning ----
+  { key:'focus', sec:'daily', title:'Set your daily focus',
+    what:'Your focus is the one thing that matters most today. Start with \u201cmy focus\u2026\u201d.',
+    say:'My focus today is finishing the website',
+    expect:'Your daily focus is set.' },
+  { key:'appt', sec:'daily', title:'Schedule an appointment',
+    what:'For anything with a time, use a cue word like \u201cmeeting\u201d or \u201ccall\u201d, then the time. Always say am or pm.',
+    say:'Meeting with Sarah tomorrow at 10am',
+    expect:'An appointment appears tomorrow, 10\u201311am.' },
+  { key:'recurring', sec:'daily', title:'Make something repeat',
+    what:'Add \u201cevery day\u201d, \u201cweekly\u201d, or a weekday name and it repeats automatically.',
+    say:'Pilates every Thursday at 6:30pm',
+    expect:'A repeating weekly appointment is created.' },
+  { key:'task', sec:'daily', title:'Add a task',
+    what:'Tasks start with \u201cadd\u201d. Add \u201cas an A/B/C priority\u201d to rank it.',
+    say:'Add review the proposal as an A priority',
+    expect:'An A-priority task is added to today.' },
+  // ---- Projects ----
+  { key:'project', sec:'projects', title:'Start a project',
+    what:'Say \u201cstart a project called\u2026\u201d to create one. You add details and notes to it afterwards.',
+    say:'Start a project called boat refit',
+    expect:'A new project is created in Projects.' },
+  // ---- Notes ----
+  { key:'note', sec:'notes', title:'Capture a note',
+    what:'Start with \u201cnote\u201d to jot an idea \u2014 it goes to Notes instead of becoming a task.',
+    say:'Note: great idea for the website',
+    expect:'It\u2019s saved in your Notes.' },
+  // ---- Shopping ----
+  { key:'shopping', sec:'shopping', title:'Add to your shopping list',
+    what:'End with \u201cto my shopping list\u201d. You can list several at once, separated by \u201cand\u201d.',
+    say:'Add butter to my shopping list',
+    expect:'The item is added to your shopping list.' },
+  // ---- Goals ----
+  { key:'goal', sec:'goals', title:'Set a goal',
+    what:'Say \u201cadd goal\u2026\u201d to create one, then set its number target in Goals.',
+    say:'Add goal read 24 books this year',
+    expect:'A goal is created \u2014 you\u2019ll set the target next.' },
+  // ---- Values (no voice) ----
+  { key:'values', sec:'values', title:'Choose your values', novoice:true,
+    what:'Values are the one thing you tap rather than speak. They anchor everything else \u2014 your goals and roles link back to them.',
+    action:'Open Values and tap up to 5 that matter most. No need to say anything for this one.' },
+  // ---- Bucket list ----
+  { key:'bucket', sec:'bucket', title:'Add to your bucket list',
+    what:'End with \u201cto my bucket list\u201d for the big someday-dreams.',
+    say:'Add a world trip to my bucket list',
+    expect:'It\u2019s added to your bucket list.' },
+  // ---- Habits ----
+  { key:'habit', sec:'habits', title:'Log a habit',
+    what:'Just tell it what you did \u2014 \u201cexercise\u201d, \u201cgym\u201d, \u201cran\u201d or \u201cwalked\u201d logs your exercise habit.',
+    say:'I exercised today',
+    expect:'Your exercise habit is marked done.' },
+  // ---- Reflect ----
+  { key:'reflect', sec:'reflect', title:'Log your reflection',
+    what:'Say you did your morning reflection (or \u201cmeditated\u201d / \u201cjournalled\u201d) to log it. Full written reflections you type in the Reflect tab.',
+    say:'I did my morning reflection',
+    expect:'Your reflection habit is logged.' },
+  // ---- Free practice ----
+  { key:'own', sec:'daily', title:'Now try your own',
+    what:'Your turn \u2014 say anything, however feels natural. Remember: \u201cadd\u201d for tasks, a time + cue word for appointments, am/pm on times, A/B/C for priorities, and \u201c\u2026to my [shopping/bucket] list\u201d for those.',
+    say:'Add call the dentist on Friday as an A priority',
+    expect:'Whatever you say, you\u2019ll see it land in your planner.' },
 ];
 let vtIdx = 0;
 let vtSnapshot = null;
+let vtPracticeMode = false;
 
-function startVoiceTutorial(force) {
+function vtStepIndex(key) {
+  const i = VT_STEPS.findIndex(s => s.key === key);
+  return i < 0 ? 0 : i;
+}
+
+function startVoiceTutorial(force, startKey) {
   if (!force && state.voiceTutDone) return;
   try { vtSnapshot = JSON.parse(JSON.stringify(serializeState())); } catch (e) { vtSnapshot = null; }
-  vtIdx = 0;
+  vtPracticeMode = true;
+  vtIdx = startKey ? vtStepIndex(startKey) : 0;
   document.getElementById('voice-tut').classList.add('show');
   vtRender();
 }
 
 function vtRender() {
   const s = VT_STEPS[vtIdx];
+  const novoice = !!s.novoice;
   document.getElementById('vt-title').textContent = s.title;
   document.getElementById('vt-what').textContent = s.what;
-  document.getElementById('vt-say').textContent = '\u201c' + s.say + '\u201d';
-  document.getElementById('vt-expect').textContent = 'What you\u2019ll see: ' + s.expect;
+  const voiceEls = [document.querySelector('.vt-saylabel'), document.getElementById('vt-say'),
+    document.getElementById('vt-mic'), document.querySelector('.vt-alt'),
+    document.getElementById('vt-type'), document.getElementById('vt-result'), document.getElementById('vt-err')];
+  voiceEls.forEach(e => { if (e) e.style.display = ''; }); // clear any prior inline hide
+  if (novoice) {
+    voiceEls.forEach(e => { if (e) e.style.display = 'none'; });
+    document.getElementById('vt-expect').textContent = s.action || '';
+  } else {
+    document.getElementById('vt-say').textContent = '\u201c' + s.say + '\u201d';
+    document.getElementById('vt-expect').textContent = 'What you\u2019ll see: ' + s.expect;
+  }
   document.getElementById('vt-dots').innerHTML =
     VT_STEPS.map((_, i) => '<div class="vt-dot' + (i === vtIdx ? ' on' : '') + '"></div>').join('');
   document.getElementById('vt-next').textContent = (vtIdx === VT_STEPS.length - 1) ? 'Finish' : 'Next';
@@ -2705,7 +2768,11 @@ function vtCounts() {
     appts: state.appointments.length,
     notes: state.notes.length,
     shopping: state.shopping.length,
-    bucket: (state.bucket || []).length
+    bucket: (state.bucket || []).length,
+    goals: (state.goals || []).length,
+    projects: (state.projects || []).length,
+    focus: state.focus || '',
+    habitMarks: Object.keys(state.habitLog || {}).length
   };
 }
 
@@ -2719,6 +2786,14 @@ function vtDiff(b) {
       ? 'Added a repeating appointment: \u201c' + first.title + '\u201d (' + n + ' dates) starting ' + when + '.'
       : 'Added appointment: \u201c' + first.title + '\u201d \u2014 ' + when + '.';
   }
+  if (a.projects > b.projects) {
+    const p = state.projects[state.projects.length - 1];
+    return 'Created project: \u201c' + p.name + '\u201d.';
+  }
+  if (a.goals > b.goals) {
+    const g = state.goals[state.goals.length - 1];
+    return 'Added goal: \u201c' + g.name + '\u201d \u2014 set the target in Goals.';
+  }
   if (a.tasks > b.tasks) {
     const t = state.tasks[state.tasks.length - 1];
     return 'Added task: \u201c' + t.text + '\u201d (' + t.p + ' priority, ' + vtNiceDate(t.date) + ').';
@@ -2731,6 +2806,8 @@ function vtDiff(b) {
     return 'Added ' + (a.shopping - b.shopping) + ' item(s) to your shopping list.';
   }
   if (a.bucket > b.bucket) { return 'Added to your bucket list.'; }
+  if (a.focus !== b.focus && a.focus) { return 'Daily focus set: \u201c' + a.focus + '\u201d.'; }
+  if (a.habitMarks > b.habitMarks) { return 'Habit logged for today \u2014 nice.'; }
   return '';
 }
 
@@ -2753,6 +2830,7 @@ function vtNext() {
 
 function endVoiceTutorial(completed) {
   if (voiceActive) { try { stopRecording(); } catch (e) {} }
+  vtPracticeMode = false;
   document.getElementById('voice-tut').classList.remove('show');
   // Restore the planner to its pre-tutorial state so practice entries don't persist.
   if (vtSnapshot) { try { applyState(vtSnapshot); } catch (e) {} }
@@ -2765,6 +2843,29 @@ function endVoiceTutorial(completed) {
   } catch (e) {}
   try { renderAll(); } catch (e) {}
   try { showGroup('daily-planning', 'daily'); } catch (e) {}
+}
+
+// Inject a small "Voice tips" help chip into each tab, deep-linking to that field's
+// tutorial step. Safe to call repeatedly (guarded per section).
+function addHelpChips() {
+  const map = { daily:'focus', projects:'project', notes:'note', shopping:'shopping',
+                goals:'goal', values:'values', bucket:'bucket', habits:'habit', reflect:'reflect' };
+  Object.keys(map).forEach(name => {
+    const sec = document.getElementById('sec-' + name);
+    if (!sec || sec.dataset.helpChip) return;
+    sec.dataset.helpChip = '1';
+    const key = map[name];
+    const row = document.createElement('div');
+    row.className = 'vt-help-row';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'vt-help-chip';
+    btn.title = 'Voice tips for this section';
+    btn.innerHTML = '<i class="ti ti-help"></i> Voice tips';
+    btn.onclick = () => startVoiceTutorial(true, key);
+    row.appendChild(btn);
+    sec.insertBefore(row, sec.firstChild);
+  });
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
@@ -3073,6 +3174,31 @@ function processVoice(text) {
     if (m) { m.value = msg; m.dispatchEvent(new Event('input')); }
     showToast('Opened feedback — review and tap Send');
     return;
+  } else if (/\bgoal\b/i.test(t)) {
+    // Goal capture — e.g. "add goal read 24 books this year". Numeric target is set later in Goals.
+    let g = text.replace(/^\s*(?:add|set|create|new|make)\s+/i,'')
+                .replace(/\ba\s+goal\b/i,'').replace(/\bgoal\b/i,'')
+                .replace(/^\s*(?:to|of|for|is|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
+    if (!g) { showToast('Tell me the goal — e.g. "add goal read 24 books"'); return; }
+    state.goals = state.goals || [];
+    state.goals.push({ id: Date.now(), name: g, cur: 0, tot: 1, role: '' });
+    renderGoals();
+    showTab('goals', null);
+    showToast(`Goal added: "${g}" — set your target in Goals`);
+  } else if (/\bproject\b/i.test(t)) {
+    // Project capture — e.g. "start a project called boat refit".
+    let pj = text.replace(/^\s*(?:start|create|new|add|make|begin)\s+/i,'')
+                 .replace(/\ba\s+project\b/i,'').replace(/\bthe\s+project\b/i,'').replace(/\bproject\b/i,'')
+                 .replace(/^\s*(?:called|named|for|to|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
+    if (!pj) { showToast('Tell me the project name — e.g. "start a project called boat refit"'); return; }
+    if (!vtPracticeMode && !isPremium() && state.projects.length >= 2) {
+      showToast('Free plan: up to 2 projects — upgrade for unlimited'); showUpgrade(); return;
+    }
+    state.projects = state.projects || [];
+    state.projects.push({ id: Date.now(), name: pj, desc: '', icon: '📁', status: 'Planning', progress: 0, tags: [], captures: [] });
+    renderProjects();
+    showTab('projects', null);
+    showToast(`Project created: "${pj}"`);
   } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
     // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
     let p = 'C';
