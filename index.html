@@ -1397,6 +1397,9 @@ html, body {
       </div>
       <div class="topbar-right">
         <div class="user-badge" id="user-badge">Dave</div>
+        <button class="topbar-icon-btn" onclick="startVoiceTutorial(true)" aria-label="Voice quick-start" title="Voice quick-start">
+          <i class="ti ti-help" style="font-size:20px"></i>
+        </button>
         <button class="topbar-icon-btn" onclick="openFeedback()" aria-label="Send feedback">
           <i class="ti ti-message-circle" style="font-size:20px"></i>
         </button>
@@ -1717,6 +1720,69 @@ html, body {
     </div>
   </div>
 
+  <!-- VOICE QUICK-START TUTORIAL OVERLAY -->
+  <style>
+    .vt-overlay{position:fixed;inset:0;z-index:2000;display:none;background:rgba(4,44,83,0.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px;font-family:var(--font);}
+    .vt-overlay.show{display:flex;}
+    .vt-card{background:var(--white);width:100%;max-width:440px;border-radius:18px;box-shadow:0 18px 50px rgba(4,44,83,0.35);overflow:hidden;display:flex;flex-direction:column;max-height:94vh;}
+    .vt-head{background:var(--navy);padding:16px 18px 14px;position:relative;}
+    .vt-eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#85B7EB;font-weight:700;}
+    .vt-title{font-family:var(--font-display);font-size:21px;line-height:1.15;margin-top:3px;color:#fff;}
+    .vt-skip{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.14);border:none;color:#dbeafe;font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;cursor:pointer;}
+    .vt-dots{display:flex;gap:6px;margin-top:13px;}
+    .vt-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.28);transition:background .2s;}
+    .vt-dot.on{background:var(--orange);}
+    .vt-body{padding:18px;overflow-y:auto;}
+    .vt-what{font-size:14px;color:var(--text-mid);line-height:1.55;margin-bottom:15px;}
+    .vt-saylabel{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-light);margin-bottom:7px;}
+    .vt-say{background:var(--ice);border-left:4px solid var(--orange);border-radius:10px;padding:14px;font-size:18px;color:var(--navy);font-weight:700;line-height:1.35;}
+    .vt-expect{font-size:12.5px;color:var(--text-light);margin-top:11px;line-height:1.5;}
+    .vt-mic{margin-top:16px;width:100%;border:none;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;font-size:15px;padding:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font);}
+    .vt-mic.listening{background:var(--orange-hover);animation:vtpulse 1.1s ease-in-out infinite;}
+    @keyframes vtpulse{0%,100%{box-shadow:0 0 0 0 rgba(242,119,26,.45);}50%{box-shadow:0 0 0 9px rgba(242,119,26,0);}}
+    .vt-mic i{font-size:19px;}
+    .vt-err{color:#C0392B;font-size:12.5px;margin-top:9px;line-height:1.45;display:none;}
+    .vt-err.show{display:block;}
+    .vt-alt{margin-top:11px;text-align:center;}
+    .vt-altbtn{background:none;border:none;color:var(--navy-mid);font-size:13px;text-decoration:underline;cursor:pointer;font-family:var(--font);}
+    .vt-type{margin-top:12px;display:none;gap:8px;}
+    .vt-type.show{display:flex;}
+    .vt-type input{flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:11px 12px;font-size:14px;font-family:var(--font);}
+    .vt-type button{border:none;background:var(--navy);color:#fff;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer;font-family:var(--font);}
+    .vt-result{margin-top:16px;background:#EAF7EE;border:1px solid #BCE3C8;border-radius:12px;padding:14px;display:none;}
+    .vt-result.show{display:block;}
+    .vt-heard{font-size:12.5px;color:var(--text-mid);font-style:italic;}
+    .vt-did{font-size:14px;color:#1D6B3A;font-weight:700;margin-top:6px;line-height:1.45;}
+    .vt-foot{padding:13px 18px;border-top:1px solid var(--ice);display:flex;gap:12px;align-items:center;justify-content:space-between;}
+    .vt-retry{background:none;border:none;color:var(--navy-mid);font-size:13px;cursor:pointer;text-decoration:underline;font-family:var(--font);}
+    .vt-next{border:none;border-radius:11px;background:var(--navy);color:#fff;font-weight:700;font-size:15px;padding:13px 22px;cursor:pointer;font-family:var(--font);}
+  </style>
+  <div class="vt-overlay" id="voice-tut">
+    <div class="vt-card">
+      <div class="vt-head">
+        <button class="vt-skip" onclick="endVoiceTutorial(false)">Skip</button>
+        <div class="vt-eyebrow">Voice quick-start</div>
+        <div class="vt-title" id="vt-title"></div>
+        <div class="vt-dots" id="vt-dots"></div>
+      </div>
+      <div class="vt-body">
+        <div class="vt-what" id="vt-what"></div>
+        <div class="vt-saylabel">Tap the mic, then say</div>
+        <div class="vt-say" id="vt-say"></div>
+        <div class="vt-expect" id="vt-expect"></div>
+        <button class="vt-mic" id="vt-mic" onclick="vtMic()"><i class="ti ti-microphone"></i><span id="vt-mic-text">Try it — tap and speak</span></button>
+        <div class="vt-err" id="vt-err"></div>
+        <div class="vt-alt"><button class="vt-altbtn" onclick="vtToggleType()">or type it instead</button></div>
+        <div class="vt-type" id="vt-type"><input id="vt-type-input" placeholder="Type the phrase here…" autocomplete="off"><button onclick="vtRunTyped()">Run</button></div>
+        <div class="vt-result" id="vt-result"><div class="vt-heard" id="vt-heard"></div><div class="vt-did" id="vt-did"></div></div>
+      </div>
+      <div class="vt-foot">
+        <button class="vt-retry" onclick="vtRetry()">Clear</button>
+        <button class="vt-next" id="vt-next" onclick="vtNext()">Next</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SETTINGS OVERLAY -->
   <div class="settings-overlay" id="settings-overlay">
     <div class="settings-header">
@@ -1870,7 +1936,7 @@ let isDemo = false;      // demo mode = nothing persists
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shopping','happenedLog','reflections','aiInterest','values',
-                    'roles','focus','onboardStep','selectedValues'];
+                    'roles','focus','onboardStep','selectedValues','voiceTutDone'];
 
 function serializeState() {
   const out = {};
@@ -2064,6 +2130,7 @@ let state = {
   focus: '',
   selectedTags: [],
   onboardStep: 0,
+  voiceTutDone: false,
   selectedValues: new Set(['Family','Growth','Health']),
   iconIdx: 0,
 };
@@ -2337,6 +2404,7 @@ function nextOnboard() {
   if (obStep >= OB_STEPS.length) {
     state.values = [...state.selectedValues];
     launchApp();
+    setTimeout(() => startVoiceTutorial(true), 450);
   } else {
     renderObStep();
   }
@@ -2344,6 +2412,7 @@ function nextOnboard() {
 
 function skipOnboarding() {
   launchApp();
+  setTimeout(() => startVoiceTutorial(true), 450);
 }
 
 // ============================================================
@@ -2412,22 +2481,22 @@ function cleanupVoiceStream() {
 //   onText(text)  -> receives the transcribed words
 //   onStart()     -> update UI when recording begins
 //   onStop()      -> update UI when recording ends (before text comes back)
-async function startRecording(onText, onStart, onStop) {
+async function startRecording(onText, onStart, onStop, onError) {
   if (voiceActive) { stopRecording(); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-    showToast('This browser can\'t record audio — try the latest Chrome or Safari'); return;
+    showToast('This browser can\'t record audio — try the latest Chrome or Safari'); if (onError) onError('unsupported'); return;
   }
   try {
     voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    showToast('Microphone access is blocked — allow the mic and try again'); return;
+    showToast('Microphone access is blocked — allow the mic and try again'); if (onError) onError('blocked'); return;
   }
   const mime = pickAudioMime();
   try {
     mediaRecorder = mime ? new MediaRecorder(voiceStream, { mimeType: mime }) : new MediaRecorder(voiceStream);
   } catch (e) {
     try { mediaRecorder = new MediaRecorder(voiceStream); }
-    catch (e2) { cleanupVoiceStream(); showToast('Couldn\'t start recording — try again'); return; }
+    catch (e2) { cleanupVoiceStream(); showToast('Couldn\'t start recording — try again'); if (onError) onError('unsupported'); return; }
   }
   audioChunks = [];
   voiceActive = true;
@@ -2440,17 +2509,17 @@ async function startRecording(onText, onStart, onStop) {
     if (onStop) onStop();
     const blob = new Blob(audioChunks, { type: usedType });
     audioChunks = [];
-    if (!blob.size) { showToast('Didn\'t catch any audio — try again'); return; }
+    if (!blob.size) { showToast('Didn\'t catch any audio — try again'); if (onError) onError('noaudio'); return; }
     try {
       const text = await transcribeBlob(blob);
       if (text) { onText(text); }
-      else { showToast('Couldn\'t make out any words — try again'); }
+      else { showToast('Couldn\'t make out any words — try again'); if (onError) onError('notext'); }
     } catch (err) {
-      showToast('Voice service is unavailable right now — try again in a moment');
+      showToast('Voice service is unavailable right now — try again in a moment'); if (onError) onError('neterr');
     }
   };
   try { mediaRecorder.start(); }
-  catch (e) { voiceActive = false; cleanupVoiceStream(); if (onStop) onStop(); showToast('Couldn\'t start recording — try again'); return; }
+  catch (e) { voiceActive = false; cleanupVoiceStream(); if (onStop) onStop(); showToast('Couldn\'t start recording — try again'); if (onError) onError('neterr'); return; }
   // Safety net: never record longer than 25 seconds.
   voiceAutoStop = setTimeout(() => { if (voiceActive) stopRecording(); }, 25000);
 }
@@ -2521,6 +2590,181 @@ function dictateInto(fieldId, btnEl) {
     () => { if (btnEl) btnEl.classList.add('mic-on'); field.focus(); },
     () => { if (btnEl) btnEl.classList.remove('mic-on'); }
   );
+}
+
+// ============================================================
+// VOICE QUICK-START TUTORIAL
+// A short, skippable walkthrough that teaches the "VoiceFirstPlanner
+// language". It uses the REAL mic + parser so users learn exactly what
+// works, then restores the planner so practice entries don't persist.
+// ============================================================
+const VT_STEPS = [
+  { title: 'Add a task',
+    what: 'Tasks are your to-dos. Start with the word \u201cadd\u201d \u2014 everything after it becomes the task.',
+    say: 'Add buy milk',
+    expect: 'A task is added to today.' },
+  { title: 'Schedule something',
+    what: 'For anything with a time, use a cue word like \u201cmeeting\u201d or \u201ccall\u201d, then the time. Always say am or pm.',
+    say: 'Meeting tomorrow at 10am',
+    expect: 'An appointment appears tomorrow, 10\u201311am.' },
+  { title: 'Make it repeat',
+    what: 'Add \u201cevery day\u201d, \u201cweekly\u201d, or a weekday name to repeat something automatically.',
+    say: 'Take vitamins every day at 8am',
+    expect: 'A daily repeating appointment is created.' },
+  { title: 'Capture a note',
+    what: 'Start with \u201cnote\u201d to jot an idea \u2014 it goes to Notes instead of becoming a task.',
+    say: 'Note great idea for the website',
+    expect: 'It\u2019s saved in your Notes.' },
+  { title: 'Now try your own',
+    what: 'Your turn \u2014 say a task, an appointment, or a note however feels natural. The four habits: \u201cadd\u201d for tasks, a time + cue word for appointments, am/pm on times, and A/B/C for priorities.',
+    say: 'Add call the dentist on Friday as an A priority',
+    expect: 'Whatever you say, you\u2019ll see it land in your planner.' },
+];
+let vtIdx = 0;
+let vtSnapshot = null;
+
+function startVoiceTutorial(force) {
+  if (!force && state.voiceTutDone) return;
+  try { vtSnapshot = JSON.parse(JSON.stringify(serializeState())); } catch (e) { vtSnapshot = null; }
+  vtIdx = 0;
+  document.getElementById('voice-tut').classList.add('show');
+  vtRender();
+}
+
+function vtRender() {
+  const s = VT_STEPS[vtIdx];
+  document.getElementById('vt-title').textContent = s.title;
+  document.getElementById('vt-what').textContent = s.what;
+  document.getElementById('vt-say').textContent = '\u201c' + s.say + '\u201d';
+  document.getElementById('vt-expect').textContent = 'What you\u2019ll see: ' + s.expect;
+  document.getElementById('vt-dots').innerHTML =
+    VT_STEPS.map((_, i) => '<div class="vt-dot' + (i === vtIdx ? ' on' : '') + '"></div>').join('');
+  document.getElementById('vt-next').textContent = (vtIdx === VT_STEPS.length - 1) ? 'Finish' : 'Next';
+  vtResetControls();
+}
+
+function vtResetControls() {
+  document.getElementById('vt-result').classList.remove('show');
+  document.getElementById('vt-err').classList.remove('show');
+  document.getElementById('vt-type').classList.remove('show');
+  const inp = document.getElementById('vt-type-input'); if (inp) inp.value = '';
+  const mic = document.getElementById('vt-mic'); mic.classList.remove('listening');
+  document.getElementById('vt-mic-text').textContent = 'Try it \u2014 tap and speak';
+}
+
+function vtMicText(t) { document.getElementById('vt-mic-text').textContent = t; }
+function vtToggleType() { document.getElementById('vt-type').classList.toggle('show'); }
+
+function vtMic() {
+  if (voiceActive) { stopRecording(); return; }
+  const mic = document.getElementById('vt-mic');
+  document.getElementById('vt-err').classList.remove('show');
+  startRecording(
+    (text) => vtHandle(text),
+    () => { mic.classList.add('listening'); vtMicText('Listening\u2026 tap to finish'); },
+    () => { mic.classList.remove('listening'); vtMicText('Got it \u2014 one moment\u2026'); },
+    (reason) => vtError(reason)
+  );
+}
+
+function vtError(reason) {
+  document.getElementById('vt-mic').classList.remove('listening');
+  vtMicText('Try it \u2014 tap and speak');
+  const msgs = {
+    blocked: 'Microphone is blocked. Allow mic access in your browser, or type it instead.',
+    unsupported: 'This browser can\u2019t record audio. Please type it instead.',
+    noaudio: 'Didn\u2019t catch any audio \u2014 try again, or type it instead.',
+    notext: 'Couldn\u2019t make out the words \u2014 try again, or type it instead.',
+    neterr: 'Voice service is busy (or you\u2019re on a blocked network). Try again, or type it instead.'
+  };
+  const e = document.getElementById('vt-err');
+  e.textContent = msgs[reason] || 'Didn\u2019t catch that \u2014 try again, or type it instead.';
+  e.classList.add('show');
+}
+
+function vtRunTyped() {
+  const v = (document.getElementById('vt-type-input').value || '').trim();
+  if (!v) return;
+  vtHandle(v);
+}
+
+function vtHandle(text) {
+  const before = vtCounts();
+  try { processVoice(text); } catch (e) {}
+  const summary = vtDiff(before);
+  document.getElementById('vt-heard').textContent = 'Heard: \u201c' + text + '\u201d';
+  document.getElementById('vt-did').textContent = summary || 'Heard you \u2014 if nothing appeared, tweak the wording to match the example above.';
+  document.getElementById('vt-result').classList.add('show');
+  document.getElementById('vt-mic').classList.remove('listening');
+  vtMicText('Try again \u2014 tap and speak');
+}
+
+function vtCounts() {
+  return {
+    tasks: state.tasks.length,
+    appts: state.appointments.length,
+    notes: state.notes.length,
+    shopping: state.shopping.length,
+    bucket: (state.bucket || []).length
+  };
+}
+
+function vtDiff(b) {
+  const a = vtCounts();
+  if (a.appts > b.appts) {
+    const n = a.appts - b.appts;
+    const first = state.appointments.slice(-n)[0];
+    const when = vtNiceDate(first.date) + ', ' + fmt12(first.timeStart);
+    return n > 1
+      ? 'Added a repeating appointment: \u201c' + first.title + '\u201d (' + n + ' dates) starting ' + when + '.'
+      : 'Added appointment: \u201c' + first.title + '\u201d \u2014 ' + when + '.';
+  }
+  if (a.tasks > b.tasks) {
+    const t = state.tasks[state.tasks.length - 1];
+    return 'Added task: \u201c' + t.text + '\u201d (' + t.p + ' priority, ' + vtNiceDate(t.date) + ').';
+  }
+  if (a.notes > b.notes) {
+    const note = state.notes[0];
+    return 'Saved a note: \u201c' + (note.body || note.title || '') + '\u201d.';
+  }
+  if (a.shopping > b.shopping) {
+    return 'Added ' + (a.shopping - b.shopping) + ' item(s) to your shopping list.';
+  }
+  if (a.bucket > b.bucket) { return 'Added to your bucket list.'; }
+  return '';
+}
+
+function vtNiceDate(dk) {
+  if (!dk) return 'today';
+  if (dk === dateKey(today)) return 'today';
+  const tm = new Date(today); tm.setDate(today.getDate() + 1);
+  if (dk === dateKey(tm)) return 'tomorrow';
+  try { return new Date(dk + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  catch (e) { return dk; }
+}
+
+function vtRetry() { vtResetControls(); }
+
+function vtNext() {
+  if (vtIdx >= VT_STEPS.length - 1) { endVoiceTutorial(true); return; }
+  vtIdx++;
+  vtRender();
+}
+
+function endVoiceTutorial(completed) {
+  if (voiceActive) { try { stopRecording(); } catch (e) {} }
+  document.getElementById('voice-tut').classList.remove('show');
+  // Restore the planner to its pre-tutorial state so practice entries don't persist.
+  if (vtSnapshot) { try { applyState(vtSnapshot); } catch (e) {} }
+  vtSnapshot = null;
+  state.voiceTutDone = true;
+  try {
+    viewingDate = dateKey(today);
+    calViewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    updateViewingDateLabel();
+  } catch (e) {}
+  try { renderAll(); } catch (e) {}
+  try { showGroup('daily-planning', 'daily'); } catch (e) {}
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
