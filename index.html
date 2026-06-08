@@ -1397,6 +1397,9 @@ html, body {
       </div>
       <div class="topbar-right">
         <div class="user-badge" id="user-badge">Dave</div>
+        <button class="topbar-icon-btn" onclick="openReminders()" aria-label="Reminders" title="Reminders">
+          <i class="ti ti-bell" style="font-size:20px"></i>
+        </button>
         <button class="topbar-icon-btn" onclick="startVoiceTutorial(true)" aria-label="Voice quick-start" title="Voice quick-start">
           <i class="ti ti-help" style="font-size:20px"></i>
         </button>
@@ -1859,6 +1862,25 @@ html, body {
     <button class="modal-close-btn" onclick="closeFeedback()">Cancel</button>
   </div>
 </div>
+<div class="modal-overlay" id="reminders-modal" onclick="if(event.target===this)closeReminders()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Reminders</div>
+    <div class="modal-sub">Set a reminder for anything — say it or type it, pick a time, and we'll ping you.</div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <input type="text" id="rem-text" placeholder="Remind me to…" style="flex:1;padding:10px 12px;border:1px solid var(--line,#dfe6ee);border-radius:10px;font-size:14px;font-family:inherit">
+      <button class="field-mic" onclick="dictateInto('rem-text',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input type="date" id="rem-date" style="flex:1;padding:10px 12px;border:1px solid var(--line,#dfe6ee);border-radius:10px;font-size:14px;font-family:inherit">
+      <input type="time" id="rem-time" style="flex:1;padding:10px 12px;border:1px solid var(--line,#dfe6ee);border-radius:10px;font-size:14px;font-family:inherit">
+    </div>
+    <button class="modal-cta" style="margin-top:10px" onclick="addReminderFromForm()">Add reminder</button>
+    <div style="font-size:12px;color:var(--text-light);margin:6px 0 2px">Tip: by voice, say "remind me to call the plumber at 3pm tomorrow".</div>
+    <div id="reminder-list" style="margin-top:12px"></div>
+    <button class="modal-close-btn" onclick="closeReminders()">Close</button>
+  </div>
+</div>
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -1956,7 +1978,7 @@ let isDemo = false;      // demo mode = nothing persists
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shopping','happenedLog','reflections','aiInterest','values',
-                    'roles','focus','onboardStep','selectedValues','voiceTutDone'];
+                    'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders'];
 
 function serializeState() {
   const out = {};
@@ -2153,6 +2175,7 @@ let state = {
   voiceTutDone: false,
   selectedValues: new Set(['Family','Growth','Health']),
   iconIdx: 0,
+  reminders: [],
 };
 
 let currentProject = null;
@@ -2198,6 +2221,7 @@ function init() {
   const h2 = String((now.getHours() + 1) % 24).padStart(2,'0');
   document.getElementById('appt-time-start').value = `${h}:${m}`;
   document.getElementById('appt-time-end').value = `${h2}:${m}`;
+  startReminderEngine();
 }
 
 function setTopbarDate() {
@@ -2913,6 +2937,11 @@ function attachFieldMics() {
 function processVoice(text) {
   const t = text.toLowerCase();
   document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
+  // Reminder intent — intercept before appointment parsing.
+  if (/\bremind me\b/i.test(t) || /\bset (?:a |an )?reminder\b/i.test(t) || /^\s*reminder\b/i.test(t)) {
+    handleReminderVoice(text);
+    return;
+  }
   // Check for appointment/meeting voice command — a clock time plus event/schedule intent
   const hasClockTime = /\b\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?\b/i.test(t) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(t) || /\bat \d{1,2}\b/i.test(t);
   const apptIntent = ['meeting','appointment','appt','calendar','schedule','diary','dinner','lunch','breakfast','brunch','coffee','drinks','catch up','catchup',' with ','call ','meet ','dentist','doctor','session','interview','review','standup','stand-up','reminder','workshop','class','gym ','training','viewing','inspection','consultation','webinar','demo','presentation'].some(k => t.includes(k));
@@ -3801,6 +3830,7 @@ function renderTasks() {
     d.innerHTML = `
       <div class="priority-badge p${t.p}">${t.p}</div>
       <div class="task-text">${t.text}${carryTag}</div>
+      <button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('task',${t.id})"><i class="ti ti-bell"></i></button>
       <button class="row-edit" title="Edit" onclick="event.stopPropagation();editTask(${t.id})"><i class="ti ti-pencil"></i></button>
       <div class="task-check${t.done ? ' done' : ''}"></div>`;
     d.onclick = () => toggleTask(t.id);
@@ -4848,6 +4878,250 @@ async function submitFeedback() {
 // ============================================================
 // TOAST
 // ============================================================
+// ============================================================
+// REMINDERS — set a reminder on anything: standalone ("remind me
+// to…") or attached to an item (the 🔔 on a task). Fires a phone
+// notification (if the user has allowed them) plus an in-app alert
+// while the app is open.
+// NOTE: reliable "fires even when the app is closed" arrives with
+// the native (Capacitor) build via Local Notifications. In a web
+// app, scheduled firing happens while the app is open / in the
+// background where the browser allows it.
+// ============================================================
+let reminderTimer = null;
+
+function startReminderEngine() {
+  if (reminderTimer) return;
+  checkDueReminders();
+  reminderTimer = setInterval(checkDueReminders, 20000);
+}
+
+function ensureNotifyPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  } catch (e) {}
+}
+
+function openReminders() {
+  ensureNotifyPermission();
+  const inOneHour = new Date(Date.now() + 60 * 60000);
+  const dEl = document.getElementById('rem-date');
+  const tEl = document.getElementById('rem-time');
+  if (dEl && !dEl.value) dEl.value = dateKey(inOneHour);
+  if (tEl && !tEl.value) tEl.value = `${String(inOneHour.getHours()).padStart(2,'0')}:${String(inOneHour.getMinutes()).padStart(2,'0')}`;
+  renderReminders();
+  document.getElementById('reminders-modal').classList.add('open');
+}
+function closeReminders() {
+  document.getElementById('reminders-modal').classList.remove('open');
+}
+
+function escapeRem(s) {
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+function remWhenLabel(ms) {
+  const d = new Date(ms);
+  const todayK = dateKey(new Date());
+  const tom = new Date(); tom.setDate(tom.getDate() + 1);
+  const time = fmt12(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+  if (dateKey(d) === todayK) return 'today at ' + time;
+  if (dateKey(d) === dateKey(tom)) return 'tomorrow at ' + time;
+  return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' at ' + time;
+}
+
+// Core: store a reminder.
+function addReminder(text, whenDate, link) {
+  if (!text || !text.trim()) { showToast('Add a few words for the reminder first'); return null; }
+  if (!(whenDate instanceof Date) || isNaN(whenDate.getTime())) { showToast("I couldn't work out the time — try again"); return null; }
+  ensureNotifyPermission();
+  if (!state.reminders) state.reminders = [];
+  const r = { id: Date.now(), text: text.trim(), whenMs: whenDate.getTime(), link: link || null, fired: false };
+  state.reminders.push(r);
+  try { persistNow(); } catch (e) {}
+  return r;
+}
+
+function addReminderFromForm() {
+  const text = (document.getElementById('rem-text').value || '').trim();
+  const dVal = document.getElementById('rem-date').value;
+  const tVal = document.getElementById('rem-time').value;
+  if (!text) { showToast('Type what you want to be reminded about'); return; }
+  if (!dVal || !tVal) { showToast('Pick a date and time'); return; }
+  const when = new Date(dVal + 'T' + tVal);
+  if (isNaN(when.getTime())) { showToast('That date/time looks off'); return; }
+  const r = addReminder(text, when, null);
+  if (!r) return;
+  document.getElementById('rem-text').value = '';
+  renderReminders();
+  showToast('Reminder set for ' + remWhenLabel(r.whenMs));
+}
+
+// Open the reminders panel pre-filled for a specific item.
+function remindForItem(type, id) {
+  let text = '';
+  if (type === 'task') { const it = state.tasks.find(x => x.id === id); if (it) text = it.text; }
+  else if (type === 'appt') { const it = state.appointments.find(x => x.id === id); if (it) text = it.title; }
+  else if (type === 'note') { const it = (state.notes || []).find(x => x.id === id); if (it) text = it.title || it.body; }
+  openReminders();
+  const el = document.getElementById('rem-text');
+  if (el) el.value = text;
+}
+
+function renderReminders() {
+  const el = document.getElementById('reminder-list');
+  if (!el) return;
+  const list = (state.reminders || []).slice().sort((a, b) => a.whenMs - b.whenMs);
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:14px 0;color:var(--text-mid);font-size:13px">No reminders yet.</div>`;
+    return;
+  }
+  const now = Date.now();
+  el.innerHTML = list.map(r => {
+    const overdue = r.whenMs <= now;
+    const color = overdue ? 'var(--orange,#F2771A)' : 'var(--text-light)';
+    const when = (overdue ? 'was ' : '') + remWhenLabel(r.whenMs);
+    return `<div class="task-row" style="align-items:center">
+      <i class="ti ti-bell" style="color:${color};font-size:16px;margin-right:8px"></i>
+      <div class="task-text" style="flex:1">${escapeRem(r.text)}<div style="font-size:11px;color:${color}">${when}</div></div>
+      <button class="row-edit" title="Snooze 10 min" onclick="snoozeReminder(${r.id})"><i class="ti ti-clock"></i></button>
+      <button class="row-edit" title="Delete" onclick="deleteReminder(${r.id})"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function snoozeReminder(id) {
+  const r = (state.reminders || []).find(x => x.id === id);
+  if (!r) return;
+  r.whenMs = Date.now() + 10 * 60000;
+  r.fired = false;
+  try { persistNow(); } catch (e) {}
+  renderReminders();
+  showToast('Snoozed 10 minutes');
+}
+
+function deleteReminder(id) {
+  state.reminders = (state.reminders || []).filter(x => x.id !== id);
+  try { persistNow(); } catch (e) {}
+  renderReminders();
+}
+
+function fireReminder(r) {
+  r.fired = true;
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('VoiceFirstPlanner', { body: r.text, tag: 'vfp-rem-' + r.id });
+    }
+  } catch (e) {}
+  showToast('⏰ Reminder: ' + r.text);
+}
+
+function checkDueReminders() {
+  if (!state.reminders || !state.reminders.length) return;
+  const now = Date.now();
+  let changed = false;
+  state.reminders.forEach(r => {
+    if (!r.fired && r.whenMs <= now) {
+      // Missed by more than 2 hours (app was closed) → mark quietly so
+      // reopening doesn't spam a pile of old reminders at once.
+      if (now - r.whenMs > 2 * 60 * 60 * 1000) { r.fired = true; }
+      else { fireReminder(r); }
+      changed = true;
+    }
+  });
+  if (changed) {
+    try { persistNow(); } catch (e) {}
+    const modal = document.getElementById('reminders-modal');
+    if (modal && modal.classList.contains('open')) renderReminders();
+  }
+}
+
+// Voice: "remind me to call the plumber at 3pm tomorrow",
+//        "remind me in 20 minutes to take the pizza out".
+function handleReminderVoice(text) {
+  const parsed = parseReminderVoice(text);
+  const r = addReminder(parsed.text, parsed.when, null);
+  if (!r) return;
+  showToast('Reminder set: "' + parsed.text + '" — ' + remWhenLabel(r.whenMs));
+}
+
+function parseReminderVoice(text) {
+  const t = ' ' + text.toLowerCase() + ' ';
+  const now = new Date();
+  const numWords = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, half:0.5 };
+  const toNum = w => { const s = String(w).toLowerCase(); return numWords[s] != null ? numWords[s] : (isNaN(+s) ? 1 : +s); };
+  let when = null;
+
+  const relHalf = /\bin\s+half\s+an?\s+hour\b/.test(t) || /\bin\s+30\s*min/.test(t);
+  const relMin = t.match(/\bin\s+(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:minutes?|mins?)\b/);
+  const relHr = t.match(/\bin\s+(\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s*(?:hours?|hrs?)\b/);
+
+  const parseClock = (str) => {
+    const m = str.match(/(\d{1,2})\s*[:.]\s*(\d{2})\s*(am|pm)?/i) || str.match(/(\d{1,2})\s*(am|pm)/i);
+    if (!m) return null;
+    let h, mins = 0, ap = '';
+    if (m.length === 4) { h = +m[1]; mins = +(m[2] || 0); ap = (m[3] || '').toLowerCase(); }
+    else { h = +m[1]; ap = (m[2] || '').toLowerCase(); }
+    if (ap === 'pm' && h !== 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    if (h > 23) h = 9; if (mins > 59) mins = 0;
+    return { h, mins };
+  };
+  const atMatch = t.match(/\bat\s+(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?)/i);
+  const clock = atMatch ? parseClock(atMatch[1]) : parseClock(t);
+
+  if (relHalf) { when = new Date(now.getTime() + 30 * 60000); }
+  else if (relMin) { when = new Date(now.getTime() + Math.round(toNum(relMin[1])) * 60000); }
+  else if (relHr) { when = new Date(now.getTime() + Math.round(toNum(relHr[1]) * 60) * 60000); }
+  else {
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const monthRe = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+    const dayNames = {sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let d = new Date(now), dateSet = false;
+    const inDays = t.match(/\bin\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*days?\b/);
+    let mnMon = null, mnDay = null;
+    const mnM = t.match(new RegExp(monthRe + '\\s+(\\d{1,2})(?:st|nd|rd|th)?'));
+    if (mnM) { mnMon = months[mnM[1].slice(0,3)]; mnDay = +mnM[2]; }
+    else { const mnM2 = t.match(new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + monthRe)); if (mnM2) { mnDay = +mnM2[1]; mnMon = months[mnM2[2].slice(0,3)]; } }
+    const wd = t.match(/\b(?:next\s+|this\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+    if (/\btomorrow\b/.test(t)) { d.setDate(d.getDate() + 1); dateSet = true; }
+    else if (/\bnext week\b/.test(t)) { d.setDate(d.getDate() + 7); dateSet = true; }
+    else if (inDays) { d.setDate(d.getDate() + toNum(inDays[1])); dateSet = true; }
+    else if (mnMon != null && mnDay) { d = new Date(now.getFullYear(), mnMon, mnDay); if (d < todayMid) d.setFullYear(d.getFullYear() + 1); dateSet = true; }
+    else if (wd) { const target = dayNames[wd[1]]; let diff = (target - d.getDay() + 7) % 7; if (diff === 0) diff = 7; d.setDate(d.getDate() + diff); dateSet = true; }
+    if (clock) d.setHours(clock.h, clock.mins, 0, 0);
+    else d.setHours(9, 0, 0, 0);
+    if (!dateSet && clock && d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // time already passed today → tomorrow
+    if (!dateSet && !clock) d = new Date(now.getTime() + 60 * 60000);                   // nothing parsed → in 1 hour
+    when = d;
+  }
+
+  const monthReC = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  let clean = text
+    .replace(/^\s*(please\s+)?/i, '')
+    .replace(/^\s*set\s+(?:a\s+|an\s+)?reminder\s*(?:to|for|that|about|:)?\s*/i, '')
+    .replace(/^\s*remind\s+me\s+(?:to|that|about|:)?\s*/i, '')
+    .replace(/^\s*reminder\s*(?:to|for|:)?\s*/i, '')
+    .replace(/\bin\s+(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s*(?:minutes?|mins?|hours?|hrs?|days?)\b/gi, '')
+    .replace(/\bin\s+half\s+an?\s+hour\b/gi, '')
+    .replace(/\bat\s+\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?\b/gi, '')
+    .replace(/\b\d{1,2}\s*[:.]\s*\d{2}\s*(?:am|pm)?\b/gi, '')
+    .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi, '')
+    .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?' + monthReC + '\\s+\\d{1,2}(?:st|nd|rd|th)?\\b', 'gi'), '')
+    .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + monthReC + '\\b', 'gi'), '')
+    .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
+    .replace(/\b(today|tonight|tomorrow|this evening|this morning|this afternoon|next week)\b/gi, '')
+    .replace(/\b(at|to|on|for)\s*$/gi, '')
+    .replace(/^\s*(to|that|about)\s+/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (!clean) clean = 'Reminder';
+  return { text: clean, when };
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
