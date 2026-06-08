@@ -1544,6 +1544,7 @@ html, body {
         <div class="habit-grid" id="habit-grid"></div>
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input class="task-inp" id="habit-inp" placeholder="New habit…" style="flex:1" onkeydown="if(event.key==='Enter')addHabit()">
+          <button class="field-mic" onclick="dictateInto('habit-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addHabit()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <div class="streak-bar">
@@ -1566,6 +1567,7 @@ html, body {
         <div id="goals-list"></div>
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input class="task-inp" id="goal-inp" placeholder="New goal…" style="flex:1" onkeydown="if(event.key==='Enter')addGoal()">
+          <button class="field-mic" onclick="dictateInto('goal-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <input class="task-inp" id="goal-target" type="number" min="1" placeholder="#" style="width:62px;flex:none">
           <button onclick="addGoal()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
