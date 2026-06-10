@@ -1176,6 +1176,16 @@ html, body {
   justify-content: center;
 }
 .modal-overlay.open { display: flex; }
+.rem-alert { position: fixed; top: 0; left: 0; right: 0; z-index: 100000; display: none; padding: 10px 12px; }
+.rem-alert.show { display: block; }
+.rem-alert-card { max-width: 520px; margin: 0 auto; background: var(--navy,#143a5a); color: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.28); border-left: 4px solid var(--orange,#F2771A); padding: 12px 14px; }
+.rem-alert-title { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.rem-alert-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.12); }
+.rem-alert-item:first-of-type { border-top: none; }
+.rem-alert-text { flex: 1; font-size: 14px; }
+.rem-alert-btn { background: rgba(255,255,255,0.16); color: #fff; border: none; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+.rem-alert-btn.primary { background: var(--orange,#F2771A); color: var(--navy,#143a5a); font-weight: 700; }
+.rem-alert-btn:hover { opacity: 0.9; }
 .modal-sheet {
   background: var(--white);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1840,6 +1850,7 @@ html, body {
 
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
+  <div class="rem-alert" id="reminder-alert"></div>
 
 </div><!-- /app -->
 
@@ -4998,8 +5009,10 @@ function snoozeReminder(id) {
   if (!r) return;
   r.whenMs = Date.now() + 10 * 60000;
   r.fired = false;
+  r.acked = false;
   try { persistNow(); } catch (e) {}
   renderReminders();
+  renderReminderAlert();
   showToast('Snoozed 10 minutes');
 }
 
@@ -5007,6 +5020,7 @@ function deleteReminder(id) {
   state.reminders = (state.reminders || []).filter(x => x.id !== id);
   try { persistNow(); } catch (e) {}
   renderReminders();
+  renderReminderAlert();
 }
 
 function fireReminder(r) {
@@ -5016,7 +5030,42 @@ function fireReminder(r) {
       new Notification('VoiceFirstPlanner', { body: r.text, tag: 'vfp-rem-' + r.id });
     }
   } catch (e) {}
-  showToast('⏰ Reminder: ' + r.text);
+  renderReminderAlert();
+}
+
+// Persistent in-app banner: lists fired reminders the user hasn't dismissed yet.
+function renderReminderAlert() {
+  const el = document.getElementById('reminder-alert');
+  if (!el) return;
+  const due = (state.reminders || []).filter(r => r.fired && !r.acked).sort((a, b) => a.whenMs - b.whenMs);
+  if (!due.length) { el.classList.remove('show'); el.innerHTML = ''; return; }
+  const items = due.map(r => `
+    <div class="rem-alert-item">
+      <div class="rem-alert-text">${escapeRem(r.text)}</div>
+      <button class="rem-alert-btn" onclick="snoozeReminder(${r.id})">Snooze 10m</button>
+      <button class="rem-alert-btn primary" onclick="ackReminder(${r.id})">Got it</button>
+    </div>`).join('');
+  const all = due.length > 1
+    ? `<div style="text-align:right;margin-top:8px"><button class="rem-alert-btn" onclick="dismissAllReminders()">Dismiss all</button></div>`
+    : '';
+  el.innerHTML = `<div class="rem-alert-card">
+    <div class="rem-alert-title"><i class="ti ti-bell"></i> Reminder${due.length > 1 ? 's' : ''}</div>
+    ${items}${all}
+  </div>`;
+  el.classList.add('show');
+}
+
+function ackReminder(id) {
+  const r = (state.reminders || []).find(x => x.id === id);
+  if (r) r.acked = true;
+  try { persistNow(); } catch (e) {}
+  renderReminderAlert();
+}
+
+function dismissAllReminders() {
+  (state.reminders || []).forEach(r => { if (r.fired) r.acked = true; });
+  try { persistNow(); } catch (e) {}
+  renderReminderAlert();
 }
 
 function checkDueReminders() {
@@ -5027,7 +5076,7 @@ function checkDueReminders() {
     if (!r.fired && r.whenMs <= now) {
       // Missed by more than 2 hours (app was closed) → mark quietly so
       // reopening doesn't spam a pile of old reminders at once.
-      if (now - r.whenMs > 2 * 60 * 60 * 1000) { r.fired = true; }
+      if (now - r.whenMs > 2 * 60 * 60 * 1000) { r.fired = true; r.acked = true; }
       else { fireReminder(r); }
       changed = true;
     }
