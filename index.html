@@ -1186,6 +1186,20 @@ html, body {
 .rem-alert-btn { background: rgba(255,255,255,0.16); color: #fff; border: none; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
 .rem-alert-btn.primary { background: var(--orange,#F2771A); color: var(--navy,#143a5a); font-weight: 700; }
 .rem-alert-btn:hover { opacity: 0.9; }
+.week-day { background: var(--card,#fff); border:1px solid var(--border,#e6ebf1); border-radius:12px; margin-bottom:10px; overflow:hidden; }
+.week-day.is-today { border-color: var(--orange,#F2771A); }
+.week-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; cursor:pointer; background:var(--navy,#143a5a); color:#fff; }
+.week-day.is-today .week-head { background: var(--orange,#F2771A); color: var(--navy,#143a5a); }
+.week-date { font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.week-tag { font-size:10px; font-weight:700; background:rgba(255,255,255,.22); padding:1px 8px; border-radius:20px; }
+.week-day.is-today .week-tag { background: rgba(20,58,90,.18); }
+.week-counts { font-size:11px; opacity:.9; display:flex; align-items:center; white-space:nowrap; }
+.week-body { padding:4px 12px 8px; }
+.week-item { display:flex; align-items:center; gap:9px; padding:6px 0; border-top:1px solid var(--border,#eef2f6); font-size:13px; }
+.week-item:first-child { border-top:none; }
+.week-time { font-size:11px; font-weight:700; color:#4A9EF7; min-width:58px; }
+.week-appt, .week-task { color:var(--text,#1d2b3a); }
+.week-empty { font-size:12px; color:var(--text-mid,#8aa0b3); padding:7px 0; }
 .modal-sheet {
   background: var(--white);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1440,6 +1454,7 @@ html, body {
   </div>
   <div class="nav" id="main-nav">
     <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('week',this)"><i class="ti ti-calendar-week"></i>Week</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
@@ -1548,6 +1563,15 @@ html, body {
         <div style="font-size:11px;color:var(--text-mid);margin-top:4px;padding-left:2px">💡 Leave date as today or set a future date to schedule ahead</div>
       </div>
 
+    </div>
+
+    <!-- WEEK TAB -->
+    <div class="sec" id="sec-week">
+      <div class="card" style="padding:14px">
+        <div class="card-label">The week ahead</div>
+        <div style="font-size:12px;color:var(--text-mid);margin:2px 0 12px">Your next 7 days at a glance. Tap any day to open it.</div>
+        <div id="week-list"></div>
+      </div>
     </div>
 
     <!-- HABITS TAB -->
@@ -2476,7 +2500,7 @@ function skipOnboarding() {
 // NAVIGATION
 // ============================================================
 // Maps each content tab to its parent group
-const TAB_GROUP = { daily:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
+const TAB_GROUP = { daily:'daily-planning', week:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
                     goals:'life-planning', values:'life-planning', bucket:'life-planning', habits:'life-planning', reflect:'life-planning' };
 
 function showGroup(group, activeTab) {
@@ -2498,6 +2522,7 @@ function showTab(name, btn, skipGroupSync) {
   const sec = document.getElementById('sec-' + name);
   if (sec) sec.classList.add('active');
   if (btn) btn.classList.add('active');
+  if (name === 'week') renderWeek();
   // keep the correct group open and its sub-tabs visible
   if (!skipGroupSync) {
     const group = TAB_GROUP[name] || 'daily-planning';
@@ -3713,6 +3738,25 @@ function editCapture(idx) {
   ]);
 }
 
+function editShopping(id) {
+  const it = (state.shopping || []).find(x => x.id === id);
+  if (!it) return;
+  editCtx = { kind: 'shopping', id };
+  openEditModal('Edit item', [{ id: 'edit-f1', label: 'Item', value: it.text, mic: true }]);
+}
+function editBucket(id) {
+  const it = (state.bucket || []).find(x => x.id === id);
+  if (!it) return;
+  editCtx = { kind: 'bucket', id };
+  openEditModal('Edit bucket-list item', [{ id: 'edit-f1', label: 'Dream', value: it.text, mic: true }]);
+}
+function editValue(idx) {
+  const v = state.values[idx];
+  if (v === undefined) return;
+  editCtx = { kind: 'value', idx };
+  openEditModal('Edit value', [{ id: 'edit-f1', label: 'Value', value: v, mic: true }]);
+}
+
 function openEditModal(title, fields) {
   document.getElementById('edit-modal-title').textContent = title;
   const wrap = document.getElementById('edit-modal-fields');
@@ -3804,6 +3848,20 @@ function saveEdit() {
     const c = currentProject && currentProject.captures[editCtx.idx];
     if (c) { if (!v1) { showToast('Title can\u2019t be empty'); return; } c.title = v1; c.body = v2; }
     renderDetailCaptures();
+  } else if (editCtx.kind === 'shopping') {
+    const it = (state.shopping || []).find(x => x.id === editCtx.id);
+    if (it) { if (!v1) { showToast('Item can’t be empty'); return; } it.text = v1; }
+    renderShopping();
+  } else if (editCtx.kind === 'bucket') {
+    const it = (state.bucket || []).find(x => x.id === editCtx.id);
+    if (it) { if (!v1) { showToast('This can’t be empty'); return; } it.text = v1; }
+    renderBucket();
+  } else if (editCtx.kind === 'value') {
+    const old = state.values[editCtx.idx];
+    if (!v1) { showToast('Value can’t be empty'); return; }
+    state.values[editCtx.idx] = v1;
+    if (state.inactiveValues && state.inactiveValues.has(old)) { state.inactiveValues.delete(old); state.inactiveValues.add(v1); }
+    renderValues();
   }
   showToast('Saved');
   closeEditModal();
@@ -3815,6 +3873,9 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); renderNotes(); }
   else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
   else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
+  else if (editCtx.kind === 'shopping') { state.shopping = (state.shopping || []).filter(x => x.id !== editCtx.id); renderShopping(); }
+  else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
+  else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
   showToast('Deleted');
   closeEditModal();
 }
@@ -4529,6 +4590,7 @@ function renderShopping() {
       row.className = 'task-row' + (it.done ? ' done' : '');
       row.innerHTML = `
         <div class="task-text">${it.text}</div>
+        <button class="row-edit" title="Edit" onclick="event.stopPropagation();editShopping(${it.id})"><i class="ti ti-pencil"></i></button>
         <button class="row-edit" title="Remove" onclick="event.stopPropagation();deleteShoppingItem(${it.id})"><i class="ti ti-trash"></i></button>
         <div class="task-check${it.done ? ' done' : ''}"></div>`;
       row.onclick = () => toggleShoppingItem(it.id);
@@ -4660,12 +4722,20 @@ function renderValues() {
   const el = document.getElementById('values-chips');
   el.innerHTML = '';
   if (!state.inactiveValues) state.inactiveValues = new Set();
-  state.values.forEach(v => {
+  state.values.forEach((v, idx) => {
     const s = document.createElement('span');
     const isActive = !state.inactiveValues.has(v);
     s.className = 'val-chip' + (isActive ? ' active' : '');
-    s.textContent = v;
     s.style.cursor = 'pointer';
+    const txt = document.createElement('span');
+    txt.textContent = v;
+    s.appendChild(txt);
+    const pen = document.createElement('i');
+    pen.className = 'ti ti-pencil';
+    pen.title = 'Edit value';
+    pen.style.cssText = 'font-size:11px;opacity:.55;margin-left:6px';
+    pen.onclick = (e) => { e.stopPropagation(); editValue(idx); };
+    s.appendChild(pen);
     s.onclick = () => {
       if (state.inactiveValues.has(v)) state.inactiveValues.delete(v);
       else state.inactiveValues.add(v);
@@ -5197,6 +5267,7 @@ function renderBucket() {
     row.className = 'task-row' + (it.done ? ' done' : '');
     row.innerHTML = `
       <div class="task-text">${it.text}</div>
+      <button class="row-edit" title="Edit" onclick="event.stopPropagation();editBucket(${it.id})"><i class="ti ti-pencil"></i></button>
       <button class="row-edit" title="Remove" onclick="event.stopPropagation();deleteBucketItem(${it.id})"><i class="ti ti-trash"></i></button>
       <div class="task-check${it.done ? ' done' : ''}"></div>`;
     row.onclick = () => toggleBucketItem(it.id);
@@ -5222,6 +5293,58 @@ function deleteBucketItem(id) {
   renderBucket();
 }
 
+function renderWeek() {
+  const el = document.getElementById('week-list');
+  if (!el) return;
+  const todayK = dateKey(today);
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const k = dateKey(d);
+    const appts = state.appointments.filter(a => a.date === k)
+      .sort((a, b) => (a.timeStart || '').localeCompare(b.timeStart || ''));
+    const tasks = state.tasks.filter(t => (t.date || todayK) === k && !t.done)
+      .sort((a, b) => a.p.localeCompare(b.p));
+    const heading = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    let tag = '';
+    if (k === todayK) tag = '<span class="week-tag">Today</span>';
+    else if (i === 1) tag = '<span class="week-tag">Tomorrow</span>';
+    let body = '';
+    appts.forEach(a => {
+      body += `<div class="week-item"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span></div>`;
+    });
+    tasks.forEach(t => {
+      body += `<div class="week-item"><span class="priority-badge p${t.p}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">${t.p}</span><span class="week-task">${t.text}</span></div>`;
+    });
+    if (!appts.length && !tasks.length) body = `<div class="week-empty">Nothing planned</div>`;
+    const counts = `${appts.length ? appts.length + ' appt' + (appts.length > 1 ? 's' : '') : ''}` +
+                   `${appts.length && tasks.length ? ' · ' : ''}` +
+                   `${tasks.length ? tasks.length + ' task' + (tasks.length > 1 ? 's' : '') : ''}`;
+    html += `<div class="week-day${k === todayK ? ' is-today' : ''}">
+      <div class="week-head" onclick="openDayInDaily('${k}')">
+        <div class="week-date">${heading} ${tag}</div>
+        <div class="week-counts">${counts}<i class="ti ti-chevron-right" style="margin-left:6px"></i></div>
+      </div>
+      <div class="week-body">${body}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function openDayInDaily(k) {
+  viewingDate = k;
+  if (typeof calViewMonth !== 'undefined') {
+    const dd = new Date(k + 'T12:00:00');
+    calViewMonth = new Date(dd.getFullYear(), dd.getMonth(), 1);
+  }
+  updateViewingDateLabel();
+  renderTasks();
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+  showTab('daily');
+}
+
 function renderAll() {
   renderTasks();
   renderHabits();
@@ -5232,6 +5355,7 @@ function renderAll() {
   renderShopping();
   renderValues();
   renderHappened();
+  renderWeek();
 }
 
 // ============================================================
