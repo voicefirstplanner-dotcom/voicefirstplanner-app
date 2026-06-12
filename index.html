@@ -5363,6 +5363,9 @@ function renderAll() {
 // ============================================================
 init();
 attachFieldMics();
+// Deep-link: the website's "Create account / Start free" buttons append ?signup=1
+// so visitors land straight on the sign-up tab instead of Sign in.
+if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
 restoreSession();
 </script>
 </body>
