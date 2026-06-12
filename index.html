@@ -1329,6 +1329,10 @@ html, body {
 .mt-12 { margin-top: 12px; }
 .text-center { text-align: center; }
 .pro-lock { color: var(--orange); font-size: 12px; font-weight: 500; }
+.shop-tab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer;white-space:nowrap}
+.shop-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.shop-tab-add{border-style:dashed;color:var(--text-mid)}
+.shop-tab-del{color:#c0392b;padding:6px 10px}
 </style>
 </head>
 <body>
@@ -1669,7 +1673,8 @@ html, body {
     <div class="sec" id="sec-shopping">
       <div class="card">
         <div class="card-label">Shopping list</div>
-        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk, eggs and bread to my shopping list" — or type below. Tick items off as you go.</p>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk and eggs to my shopping list" — or "add sunscreen to my travel list" to sort items into named lists. Tick them off as you go.</p>
+        <div id="shopping-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <input id="shopping-input" type="text" placeholder="Add an item — or a few, separated by commas…" style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')addShoppingItem()" />
           <button class="field-mic" onclick="dictateInto('shopping-input',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
@@ -2012,7 +2017,7 @@ let isDemo = false;      // demo mode = nothing persists
 
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
-                    'notes','shopping','happenedLog','reflections','aiInterest','values',
+                    'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders'];
 
 function serializeState() {
@@ -2029,6 +2034,15 @@ function applyState(data) {
     if (k === 'selectedValues') state.selectedValues = new Set(data[k] || []);
     else state[k] = data[k];
   });
+  if (data.shoppingLists === undefined && Array.isArray(data.shopping)) {
+    state.shoppingLists = [{ id: 'list_' + Date.now(), name: 'Shopping', items: data.shopping }];
+  }
+  if (!Array.isArray(state.shoppingLists) || !state.shoppingLists.length) {
+    state.shoppingLists = [{ id: 'list_' + Date.now(), name: 'Shopping', items: [] }];
+  }
+  if (!state.activeShopId || !state.shoppingLists.some(function(l){ return l.id === state.activeShopId; })) {
+    state.activeShopId = state.shoppingLists[0].id;
+  }
 }
 
 function authMsg(text, isError) {
@@ -2117,14 +2131,11 @@ const DAYS = ['M','T','W','T','F','S','S'];
 const DEFAULT_HABITS = [
   { id: 1, name: 'Morning reflection' },
   { id: 2, name: 'Exercise' },
-  { id: 3, name: 'Read 20 minutes' },
-  { id: 4, name: 'Review goals' },
 ];
 
 const DEFAULT_GOALS = [
   { id: 1, name: 'Read 24 books this year', cur: 0, tot: 24, role: 'Learner' },
   { id: 2, name: 'Run a half-marathon', cur: 0, tot: 21, unit: 'km', role: 'Health' },
-  { id: 3, name: 'Complete leadership course', cur: 0, tot: 8, unit: 'modules', role: 'Professional' },
 ];
 
 const DEFAULT_PROJECTS = [
@@ -2132,10 +2143,6 @@ const DEFAULT_PROJECTS = [
     { type: 'voice', title: 'Outboard motor notes — boat show', meta: '2 min voice memo', icon: 'ti-microphone' },
     { type: 'photo', title: 'Hull damage photos', meta: '6 photos', icon: 'ti-camera' },
     { type: 'doc', title: 'Yamaha 150hp spec sheet', meta: 'PDF · 2.4MB', icon: 'ti-file-text' },
-  ]},
-  { id: 2, name: 'House renovation', desc: 'Kitchen and bathroom upgrade', icon: '🏠', status: 'Planning', progress: 15, tags: ['property','kitchen'], captures: [
-    { type: 'photo', title: 'Inspiration photos from home show', meta: '12 photos', icon: 'ti-camera' },
-    { type: 'doc', title: 'Kitchen quotes — 3 suppliers', meta: '3 PDFs', icon: 'ti-file-text' },
   ]},
 ];
 
@@ -2192,11 +2199,14 @@ let state = {
   ],
   projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
-  shopping: [
-    { id: 1, text: 'Milk', done: false },
-    { id: 2, text: 'Eggs', done: false },
-    { id: 3, text: 'Bread', done: true },
+  shoppingLists: [
+    { id: 'list_default', name: 'Shopping', items: [
+      { id: 1, text: 'Milk', done: false },
+      { id: 2, text: 'Eggs', done: false },
+      { id: 3, text: 'Bread', done: true },
+    ] },
   ],
+  activeShopId: 'list_default',
   happenedLog: [
     { date: daysAgoKey(1), text: 'Finished something I\'d been putting off — felt good to finally clear it.' },
     { date: daysAgoKey(2), text: 'Slower day, but made time for a proper walk and a bit of reading.' },
@@ -2844,7 +2854,7 @@ function vtCounts() {
     tasks: state.tasks.length,
     appts: state.appointments.length,
     notes: state.notes.length,
-    shopping: state.shopping.length,
+    shopping: shopLists().reduce(function(a,l){ return a + l.items.length; }, 0),
     bucket: (state.bucket || []).length,
     goals: (state.goals || []).length,
     projects: (state.projects || []).length,
@@ -3209,7 +3219,7 @@ function processVoice(text) {
     showTab('daily', null);
     showToast(`Appointment added: "${clean}" at ${fmt12(timeStart)}`);
     return;
-  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:\s]/.test(t)) {
+  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
     // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
     let items = text
       .replace(/^\s*add\s+/i, '')
@@ -3218,7 +3228,10 @@ function processVoice(text) {
       .replace(/^\s*(?:shopping|grocery|groceries)\s+list\b[:\s]*/i, '')
       .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
       .trim();
-    const n = addShoppingItems(items);
+    var _shTgt = null; var _mL = t.match(/(?:to|on|onto|in)\s+(?:my|the)\s+([a-z0-9][a-z0-9 ]*?)\s+list\b/i);
+    if (_mL) { var _nm = _mL[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').trim(); if (_nm) _shTgt = _nm; }
+    items = items.replace(/\b(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+    const n = addShoppingItems(items, _shTgt ? { listName: _shTgt } : null);
     showTab('shopping', null);
     if (!n) showToast('Tell me what to add — e.g. "add milk to my shopping list"');
     return;
@@ -3273,8 +3286,8 @@ function processVoice(text) {
                  .replace(/\ba\s+project\b/i,'').replace(/\bthe\s+project\b/i,'').replace(/\bproject\b/i,'')
                  .replace(/^\s*(?:called|named|for|to|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
     if (!pj) { showToast('Tell me the project name — e.g. "start a project called boat refit"'); return; }
-    if (!vtPracticeMode && !isPremium() && state.projects.length >= 2) {
-      showToast('Free plan: up to 2 projects — upgrade for unlimited'); showUpgrade(); return;
+    if (!vtPracticeMode && !isPremium() && state.projects.length >= 1) {
+      showToast('Free plan: 1 project on the free plan — upgrade for unlimited'); showUpgrade(); return;
     }
     state.projects = state.projects || [];
     state.projects.push({ id: Date.now(), name: pj, desc: '', icon: '📁', status: 'Planning', progress: 0, tags: [], captures: [] });
@@ -3739,7 +3752,7 @@ function editCapture(idx) {
 }
 
 function editShopping(id) {
-  const it = (state.shopping || []).find(x => x.id === id);
+  const it = shopItems().find(x => x.id === id);
   if (!it) return;
   editCtx = { kind: 'shopping', id };
   openEditModal('Edit item', [{ id: 'edit-f1', label: 'Item', value: it.text, mic: true }]);
@@ -3849,7 +3862,7 @@ function saveEdit() {
     if (c) { if (!v1) { showToast('Title can\u2019t be empty'); return; } c.title = v1; c.body = v2; }
     renderDetailCaptures();
   } else if (editCtx.kind === 'shopping') {
-    const it = (state.shopping || []).find(x => x.id === editCtx.id);
+    const it = shopItems().find(x => x.id === editCtx.id);
     if (it) { if (!v1) { showToast('Item can’t be empty'); return; } it.text = v1; }
     renderShopping();
   } else if (editCtx.kind === 'bucket') {
@@ -3873,7 +3886,7 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); renderNotes(); }
   else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
   else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
-  else if (editCtx.kind === 'shopping') { state.shopping = (state.shopping || []).filter(x => x.id !== editCtx.id); renderShopping(); }
+  else if (editCtx.kind === 'shopping') { var _l = activeShopList(); _l.items = _l.items.filter(function(x){ return x.id !== editCtx.id; }); renderShopping(); }
   else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
   else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
   showToast('Deleted');
@@ -4160,6 +4173,7 @@ function addGoal() {
   const name = (inp.value || '').trim(); if (!name) { showToast('Type a goal first'); return; }
   let tot = parseInt(tEl && tEl.value); if (isNaN(tot) || tot < 1) tot = 1;
   state.goals = state.goals || [];
+  if (!isPremium() && state.goals.length >= 3) { showToast('Free plan: up to 3 goals — upgrade for unlimited'); showUpgrade(); return; }
   state.goals.push({ id: Date.now(), name, cur: 0, tot, role: '' });
   inp.value = ''; if (tEl) tEl.value = '';
   renderGoals(); showToast('Goal added');
@@ -4168,6 +4182,7 @@ function addHabit() {
   const inp = document.getElementById('habit-inp');
   const name = (inp.value || '').trim(); if (!name) { showToast('Type a habit first'); return; }
   state.habits = state.habits || [];
+  if (!isPremium() && state.habits.length >= 3) { showToast('Free plan: up to 3 habits — upgrade for unlimited'); showUpgrade(); return; }
   state.habits.push({ id: Date.now(), name });
   inp.value = '';
   renderHabits(); showToast('Habit added');
@@ -4212,7 +4227,7 @@ function startFresh() {
   if (!confirm('Clear all sample tasks, appointments, goals, projects, notes, habits, shopping and bucket items so you can start with a clean slate? Your values, roles and account stay. This cannot be undone.')) return;
   state.tasks = []; state.appointments = []; state.goals = []; state.projects = [];
   state.notes = []; state.habits = []; state.habitLog = {}; state.bucket = [];
-  state.shopping = []; state.reflections = []; state.happenedLog = []; state.focus = '';
+  state.shoppingLists = [{ id: 'list_' + Date.now(), name: 'Shopping', items: [] }]; state.activeShopId = state.shoppingLists[0].id; state.reflections = []; state.happenedLog = []; state.focus = '';
   currentProject = null; try { closeDetail(); } catch (e) {}
   const fd = document.getElementById('focus-display'); if (fd) { fd.textContent = ''; fd.style.display = 'none'; }
   const fi = document.getElementById('focus-input'); if (fi) fi.value = '';
@@ -4255,8 +4270,8 @@ function renderGoals() {
 // PROJECTS TAB
 // ============================================================
 function showNewProjForm() {
-  if (!isPremium() && state.projects.length >= 2) {
-    showToast('Free plan: up to 2 projects — upgrade for unlimited');
+  if (!isPremium() && state.projects.length >= 1) {
+    showToast('Free plan: 1 project on the free plan — upgrade for unlimited');
     showUpgrade();
     return;
   }
@@ -4272,8 +4287,8 @@ function cycleIcon() {
 function createProject() {
   const name = document.getElementById('np-name').value.trim();
   if (!name) { showToast('Please enter a project name'); return; }
-  if (!isPremium() && state.projects.length >= 2) {
-    showToast('Free plan: up to 2 projects — upgrade for unlimited');
+  if (!isPremium() && state.projects.length >= 1) {
+    showToast('Free plan: 1 project on the free plan — upgrade for unlimited');
     showUpgrade();
     return;
   }
@@ -4468,6 +4483,7 @@ function saveNote() {
   const body = document.getElementById('note-body-inp').value.trim();
   if (!body) { showToast('Please enter a note'); return; }
   const title = document.getElementById('note-title-inp').value.trim() || 'Quick capture';
+  if (!isPremium() && (state.notes||[]).length >= 10) { showToast('Free plan: up to 10 notes — upgrade for unlimited'); showUpgrade(); return; }
   state.notes.unshift({ id: Date.now(), title, body, tags: [...state.selectedTags], checklist: null });
   document.getElementById('note-body-inp').value = '';
   document.getElementById('note-title-inp').value = '';
@@ -4538,14 +4554,102 @@ function parseShoppingItems(raw) {
     .map(s => s.charAt(0).toUpperCase() + s.slice(1));
 }
 
+// ---- Multi-list shopping helpers ----
+function shopLists() {
+  if (!Array.isArray(state.shoppingLists) || !state.shoppingLists.length) {
+    var legacy = Array.isArray(state.shopping) ? state.shopping : [];
+    state.shoppingLists = [{ id: 'list_' + Date.now(), name: 'Shopping', items: legacy }];
+  }
+  return state.shoppingLists;
+}
+function activeShopList() {
+  var ls = shopLists();
+  var a = ls.filter(function(l){ return l.id === state.activeShopId; })[0];
+  if (!a) { a = ls[0]; state.activeShopId = a.id; }
+  return a;
+}
+function shopItems() { return activeShopList().items; }
+function findShopListByName(name) {
+  if (!name) return null;
+  var q = String(name).toLowerCase().trim(); if (!q) return null;
+  var ls = shopLists();
+  var hit = ls.filter(function(l){ return l.name.toLowerCase() === q; })[0];
+  if (hit) return hit;
+  return ls.filter(function(l){ var nn = l.name.toLowerCase(); return nn.indexOf(q) >= 0 || q.indexOf(nn) >= 0; })[0] || null;
+}
+function switchShopList(id) { state.activeShopId = id; renderShopping(); try { persistNow(); } catch (e) {} }
+function addShopList(name, opts) {
+  name = (name || '').trim(); if (!name) name = 'New list';
+  if (!isPremium() && shopLists().length >= 1) {
+    showToast('Free plan: one shopping list — upgrade for unlimited named lists');
+    if (!(opts && opts.silent)) showUpgrade();
+    return null;
+  }
+  var l = { id: 'list_' + Date.now(), name: name, items: [] };
+  shopLists().push(l); state.activeShopId = l.id;
+  renderShopping(); try { persistNow(); } catch (e) {}
+  return l;
+}
+function promptNewShopList() {
+  if (!isPremium() && shopLists().length >= 1) {
+    showToast('Free plan: one shopping list — upgrade for unlimited named lists'); showUpgrade(); return;
+  }
+  var name = prompt('Name your new list (e.g. Groceries, Travel, Hardware):', ''); if (name === null) return;
+  addShopList(name);
+}
+function renameShopList(id) {
+  var l = shopLists().filter(function(x){ return x.id === id; })[0]; if (!l) return;
+  var name = prompt('Rename list:', l.name); if (name === null) return;
+  if (name.trim()) { l.name = name.trim(); renderShopping(); try { persistNow(); } catch (e) {} }
+}
+function deleteShopList(id) {
+  var ls = shopLists();
+  if (ls.length <= 1) { showToast('You need at least one list'); return; }
+  if (!confirm('Delete this list and everything in it?')) return;
+  state.shoppingLists = ls.filter(function(x){ return x.id !== id; });
+  if (state.activeShopId === id) state.activeShopId = state.shoppingLists[0].id;
+  renderShopping(); try { persistNow(); } catch (e) {}
+}
+function renderShopTabs() {
+  var tabs = document.getElementById('shopping-tabs'); if (!tabs) return;
+  var lists = shopLists(); tabs.innerHTML = '';
+  lists.forEach(function(l){
+    var active = l.id === state.activeShopId;
+    var chip = document.createElement('button');
+    chip.className = 'shop-tab' + (active ? ' active' : '');
+    var left = l.items.filter(function(i){ return !i.done; }).length;
+    chip.textContent = l.name + (left ? ' (' + left + ')' : '');
+    chip.title = active ? 'Tap to rename' : 'Switch to ' + l.name;
+    chip.onclick = active ? function(){ renameShopList(l.id); } : function(){ switchShopList(l.id); };
+    tabs.appendChild(chip);
+  });
+  var add = document.createElement('button');
+  add.className = 'shop-tab shop-tab-add'; add.textContent = '+ List';
+  add.title = 'New list'; add.onclick = promptNewShopList; tabs.appendChild(add);
+  if (lists.length > 1) {
+    var del = document.createElement('button');
+    del.className = 'shop-tab shop-tab-del'; del.innerHTML = '<i class="ti ti-trash"></i>';
+    del.title = 'Delete current list';
+    del.onclick = function(){ deleteShopList(state.activeShopId); };
+    tabs.appendChild(del);
+  }
+}
+
 function addShoppingItems(raw, opts) {
   const items = parseShoppingItems(raw);
   if (!items.length) return 0;
+  var list = activeShopList();
+  if (opts && opts.listName) {
+    var found = findShopListByName(opts.listName);
+    if (found) { list = found; state.activeShopId = found.id; }
+    else if (isPremium()) { var _nl = addShopList(opts.listName, { silent: true }); if (_nl) list = _nl; }
+  }
   let added = 0;
-  items.forEach(text => { state.shopping.push({ id: Date.now() + added, text, done: false }); added++; });
+  items.forEach(function(text){ list.items.push({ id: Date.now() + added, text: text, done: false }); added++; });
   renderShopping();
   if (!(opts && opts.silent)) {
-    showToast(added === 1 ? `Added "${items[0]}" to your shopping list` : `Added ${added} items to your shopping list`);
+    var where = (list.name && list.name.toLowerCase() !== 'shopping') ? (' to your ' + list.name + ' list') : ' to your shopping list';
+    showToast(added === 1 ? ('Added "' + items[0] + '"' + where) : ('Added ' + added + ' items' + where));
   }
   return added;
 }
@@ -4559,27 +4663,30 @@ function addShoppingItem() {
 }
 
 function toggleShoppingItem(id) {
-  const it = state.shopping.find(x => x.id === id);
+  const it = shopItems().find(x => x.id === id);
   if (it) { it.done = !it.done; renderShopping(); }
 }
 
 function deleteShoppingItem(id) {
-  state.shopping = state.shopping.filter(x => x.id !== id);
+  var l = activeShopList();
+  l.items = l.items.filter(function(x){ return x.id !== id; });
   renderShopping();
 }
 
 function clearTickedShopping() {
-  const before = state.shopping.length;
-  state.shopping = state.shopping.filter(x => !x.done);
+  var l = activeShopList();
+  const before = l.items.length;
+  l.items = l.items.filter(function(x){ return !x.done; });
   renderShopping();
-  const removed = before - state.shopping.length;
+  const removed = before - l.items.length;
   if (removed > 0) showToast(removed === 1 ? 'Cleared 1 ticked item' : `Cleared ${removed} ticked items`);
 }
 
 function renderShopping() {
   const el = document.getElementById('shopping-list');
   if (!el) return;
-  const items = state.shopping || [];
+  renderShopTabs();
+  const items = shopItems();
   el.innerHTML = '';
   if (!items.length) {
     el.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">Your shopping list is empty.<br><span style="font-size:12px;opacity:0.7">Tap the microphone and say "add milk to my shopping list" — or type above.</span></div>`;
@@ -5020,6 +5127,7 @@ function addReminder(text, whenDate, link) {
   if (!(whenDate instanceof Date) || isNaN(whenDate.getTime())) { showToast("I couldn't work out the time — try again"); return null; }
   ensureNotifyPermission();
   if (!state.reminders) state.reminders = [];
+  if (!isPremium() && state.reminders.filter(function(x){return !x.fired;}).length >= 3) { showToast('Free plan: up to 3 active reminders — upgrade for unlimited'); showUpgrade(); return null; }
   const r = { id: Date.now(), text: text.trim(), whenMs: whenDate.getTime(), link: link || null, fired: false };
   state.reminders.push(r);
   try { persistNow(); } catch (e) {}
@@ -5280,6 +5388,7 @@ function addBucketItem() {
   const text = inp.value.trim();
   if (!text) return;
   state.bucket = state.bucket || [];
+  if (!isPremium() && state.bucket.length >= 10) { showToast('Free plan: up to 10 bucket-list items — upgrade for unlimited'); showUpgrade(); return; }
   state.bucket.push({ id: Date.now(), text, done: false });
   inp.value = '';
   renderBucket();
