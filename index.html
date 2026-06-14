@@ -2982,6 +2982,10 @@ function attachFieldMics() {
 }
 
 function processVoice(text) {
+  // Whisper often mishears the command word "Add" as "And" or "Ad" at the start of
+  // a sentence (e.g. "Add pay the insurance" -> "And pay the insurance"), which left
+  // the command with no task trigger word. Normalise it back so those tasks register.
+  text = text.replace(/^\s*(?:and|ad)\b/i, 'Add');
   const t = text.toLowerCase();
   document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
   // Reminder intent — intercept before appointment parsing.
