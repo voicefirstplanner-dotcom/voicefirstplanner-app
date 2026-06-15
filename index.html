@@ -3165,6 +3165,7 @@ function processVoice(text) {
         .replace(/\bweekdays?\b/gi,'')
         .replace(/\bdaily\b/gi,'')
         .replace(/\bweekly\b/gi,'')
+        .replace(/\bevery\b/gi,'')
         .replace(/\b(at|to|from|on|every)\s*$/gi,'')
         .replace(/^\s*(at|to|from|on)\s+/gi,'')
         .replace(/\s{2,}/g,' ')
