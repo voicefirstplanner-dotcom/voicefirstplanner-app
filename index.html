@@ -3819,6 +3819,15 @@ function editValue(idx) {
   editCtx = { kind: 'value', idx };
   openEditModal('Edit value', [{ id: 'edit-f1', label: 'Value', value: v, mic: true }]);
 }
+function editRole(idx) {
+  const r = state.roles[idx];
+  if (!r) return;
+  editCtx = { kind: 'role', idx };
+  openEditModal('Edit life role', [
+    { id: 'edit-f1', label: 'Role', value: r.name, mic: true },
+    { id: 'edit-f2', label: 'What success looks like', value: r.def || '', mic: true, big: true }
+  ]);
+}
 
 function openEditModal(title, fields) {
   document.getElementById('edit-modal-title').textContent = title;
@@ -3925,6 +3934,10 @@ function saveEdit() {
     state.values[editCtx.idx] = v1;
     if (state.inactiveValues && state.inactiveValues.has(old)) { state.inactiveValues.delete(old); state.inactiveValues.add(v1); }
     renderValues();
+  } else if (editCtx.kind === 'role') {
+    const r = state.roles[editCtx.idx];
+    if (r) { if (!v1) { showToast('Role needs a name'); return; } r.name = v1; r.def = v2; }
+    renderValues();
   }
   showToast('Saved');
   closeEditModal();
@@ -3939,6 +3952,7 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'shopping') { var _l = activeShopList(); _l.items = _l.items.filter(function(x){ return x.id !== editCtx.id; }); renderShopping(); }
   else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
   else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
+  else if (editCtx.kind === 'role') { state.roles.splice(editCtx.idx, 1); renderValues(); }
   showToast('Deleted');
   closeEditModal();
 }
@@ -4969,10 +4983,7 @@ function renderValues() {
         <div class="role-def">${r.def ? r.def : '<span style="opacity:.55">Tap to define what success looks like</span>'}</div>
       </div>
       <i class="ti ti-pencil" style="font-size:14px;color:var(--text-light)"></i>`;
-    d.onclick = () => {
-      const newDef = prompt(`Define success as a ${r.name}:`, r.def);
-      if (newDef !== null && newDef.trim()) { state.roles[idx].def = newDef.trim(); renderValues(); showToast('Role updated'); }
-    };
+    d.onclick = () => { editRole(idx); };
     rl.appendChild(d);
   });
 }
