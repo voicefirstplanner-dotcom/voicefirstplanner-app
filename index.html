@@ -1176,7 +1176,7 @@ html, body {
   justify-content: center;
 }
 .modal-overlay.open { display: flex; }
-.rem-alert { position: fixed; top: 0; left: 0; right: 0; z-index: 100000; display: none; padding: 10px 12px; }
+.rem-alert { position: fixed; top: env(safe-area-inset-top); left: 0; right: 0; z-index: 100000; display: none; padding: 10px 12px; }
 .rem-alert.show { display: block; }
 .rem-alert-card { max-width: 520px; margin: 0 auto; background: var(--navy,#143a5a); color: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.28); border-left: 4px solid var(--orange,#F2771A); padding: 12px 14px; }
 .rem-alert-title { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -1250,7 +1250,7 @@ html, body {
    ============================================================ */
 .toast {
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%) translateY(-80px);
   background: var(--navy);
