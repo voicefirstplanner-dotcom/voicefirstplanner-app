@@ -1734,6 +1734,11 @@ html, body {
       <div class="card">
         <div class="card-label">My values</div>
         <div id="values-chips"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <input class="task-inp" id="value-inp" placeholder="Add a value…" style="flex:1" onkeydown="if(event.key==='Enter')addValue()">
+          <button class="field-mic" onclick="dictateInto('value-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+          <button onclick="addValue()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+        </div>
         <button class="ai-btn" onclick="aiAction('Help me clarify and deepen my personal values using values-based planning principles. Walk me through identifying what matters most to me.')">
           <i class="ti ti-sparkles"></i>AI values clarification<span class="soon-badge">Pro · soon</span>
         </button>
@@ -1741,6 +1746,11 @@ html, body {
       <div class="card">
         <div class="card-label">My life roles</div>
         <div id="roles-list"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <input class="task-inp" id="role-inp" placeholder="Add a life role…" style="flex:1" onkeydown="if(event.key==='Enter')addRole()">
+          <button class="field-mic" onclick="dictateInto('role-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+          <button onclick="addRole()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+        </div>
         <button class="ai-btn" onclick="aiAction('Help me define what success looks like in each of my key life roles: Parent, Professional, Learner, Friend, and Community member.')">
           <i class="ti ti-sparkles"></i>AI role-success coaching<span class="soon-badge">Pro · soon</span>
         </button>
@@ -3278,6 +3288,36 @@ function processVoice(text) {
     const m = document.getElementById('fb-message');
     if (m) { m.value = msg; m.dispatchEvent(new Event('input')); }
     showToast('Opened feedback — review and tap Send');
+    return;
+  } else if (/\b(?:to|as|in|into)\s+(?:my\s+)?(?:an?\s+)?values?\b/.test(t) || /^\s*(?:add|set)\s+values?\b/.test(t)) {
+    // Values capture — e.g. "add health to values", "add family as a value", "add health and growth to my values"
+    let raw = text
+      .replace(/^\s*(?:add|set|create|new|make|put)\s+/i, '')
+      .replace(/\b(?:to|as|in|into)\s+(?:my\s+)?(?:an?\s+)?values?\b/gi, '')
+      .replace(/\bvalues?\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const rv = addValuesFromText(raw);
+    renderValues();
+    showTab('values', null);
+    if (rv.added.length) showToast(rv.added.length === 1 ? `Value added: "${rv.added[0]}"` : `${rv.added.length} values added`);
+    else if (rv.dup.length) showToast('That value is already in your list');
+    else showToast('Tell me the value — e.g. "add health to values"');
+    return;
+  } else if (/\b(?:to|as|in|into)\s+(?:my\s+)?(?:life\s+)?(?:an?\s+)?roles?\b/.test(t) || /^\s*(?:add|set)\s+(?:life\s+)?roles?\b/.test(t)) {
+    // Life role capture — e.g. "add mentor to my roles", "add coach as a role", "add mentor and coach to my life roles"
+    let raw = text
+      .replace(/^\s*(?:add|set|create|new|make|put)\s+/i, '')
+      .replace(/\b(?:to|as|in|into)\s+(?:my\s+)?(?:life\s+)?(?:an?\s+)?roles?\b/gi, '')
+      .replace(/\b(?:life\s+)?roles?\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const rr = addRolesFromText(raw);
+    renderValues();
+    showTab('values', null);
+    if (rr.added.length) showToast(rr.added.length === 1 ? `Role added: "${rr.added[0]}" — tap it to define success` : `${rr.added.length} roles added`);
+    else if (rr.dup.length) showToast('That role is already in your list');
+    else showToast('Tell me the role — e.g. "add mentor to my roles"');
     return;
   } else if (/\bgoal\b/i.test(t)) {
     // Goal capture — e.g. "add goal read 24 books this year". Numeric target is set later in Goals.
@@ -4835,6 +4875,61 @@ function renderHappened() {
 // ============================================================
 // VALUES TAB
 // ============================================================
+// Add one or more values from a raw string (typed or spoken). Title-cases, de-dupes,
+// re-activates any that already exist. Returns {added:[names], dup:[names]}.
+function addValuesFromText(raw) {
+  const res = { added: [], dup: [] };
+  if (!raw) return res;
+  const parts = raw.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+  state.values = state.values || [];
+  if (!state.inactiveValues) state.inactiveValues = new Set();
+  parts.forEach(p => {
+    const name = p.replace(/\b\w/g, c => c.toUpperCase()).trim();
+    if (!name) return;
+    const hit = state.values.find(v => v.toLowerCase() === name.toLowerCase());
+    if (hit) { state.inactiveValues.delete(hit); res.dup.push(hit); }
+    else { state.values.push(name); res.added.push(name); }
+  });
+  return res;
+}
+function addValue() {
+  const inp = document.getElementById('value-inp');
+  if (!inp) return;
+  const raw = (inp.value || '').trim();
+  if (!raw) { inp.focus(); return; }
+  const r = addValuesFromText(raw);
+  inp.value = '';
+  renderValues();
+  if (r.added.length) showToast(r.added.length === 1 ? `Value added: "${r.added[0]}"` : `${r.added.length} values added`);
+  else showToast('Already in your values');
+}
+// Add one or more life roles from a raw string (typed or spoken). Title-cases, de-dupes.
+// New roles start with no definition (the user taps the role to define success). Returns {added,dup}.
+function addRolesFromText(raw) {
+  const res = { added: [], dup: [] };
+  if (!raw) return res;
+  const parts = raw.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+  state.roles = state.roles || [];
+  parts.forEach(p => {
+    const name = p.replace(/\b\w/g, c => c.toUpperCase()).trim();
+    if (!name) return;
+    const hit = state.roles.find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (hit) { res.dup.push(hit.name); }
+    else { state.roles.push({ name, icon: 'ti-user', def: '' }); res.added.push(name); }
+  });
+  return res;
+}
+function addRole() {
+  const inp = document.getElementById('role-inp');
+  if (!inp) return;
+  const raw = (inp.value || '').trim();
+  if (!raw) { inp.focus(); return; }
+  const r = addRolesFromText(raw);
+  inp.value = '';
+  renderValues();
+  if (r.added.length) showToast(r.added.length === 1 ? `Role added: "${r.added[0]}" — tap it to define success` : `${r.added.length} roles added`);
+  else showToast('Already in your roles');
+}
 function renderValues() {
   const el = document.getElementById('values-chips');
   el.innerHTML = '';
@@ -4860,16 +4955,6 @@ function renderValues() {
     };
     el.appendChild(s);
   });
-  // Add-value chip
-  const add = document.createElement('span');
-  add.className = 'val-chip';
-  add.style.cssText = 'cursor:pointer;border-style:dashed';
-  add.textContent = '+ Add value';
-  add.onclick = () => {
-    const v = prompt('Add a value (something that matters most to you):');
-    if (v && v.trim()) { state.values.push(v.trim()); renderValues(); showToast('Value added'); }
-  };
-  el.appendChild(add);
 
   const rl = document.getElementById('roles-list');
   rl.innerHTML = '';
@@ -4881,7 +4966,7 @@ function renderValues() {
       <div class="role-icon"><i class="ti ${r.icon}"></i></div>
       <div style="flex:1">
         <div class="role-name">${r.name}</div>
-        <div class="role-def">${r.def}</div>
+        <div class="role-def">${r.def ? r.def : '<span style="opacity:.55">Tap to define what success looks like</span>'}</div>
       </div>
       <i class="ti ti-pencil" style="font-size:14px;color:var(--text-light)"></i>`;
     d.onclick = () => {
