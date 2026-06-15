@@ -2389,6 +2389,7 @@ function launchApp() {
   document.getElementById('user-badge').textContent = (state.user?.name || 'You').split(' ')[0];
   document.getElementById('set-name').textContent = state.user?.name || 'User';
   document.getElementById('set-email').textContent = state.user?.email || '';
+  checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
   renderAll();
   showGroup('daily-planning', 'daily');
   try { addHelpChips(); } catch (e) {}
