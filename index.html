@@ -3115,7 +3115,7 @@ function processVoice(text) {
       .replace(/\bon (?:the )?\d{1,2}(?:st|nd|rd|th)?(?:\s+of)?\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?\b/gi,'')
       .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?'+monthReA+'\\s+\\d{1,2}(?:st|nd|rd|th)?\\b','gi'),'')
       .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?'+monthReA+'\\b','gi'),'')
-      .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
+      .replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
       .replace(new RegExp('in '+numTokA+' (?:days?|weeks?)','gi'),'')
       .replace(/\b(today|tonight|tomorrow|this evening|this morning|this afternoon|next week)\b/gi,'')
       .replace(/\b(into|in|on|to)\s+(my\s+|the\s+)?(daily\s+)?(schedule|calendar|diary)\b/gi,'')
@@ -3335,7 +3335,7 @@ function processVoice(text) {
     const stripTdDate = s => s
       .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?' + tdMonthRe + '\\s+\\d{1,2}(?:st|nd|rd|th)?\\b','gi'),'')
       .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + tdMonthRe + '\\b','gi'),'')
-      .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
+      .replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
       .replace(/\s{2,}/g,' ').trim();
 
     if (tomorrowMatch) {
@@ -5348,7 +5348,7 @@ function parseReminderVoice(text) {
     .replace(/\b\d{1,2}\s*(?:am|pm)\b/gi, '')
     .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?' + monthReC + '\\s+\\d{1,2}(?:st|nd|rd|th)?\\b', 'gi'), '')
     .replace(new RegExp('\\b(?:on\\s+)?(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?' + monthReC + '\\b', 'gi'), '')
-    .replace(/\b(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
+    .replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
     .replace(/\b(today|tonight|tomorrow|this evening|this morning|this afternoon|next week)\b/gi, '')
     .replace(/\b(at|to|on|for)\s*$/gi, '')
     .replace(/^\s*(to|that|about)\s+/i, '')
