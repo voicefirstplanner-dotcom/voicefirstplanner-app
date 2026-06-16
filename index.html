@@ -3429,15 +3429,23 @@ function processVoice(text) {
     const dateLabel = taskDate === dateKey(today) ? 'today' : formatDateNice(taskDate);
     showToast(`Task added for ${dateLabel}: "${(clean || text).slice(0,25)}"`);
   } else if (t.includes('exercise') || t.includes('gym') || t.includes('run') || t.includes('walk') || t.includes('workout')) {
-    const k = weekKey + '-2-' + todayDow;
-    state.habitLog[k] = true;
-    renderHabits();
-    showToast('Exercise logged for today!');
-  } else if (t.includes('morning reflection') || t.includes('meditat') || t.includes('journa')) {
-    const k = weekKey + '-1-' + todayDow;
-    state.habitLog[k] = true;
-    renderHabits();
-    showToast('Morning reflection logged!');
+    const h = (state.habits || []).find(x => /exercis|gym|work\s?out|fitness|\brun\b|jog|\bwalk\b|train/i.test(x.name));
+    if (h) {
+      state.habitLog[weekKey + '-' + h.id + '-' + todayDow] = true;
+      renderHabits();
+      showToast(h.name + ' logged for today!');
+    } else {
+      showToast('No matching exercise habit — add one in the Habits tab first');
+    }
+  } else if (t.includes('morning reflection') || t.includes('reflection') || t.includes('meditat') || t.includes('journa') || t.includes('mindful')) {
+    const h = (state.habits || []).find(x => /reflect|meditat|journa|mindful/i.test(x.name));
+    if (h) {
+      state.habitLog[weekKey + '-' + h.id + '-' + todayDow] = true;
+      renderHabits();
+      showToast(h.name + ' logged for today!');
+    } else {
+      showToast('No matching reflection habit — add one in the Habits tab first');
+    }
   } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
     const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
     state.notes.unshift({ id: Date.now(), title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
