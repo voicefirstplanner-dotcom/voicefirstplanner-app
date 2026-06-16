@@ -736,6 +736,9 @@ html, body {
 .h-day.done { background: var(--orange); border-color: var(--orange); color: var(--navy); }
 .h-day.today { font-weight: 700; color: var(--orange); }
 .h-day.done.today { color: var(--navy); }
+.habit-suggest { margin-top: 12px; }
+.suggest-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-light); margin-bottom: 7px; }
+.suggest-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .streak-bar {
   background: var(--navy);
   border-radius: var(--radius);
@@ -1594,6 +1597,7 @@ html, body {
           <button class="field-mic" onclick="dictateInto('habit-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addHabit()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
+        <div class="habit-suggest" id="habit-suggest"></div>
         <div class="streak-bar">
           <div class="streak-num" id="streak-num">0</div>
           <div class="streak-info">
@@ -2145,6 +2149,22 @@ const DAYS = ['M','T','W','T','F','S','S'];
 const DEFAULT_HABITS = [
   { id: 1, name: 'Morning reflection' },
   { id: 2, name: 'Exercise' },
+];
+
+// Curated starter habits shown as tap-to-add suggestions on the Habits tab.
+// `syn` = the words the voice logger listens for, so e.g. "I drank some water"
+// ticks the Drink water habit. Any habit added (from here or typed) is voice-loggable.
+const HABIT_LIBRARY = [
+  { name: 'Exercise',           syn: ['exercise','exercised','gym','workout','work out','worked out','train','trained','fitness'] },
+  { name: 'Morning reflection', syn: ['morning reflection','reflection','reflect','reflected','meditate','meditated','meditation','journal','journalled','journaled','mindful'] },
+  { name: 'Drink water',        syn: ['drink water','drank water','water','hydrate','hydrated'] },
+  { name: 'Read',               syn: ['read','reading','read a book','few pages'] },
+  { name: 'Walk',               syn: ['walk','walked','went for a walk','got my steps','steps in'] },
+  { name: 'Stretch',            syn: ['stretch','stretched','mobility','yoga'] },
+  { name: 'Eat well',           syn: ['ate well','ate healthy','healthy meal','ate clean','no junk'] },
+  { name: 'Early night',        syn: ['early night','bed early','went to bed early','slept early','lights out','good sleep'] },
+  { name: 'Gratitude',          syn: ['gratitude','grateful','thankful','counted my blessings'] },
+  { name: 'Plan tomorrow',      syn: ['planned tomorrow','plan tomorrow','planned my day','planned the day'] },
 ];
 
 const DEFAULT_GOALS = [
@@ -3428,24 +3448,8 @@ function processVoice(text) {
     showTab('daily', null);
     const dateLabel = taskDate === dateKey(today) ? 'today' : formatDateNice(taskDate);
     showToast(`Task added for ${dateLabel}: "${(clean || text).slice(0,25)}"`);
-  } else if (t.includes('exercise') || t.includes('gym') || t.includes('run') || t.includes('walk') || t.includes('workout')) {
-    const h = (state.habits || []).find(x => /exercis|gym|work\s?out|fitness|\brun\b|jog|\bwalk\b|train/i.test(x.name));
-    if (h) {
-      state.habitLog[weekKey + '-' + h.id + '-' + todayDow] = true;
-      renderHabits();
-      showToast(h.name + ' logged for today!');
-    } else {
-      showToast('No matching exercise habit — add one in the Habits tab first');
-    }
-  } else if (t.includes('morning reflection') || t.includes('reflection') || t.includes('meditat') || t.includes('journa') || t.includes('mindful')) {
-    const h = (state.habits || []).find(x => /reflect|meditat|journa|mindful/i.test(x.name));
-    if (h) {
-      state.habitLog[weekKey + '-' + h.id + '-' + todayDow] = true;
-      renderHabits();
-      showToast(h.name + ' logged for today!');
-    } else {
-      showToast('No matching reflection habit — add one in the Habits tab first');
-    }
+  } else if (logHabitByVoice(t)) {
+    /* a habit was matched by name/synonym and ticked for today inside logHabitByVoice() */
   } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
     const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
     state.notes.unshift({ id: Date.now(), title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
@@ -4215,6 +4219,7 @@ function renderHabits() {
     else break;
   }
   document.getElementById('streak-num').textContent = streak;
+  renderHabitSuggestions();
 }
 
 // ============================================================
@@ -4249,6 +4254,45 @@ function addGoal() {
   state.goals.push({ id: Date.now(), name, cur: 0, tot, role: '' });
   inp.value = ''; if (tEl) tEl.value = '';
   renderGoals(); showToast('Goal added');
+}
+function habitKeywords(h) {
+  const nm = (h.name || '').toLowerCase();
+  const kws = [nm];
+  nm.split(/\s+/).forEach(w => { if (w.length > 3) kws.push(w); });
+  const lib = HABIT_LIBRARY.find(L => nm === L.name.toLowerCase() || nm.includes(L.name.toLowerCase()) || L.syn.includes(nm));
+  if (lib) lib.syn.forEach(s => kws.push(s));
+  return kws;
+}
+function logHabitByVoice(t) {
+  // let note / idea / focus phrasings fall through to their own handlers
+  if (/\bnote\b|\bidea\b|\bcapture\b|\bremember\b|\bfocus\b/.test(t)) return false;
+  let best = null, bestLen = 0;
+  (state.habits || []).forEach(h => {
+    habitKeywords(h).forEach(k => {
+      if (k && t.includes(k) && k.length > bestLen) { best = h; bestLen = k.length; }
+    });
+  });
+  if (!best) return false;
+  state.habitLog[weekKey + '-' + best.id + '-' + todayDow] = true;
+  renderHabits();
+  showToast(best.name + ' logged for today!');
+  return true;
+}
+function addHabitNamed(name) {
+  state.habits = state.habits || [];
+  if (state.habits.some(h => h.name.toLowerCase() === name.toLowerCase())) { showToast('Already on your list'); return; }
+  if (!isPremium() && state.habits.length >= 3) { showToast('Free plan: up to 3 habits — upgrade for unlimited'); showUpgrade(); return; }
+  state.habits.push({ id: Date.now(), name });
+  renderHabits(); showToast(name + ' added');
+}
+function renderHabitSuggestions() {
+  const box = document.getElementById('habit-suggest'); if (!box) return;
+  const have = new Set((state.habits || []).map(h => h.name.toLowerCase()));
+  const avail = HABIT_LIBRARY.filter(L => !have.has(L.name.toLowerCase()));
+  if (!avail.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="suggest-label">Popular habits — tap to add</div><div class="suggest-chips">' +
+    avail.map(L => `<button type="button" class="vt-help-chip" onclick="addHabitNamed('${L.name.replace(/'/g, "\\'")}')"><i class="ti ti-plus"></i>${L.name}</button>`).join('') +
+    '</div>';
 }
 function addHabit() {
   const inp = document.getElementById('habit-inp');
