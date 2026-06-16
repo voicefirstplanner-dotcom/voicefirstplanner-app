@@ -2155,16 +2155,26 @@ const DEFAULT_HABITS = [
 // `syn` = the words the voice logger listens for, so e.g. "I drank some water"
 // ticks the Drink water habit. Any habit added (from here or typed) is voice-loggable.
 const HABIT_LIBRARY = [
+  // Body & health
   { name: 'Exercise',           syn: ['exercise','exercised','gym','workout','work out','worked out','train','trained','fitness'] },
-  { name: 'Morning reflection', syn: ['morning reflection','reflection','reflect','reflected','meditate','meditated','meditation','journal','journalled','journaled','mindful'] },
-  { name: 'Drink water',        syn: ['drink water','drank water','water','hydrate','hydrated'] },
-  { name: 'Read',               syn: ['read','reading','read a book','few pages'] },
   { name: 'Walk',               syn: ['walk','walked','went for a walk','got my steps','steps in'] },
   { name: 'Stretch',            syn: ['stretch','stretched','mobility','yoga'] },
-  { name: 'Eat well',           syn: ['ate well','ate healthy','healthy meal','ate clean','no junk'] },
+  { name: 'Drink water',        syn: ['drink water','drank water','hydrate','hydrated'] },
+  { name: 'Eat healthy',        syn: ['ate well','ate healthy','healthy meal','ate clean','no junk'] },
   { name: 'Early night',        syn: ['early night','bed early','went to bed early','slept early','lights out','good sleep'] },
+  { name: 'Vitamins',           syn: ['vitamins','took my vitamins','supplements','took my supplements'] },
+  { name: 'Fresh air',          syn: ['fresh air','got outside','time outside','sunlight','went outdoors','outdoors'] },
+  // Mind & calm
+  { name: 'Morning reflection', syn: ['morning reflection','reflection','reflect','reflected','journal','journalled','journaled'] },
+  { name: 'Meditate',           syn: ['meditate','meditated','meditation','breathwork','breathing','mindfulness','mindful'] },
   { name: 'Gratitude',          syn: ['gratitude','grateful','thankful','counted my blessings'] },
+  { name: 'Screen-free evening',syn: ['screen free','screen-free','no phone','off my phone','phone away','no screens'] },
+  // Growth & focus
+  { name: 'Read',               syn: ['read','reading','read a book','few pages','a chapter'] },
+  { name: 'Study',              syn: ['study','studied','revised','learning session'] },
   { name: 'Plan tomorrow',      syn: ['planned tomorrow','plan tomorrow','planned my day','planned the day'] },
+  // People
+  { name: 'Connect',            syn: ['reached out','called a friend','messaged a friend','checked in','quality time','connected'] },
 ];
 
 const DEFAULT_GOALS = [
