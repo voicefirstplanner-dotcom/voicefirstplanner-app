@@ -902,7 +902,7 @@ html, body {
 .detail-overlay.open { display: flex; }
 .detail-header {
   background: var(--navy);
-  padding: 14px 16px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
   flex-shrink: 0;
 }
 .detail-back {
