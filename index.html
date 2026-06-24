@@ -936,10 +936,24 @@ html, body {
   cursor: pointer;
   text-align: center;
   transition: all 0.15s;
+  position: relative;
 }
 .cap-btn:hover { border-color: var(--orange); background: var(--ice); }
 .cap-btn i { font-size: 20px; color: var(--orange); display: block; margin-bottom: 4px; }
 .cap-label { font-size: 10px; font-weight: 500; color: var(--navy); }
+.cap-soon {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 7px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--orange);
+  padding: 1px 5px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
 .capture-item {
   display: flex;
   align-items: center;
@@ -1776,7 +1790,7 @@ html, body {
         <div class="card-label">Capture</div>
         <div class="capture-grid">
           <div class="cap-btn" onclick="capture('voice')"><i class="ti ti-microphone"></i><div class="cap-label">Voice memo</div></div>
-          <div class="cap-btn" onclick="capture('photo')"><i class="ti ti-camera"></i><div class="cap-label">Photo</div></div>
+          <div class="cap-btn" onclick="capture('photo')"><i class="ti ti-camera"></i><div class="cap-label">Photo</div><span class="cap-soon">Coming soon</span></div>
           <div class="cap-btn" onclick="capture('doc')"><i class="ti ti-file-text"></i><div class="cap-label">Document</div></div>
           <div class="cap-btn" onclick="capture('link')"><i class="ti ti-link"></i><div class="cap-label">Web link</div></div>
           <div class="cap-btn" onclick="capture('convo')"><i class="ti ti-message-circle"></i><div class="cap-label">Conversation</div></div>
