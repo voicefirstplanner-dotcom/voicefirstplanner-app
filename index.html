@@ -3655,8 +3655,12 @@ function renderScheduleGrid() {
   hours.forEach(h => {
     const slotAppts = appts.filter(a => {
       if (!a.timeStart) return false;
-      const ah = parseInt(a.timeStart.split(':')[0]);
-      return ah === h;
+      const [sh, sm] = a.timeStart.split(':').map(Number);
+      const startM = sh * 60 + (sm || 0);
+      let endM;
+      if (a.timeEnd) { const [eh, em] = a.timeEnd.split(':').map(Number); endM = eh * 60 + (em || 0); }
+      else endM = startM + 60;
+      return startM < (h + 1) * 60 && endM > h * 60;   // overlaps this hour
     });
 
     const row = document.createElement('div');
@@ -3681,24 +3685,23 @@ function renderScheduleGrid() {
       slotContent.appendChild(indicator);
     }
 
-    // Appointments in this slot
+    // Appointments overlapping this hour — render a blue segment per slot so a
+    // multi-hour appointment fills every hour it spans (not just its start hour).
     slotAppts.forEach(a => {
-      const sm = parseInt((a.timeStart.split(':')[1]) || '0');
-      // duration in minutes (for height) — default 60 if no end
-      let durMin = 60;
-      if (a.timeEnd) {
-        const [eh, em] = a.timeEnd.split(':').map(Number);
-        const [shh, smm] = a.timeStart.split(':').map(Number);
-        durMin = Math.max(15, (eh * 60 + em) - (shh * 60 + smm));
-      }
-      const PX_PER_MIN = 36 / 60; // each hour row ≈ 36px
+      const [sh, sm] = a.timeStart.split(':').map(Number);
+      const startM = sh * 60 + (sm || 0);
+      let endM;
+      if (a.timeEnd) { const [eh, em] = a.timeEnd.split(':').map(Number); endM = eh * 60 + (em || 0); }
+      else endM = startM + 60;
+      const isStart = Math.floor(startM / 60) === h;
+      const isEnd = endM <= (h + 1) * 60;
+      const segTop = (Math.max(startM, h * 60) - h * 60) / 60;      // 0..1 within this hour
+      const segBot = (Math.min(endM, (h + 1) * 60) - h * 60) / 60;  // 0..1 within this hour
       const apptEl = document.createElement('div');
-      const topPct = Math.min(85, (sm / 60) * 100);
-      const heightPx = Math.max(26, Math.round(durMin * PX_PER_MIN));
-      apptEl.style.cssText = `position:relative;background:rgba(74,158,247,0.15);border-left:3px solid #4A9EF7;border-radius:0 6px 6px 0;padding:3px 8px;margin-bottom:2px;cursor:pointer;box-sizing:border-box;height:${heightPx}px;overflow:hidden;${sm ? `margin-top:${topPct*0.32}px;` : ''}`;
-      const t12 = m => fmt12(m);
-      apptEl.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--text);padding-right:18px">${a.title}</div><div style="font-size:10px;color:#4A9EF7">${t12(a.timeStart)}${a.timeEnd ? '–'+t12(a.timeEnd) : ''}</div>
-        <div class="appt-del" title="Delete" style="position:absolute;top:2px;right:4px;font-size:15px;line-height:1;color:var(--text-mid);opacity:0.6;padding:2px">×</div>`;
+      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:rgba(74,158,247,0.18);border-left:3px solid #4A9EF7;${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:3px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
+      if (isStart) {
+        apptEl.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--text);padding-right:18px;line-height:1.2">${a.title}</div><div style="font-size:10px;color:#4A9EF7">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</div><div class="appt-del" title="Delete" style="position:absolute;top:2px;right:4px;font-size:15px;line-height:1;color:var(--text-mid);opacity:0.6;padding:2px">×</div>`;
+      }
       apptEl.onclick = (e) => {
         e.stopPropagation();
         if (e.target.classList.contains('appt-del')) {
