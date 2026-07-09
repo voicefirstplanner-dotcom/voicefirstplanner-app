@@ -2290,7 +2290,13 @@ let hintTimer = null;
 
 const today = new Date();
 const todayDow = (today.getDay() + 6) % 7;
-const weekKey = `w${today.getFullYear()}-${Math.ceil(today.getDate()/7)}`;
+function weekKeyFor(d) {
+  // Key = local date of the Monday of that week, e.g. "w2026-07-06".
+  // Never collides across months/years; aligns with the Mon–Sun grid.
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+  return `w${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`;
+}
+const weekKey = weekKeyFor(today);
 
 // Calendar state
 function dateKey(d) {
@@ -4273,9 +4279,14 @@ function renderHabits() {
     el.appendChild(row);
   });
   let streak = 0;
-  for (let i = todayDow; i >= 0; i--) {
-    if (state.habits.some(h => state.habitLog[weekKey + '-' + h.id + '-' + i])) streak++;
-    else break;
+  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  for (let guard = 0; guard < 3650; guard++) { // safety cap: 10 years
+    const dow = (cursor.getDay() + 6) % 7;
+    const wk = weekKeyFor(cursor);
+    if (state.habits.some(h => state.habitLog[wk + '-' + h.id + '-' + dow])) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else break;
   }
   document.getElementById('streak-num').textContent = streak;
   renderHabitSuggestions();
