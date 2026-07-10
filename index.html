@@ -1636,6 +1636,9 @@ html, body {
           <input class="task-inp" id="goal-target" type="number" min="1" placeholder="#" style="width:62px;flex:none">
           <button onclick="addGoal()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
+        <select class="task-inp" id="goal-role-sel" style="width:100%;margin-top:6px">
+          <option value="">Link to a life role (optional)</option>
+        </select>
       </div>
       <button class="ai-btn" onclick="aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.')">
         <i class="ti ti-sparkles"></i>AI goal setting<span class="soon-badge">Pro · soon</span>
@@ -2451,6 +2454,7 @@ function launchApp() {
   document.getElementById('set-name').textContent = state.user?.name || 'User';
   document.getElementById('set-email').textContent = state.user?.email || '';
   checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
+  topUpRecurringSeries(); // keep every recurring series covered ~60 days ahead
   renderAll();
   showGroup('daily-planning', 'daily');
   try { addHelpChips(); } catch (e) {}
@@ -3277,26 +3281,11 @@ function processVoice(text) {
         while ((firstDate.getDay() === 0 || firstDate.getDay() === 6) && guard < 7) { firstDate.setDate(firstDate.getDate()+1); guard++; }
       }
 
-      const OCCURRENCES = 12;
       const seriesId = Date.now();
-      const dates = [];
-      let cursor = new Date(firstDate);
-      if (recurrence.type === 'daily') {
-        for (let i = 0; i < OCCURRENCES; i++) { dates.push(dateKey(cursor)); cursor.setDate(cursor.getDate()+1); }
-      } else if (recurrence.type === 'weekly') {
-        for (let i = 0; i < OCCURRENCES; i++) { dates.push(dateKey(cursor)); cursor.setDate(cursor.getDate()+7); }
-      } else { // weekdays: Mon–Fri only
-        let safety = 0;
-        while (dates.length < OCCURRENCES && safety < 400) {
-          const dow = cursor.getDay();
-          if (dow !== 0 && dow !== 6) dates.push(dateKey(cursor));
-          cursor.setDate(cursor.getDate()+1);
-          safety++;
-        }
-      }
+      const dates = collectRecurDates(recurrence.type, firstDate, 12);
 
       dates.forEach((dk, i) => {
-        state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', done: false, recurring: true, seriesId });
+        state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', done: false, recurring: true, seriesId, recurType: recurrence.type });
       });
 
       const firstKey = dates[0];
@@ -3546,6 +3535,83 @@ function shiftViewDay(dir) {
   renderScheduleGrid();
   renderCalStrip();
   checkCarryForward();
+}
+
+// ============================================================
+// RECURRING SERIES — self-renewing. Every recurring appointment
+// series is kept topped up to ~60 days ahead, every time the app
+// opens, so "say it once" genuinely never runs out. (Same spirit
+// as carry-forward below: the planner keeps the promise for you.)
+// Deleting a series' remaining future instances ends it — a series
+// whose dates are all in the past is never resurrected.
+// ============================================================
+const RECUR_HORIZON_DAYS = 60;
+
+function recurHorizonKey() {
+  const h = new Date(today.getFullYear(), today.getMonth(), today.getDate() + RECUR_HORIZON_DAYS);
+  return dateKey(h);
+}
+
+// Dates from startDate forward, following the pattern, until BOTH the
+// horizon is covered AND at least minCount dates exist (safety-capped).
+function collectRecurDates(type, startDate, minCount) {
+  const horizon = recurHorizonKey();
+  const dates = [];
+  const cursor = new Date(startDate);
+  for (let safety = 0; safety < 400; safety++) {
+    const dow = cursor.getDay();
+    if (type !== 'weekdays' || (dow !== 0 && dow !== 6)) dates.push(dateKey(cursor));
+    if (dates.length >= (minCount || 1) && dates[dates.length - 1] >= horizon) break;
+    cursor.setDate(cursor.getDate() + (type === 'weekly' ? 7 : 1));
+  }
+  return dates;
+}
+
+// For series created before recurType existed: work out the pattern
+// from the stored dates. Returns null if it can't be sure — better to
+// leave a series alone than extend it wrongly.
+function inferRecurType(list) {
+  const ds = [...new Set(list.map(a => a.date))].sort();
+  if (ds.length < 3) return null;
+  const gaps = [];
+  for (let i = 1; i < ds.length; i++) {
+    gaps.push(Math.round((new Date(ds[i] + 'T12:00:00') - new Date(ds[i - 1] + 'T12:00:00')) / 86400000));
+  }
+  if (gaps.every(g => g === 7)) return 'weekly';
+  if (gaps.every(g => g === 1)) return 'daily';
+  const weekdayOnly = ds.every(dk => { const d = new Date(dk + 'T12:00:00').getDay(); return d !== 0 && d !== 6; });
+  if (weekdayOnly && gaps.every(g => g === 1 || g === 3)) return 'weekdays';
+  return null;
+}
+
+function topUpRecurringSeries() {
+  const series = {};
+  (state.appointments || []).forEach(a => {
+    if (a.recurring && a.seriesId) (series[a.seriesId] = series[a.seriesId] || []).push(a);
+  });
+  const todayK = dateKey(today);
+  const horizon = recurHorizonKey();
+  let added = 0;
+  Object.keys(series).forEach(sid => {
+    const list = series[sid].slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+    const last = list[list.length - 1];
+    if (last.date < todayK) return;    // series ended or was ended by the user — stays ended
+    if (last.date >= horizon) return;  // already covered
+    const type = last.recurType || inferRecurType(list);
+    if (!type) return;
+    const start = new Date(last.date + 'T12:00:00');
+    start.setDate(start.getDate() + (type === 'weekly' ? 7 : 1));
+    const newDates = collectRecurDates(type, start, 1).filter(dk => dk > last.date);
+    newDates.forEach((dk, i) => {
+      state.appointments.push({ id: Date.now() + added + i, title: last.title, timeStart: last.timeStart, timeEnd: last.timeEnd, date: dk, location: last.location || '', done: false, recurring: true, seriesId: last.seriesId, recurType: type });
+    });
+    added += newDates.length;
+  });
+  if (added > 0) {
+    renderAppointments();
+    renderScheduleGrid();
+    renderCalStrip();
+  }
 }
 
 // ============================================================
@@ -4313,6 +4379,16 @@ function editGoal(id) {
   if (name.trim()) g.name = name.trim();
   const tot = prompt('Target number (e.g. 24):', g.tot);
   if (tot !== null) { const n = parseInt(tot); if (!isNaN(n) && n > 0) { g.tot = n; g.cur = Math.min(g.cur, n); } }
+  const roles = state.roles || [];
+  if (roles.length) {
+    const listing = roles.map((r, i) => (i + 1) + ' = ' + r.name).join('\n');
+    const curIdx = roles.findIndex(r => r.name === g.role);
+    const pick = prompt('Link to a life role — type a number (0 = none):\n' + listing, curIdx >= 0 ? String(curIdx + 1) : '0');
+    if (pick !== null) {
+      const n = parseInt(pick);
+      if (!isNaN(n) && n >= 0 && n <= roles.length) g.role = (n === 0) ? '' : roles[n - 1].name;
+    }
+  }
   renderGoals(); showToast('Goal updated');
 }
 function addGoal() {
@@ -4321,8 +4397,10 @@ function addGoal() {
   let tot = parseInt(tEl && tEl.value); if (isNaN(tot) || tot < 1) tot = 1;
   state.goals = state.goals || [];
   if (!isPremium() && state.goals.length >= 3) { showToast('Free plan: up to 3 goals — upgrade for unlimited'); showUpgrade(); return; }
-  state.goals.push({ id: Date.now(), name, cur: 0, tot, role: '' });
-  inp.value = ''; if (tEl) tEl.value = '';
+  const rSel = document.getElementById('goal-role-sel');
+  const role = (rSel && rSel.value) || '';
+  state.goals.push({ id: Date.now(), name, cur: 0, tot, role });
+  inp.value = ''; if (tEl) tEl.value = ''; if (rSel) rSel.value = '';
   renderGoals(); showToast('Goal added');
 }
 function habitKeywords(h) {
@@ -4425,7 +4503,16 @@ function startFresh() {
   closeSettings();
   showToast('Cleared - a clean slate to make your own');
 }
+function populateGoalRoleSel() {
+  const sel = document.getElementById('goal-role-sel');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Link to a life role (optional)</option>' +
+    (state.roles || []).map(r => '<option value="' + String(r.name).replace(/"/g, '&quot;') + '">' + r.name + '</option>').join('');
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
 function renderGoals() {
+  populateGoalRoleSel();
   const el = document.getElementById('goals-list');
   el.innerHTML = '';
   state.goals.forEach(g => {
@@ -4435,7 +4522,7 @@ function renderGoals() {
     d.innerHTML = `
       <div class="goal-header">
         <div class="goal-name">${g.name}</div>
-        <div class="goal-role">${g.role}</div>
+        ${g.role ? '<div class="goal-role">' + g.role + '</div>' : ''}
       </div>
       <div class="goal-bar-bg"><div class="goal-bar" style="width:${pct}%"></div></div>
       <div class="goal-meta">
