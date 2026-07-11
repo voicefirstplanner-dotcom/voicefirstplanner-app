@@ -1051,6 +1051,20 @@ html, body {
 .cl-text { font-size: 13px; color: var(--text); }
 .cl-text.done { text-decoration: line-through; color: var(--text-light); }
 
+/* Checklist authoring (added 2026-07-12) — makes checklists user-buildable */
+.cl-hit { display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; }
+.checklist-item { cursor: default; }
+.cl-del { background: none; border: none; color: var(--text-light); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0; opacity: 0.55; }
+.cl-del:hover { opacity: 1; color: #c0392b; }
+.cl-add-row { display: flex; gap: 6px; margin-top: 8px; }
+.cl-add-inp { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-family: var(--font); font-size: 13px; color: var(--text); background: var(--white); box-sizing: border-box; }
+.cl-add-inp:focus { outline: none; border-color: var(--orange); }
+.cl-add-btn { flex-shrink: 0; width: 34px; border: none; border-radius: 8px; background: var(--navy); color: #fff; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.cl-add-btn:hover { background: var(--orange); color: var(--navy); }
+.cl-edit-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.cl-toggle-btn { background: none; border: 1px dashed var(--border); border-radius: 8px; color: var(--navy); font-family: var(--font); font-size: 13px; font-weight: 600; padding: 8px; width: 100%; cursor: pointer; margin-bottom: 8px; }
+.cl-toggle-btn:hover { border-color: var(--orange); color: var(--orange); }
+
 /* ============================================================
    REFLECTION
    ============================================================ */
@@ -1355,6 +1369,102 @@ html, body {
 .shop-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .shop-tab-add{border-style:dashed;color:var(--text-mid)}
 .shop-tab-del{color:#c0392b;padding:6px 10px}
+
+/* ============================================================
+   RESPONSIVE LAYER — tablet & desktop  (added 2026-07-12)
+   The mobile-first base above is UNTOUCHED; every rule here is
+   scoped to >=768px only. It turns the 430px phone column into a
+   real app shell: full-width header, persistent left sidebar nav,
+   and a width-capped content column.
+   NOTE: launchApp() sets an inline display:flex on #app at login,
+   so the grid switch is gated on [style*="flex"] — this keeps #app
+   hidden on the auth screen and overrides the inline value with no
+   JS change. Group filtering (.in-group) is preserved exactly.
+   ============================================================ */
+@media (min-width: 768px) {
+  html, body { background: var(--navy-deep); }
+
+  #app[style*="flex"] {
+    display: grid !important;
+    max-width: 960px;
+    grid-template-columns: 224px 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "navgrp content"
+      "nav    content";
+    box-shadow: 0 0 60px rgba(4,44,83,0.18);
+  }
+
+  .topbar    { grid-area: topbar; }
+  .nav-group { grid-area: navgrp; flex-direction: column; background: var(--navy-deep); padding: 10px 8px 4px; }
+  .nav       { grid-area: nav; flex-direction: column; overflow: visible; background: var(--navy-deep); padding: 4px 8px 20px; gap: 2px; }
+  .content   { grid-area: content; padding: 22px 26px 44px; }
+
+  /* Header: stop the voice CTA becoming a full-width slab */
+  .topbar .voice-btn { max-width: 460px; margin-left: auto; margin-right: auto; }
+
+  /* Group toggles become stacked sidebar section labels */
+  .group-btn {
+    flex: none;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-bottom: none;
+    border-radius: 8px;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .group-btn:hover { background: rgba(255,255,255,0.05); opacity: 1; }
+  .group-btn.active { border-bottom: none; color: #fff; opacity: 1; }
+
+  /* Sub-tabs become full-width sidebar rows (icon + label inline) */
+  .nav-btn {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .nav-btn i { font-size: 18px; width: 20px; text-align: center; }
+  .nav-btn:hover { background: rgba(255,255,255,0.06); color: #cfe4fb; }
+  .nav-btn.active {
+    border-bottom: none;
+    border-left-color: var(--orange);
+    background: rgba(242,119,26,0.12);
+    color: var(--orange);
+  }
+  /* group filtering unchanged — only the active group's tabs render */
+  .nav-btn[data-group].in-group { display: flex; }
+
+  /* Cap readable width so cards & list items don't sprawl */
+  .content > .sec { max-width: 860px; }
+
+  /* Modals: centre on desktop instead of the mobile bottom-sheet */
+  .modal-overlay { align-items: center; }
+  .modal-sheet {
+    max-width: 480px;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
+    animation: modalPop 0.2s ease;
+  }
+  .modal-handle { display: none; }
+  @keyframes modalPop { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+}
+
+@media (min-width: 1024px) {
+  #app[style*="flex"] { max-width: 1120px; grid-template-columns: 248px 1fr; }
+  .content { padding: 24px 40px 48px; }
+  .content > .sec { max-width: 920px; }
+}
 </style>
 </head>
 <body>
@@ -1691,6 +1801,11 @@ html, body {
         <input class="task-inp" id="note-title-inp" placeholder="Title (optional)" style="width:100%;margin-bottom:6px">
         <textarea class="quick-cap-ta" id="note-body-inp" rows="3" placeholder="Type or speak your thought…"></textarea>
         <div class="tag-pills" id="tag-pills"></div>
+        <div id="note-cl-draft"></div>
+        <div id="note-cl-adder" style="display:none;margin-bottom:8px">
+          <input class="cl-add-inp" id="note-cl-inp" placeholder="Checklist item — speak or type, Enter to add" style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter'){event.preventDefault();addDraftChecklistItem();}">
+        </div>
+        <button id="note-cl-toggle" class="cl-toggle-btn" onclick="toggleChecklistAdder()">+ Add checklist</button>
         <button class="save-btn" onclick="saveNote()">Save note</button>
       </div>
       <div id="notes-list"></div>
@@ -3027,7 +3142,7 @@ function addHelpChips() {
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
-const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','capture-input-1','capture-input-2'];
+const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','capture-input-1','capture-input-2'];
 function attachFieldMics() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
@@ -4797,17 +4912,95 @@ function renderDetailTasks() {
 // ============================================================
 // NOTES TAB
 // ============================================================
+// ---- Checklist authoring (added 2026-07-12) ------------------------------
+// Small HTML escape so user-typed item text can't break the card render.
+function clEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); }
+
+// Draft checklist held while composing a new note in the Quick capture card.
+let draftChecklist = [];
+
+function toggleChecklistAdder() {
+  const adder = document.getElementById('note-cl-adder');
+  const toggle = document.getElementById('note-cl-toggle');
+  if (!adder) return;
+  const showing = adder.style.display !== 'none';
+  adder.style.display = showing ? 'none' : 'block';
+  if (toggle) toggle.style.display = showing ? 'block' : 'none';
+  if (!showing) { const i = document.getElementById('note-cl-inp'); if (i) i.focus(); }
+}
+
+function addDraftChecklistItem() {
+  const inp = document.getElementById('note-cl-inp');
+  if (!inp) return;
+  // Reuse the shopping splitter: "milk, eggs and bread" -> three items.
+  const items = parseShoppingItems(inp.value);
+  if (!items.length) return;
+  items.forEach(function(t){ draftChecklist.push({ text: t, done: false }); });
+  inp.value = '';
+  renderDraftChecklist();
+  inp.focus();
+}
+
+function deleteDraftChecklistItem(idx) {
+  draftChecklist.splice(idx, 1);
+  renderDraftChecklist();
+}
+
+function renderDraftChecklist() {
+  const el = document.getElementById('note-cl-draft');
+  if (!el) return;
+  el.innerHTML = draftChecklist.map(function(c, i){ return `
+    <div class="cl-edit-row">
+      <div class="cl-box"></div>
+      <div class="cl-text" style="flex:1">${clEsc(c.text)}</div>
+      <button class="cl-del" title="Remove" onclick="deleteDraftChecklistItem(${i})">×</button>
+    </div>`; }).join('');
+}
+
 function saveNote() {
   const body = document.getElementById('note-body-inp').value.trim();
-  if (!body) { showToast('Please enter a note'); return; }
-  const title = document.getElementById('note-title-inp').value.trim() || 'Quick capture';
+  const rawTitle = document.getElementById('note-title-inp').value.trim();
+  const hasChecklist = draftChecklist.length > 0;
+  // A checklist-only note is valid — no longer requires body text.
+  if (!body && !hasChecklist) { showToast('Add a note or a checklist item'); return; }
+  const title = rawTitle || (hasChecklist && !body ? 'Checklist' : 'Quick capture');
   if (!isPremium() && (state.notes||[]).length >= 10) { showToast('Free plan: up to 10 notes — upgrade for unlimited'); showUpgrade(); return; }
-  state.notes.unshift({ id: Date.now(), title, body, tags: [...state.selectedTags], checklist: null });
+  state.notes.unshift({ id: Date.now(), title, body, tags: [...state.selectedTags],
+    checklist: hasChecklist ? draftChecklist.map(function(c){ return { text: c.text, done: false }; }) : null });
   document.getElementById('note-body-inp').value = '';
   document.getElementById('note-title-inp').value = '';
   state.selectedTags = [];
+  draftChecklist = [];
+  renderDraftChecklist();
+  const adder = document.getElementById('note-cl-adder'); if (adder) adder.style.display = 'none';
+  const toggle = document.getElementById('note-cl-toggle'); if (toggle) toggle.style.display = 'block';
   renderNotes();
   showToast('Note saved!');
+}
+
+// Add / remove items on an EXISTING note (works even if it had no checklist yet).
+function addChecklistItemToNote(noteId) {
+  const n = state.notes.find(function(x){ return x.id === noteId; });
+  if (!n) return;
+  const inp = document.getElementById('note-cl-inp-' + noteId);
+  if (!inp) return;
+  const items = parseShoppingItems(inp.value);
+  if (!items.length) return;
+  if (!Array.isArray(n.checklist)) n.checklist = [];
+  items.forEach(function(t){ n.checklist.push({ text: t, done: false }); });
+  renderNotes();
+  try { persistNow(); } catch (e) {}
+  const again = document.getElementById('note-cl-inp-' + noteId);
+  if (again) again.focus();
+}
+
+function deleteChecklistItem(noteId, idx) {
+  const n = state.notes.find(function(x){ return x.id === noteId; });
+  if (!n || !Array.isArray(n.checklist)) return;
+  n.checklist.splice(idx, 1);
+  if (!n.checklist.length) n.checklist = null; // empty checklist -> back to null
+  renderNotes();
+  try { persistNow(); } catch (e) {}
 }
 
 function toggleNoteTag(tag) {
@@ -4843,13 +5036,22 @@ function renderNotes() {
     card.className = 'note-card';
     let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
     if (n.body) inner += `<div class="note-body">${n.body}</div>`;
-    if (n.checklist) {
-      inner += n.checklist.map((c, i) => `
-        <div class="checklist-item" onclick="toggleChecklistItem(${n.id},${i})">
-          <div class="cl-box${c.done ? ' done' : ''}"></div>
-          <div class="cl-text${c.done ? ' done' : ''}">${c.text}</div>
-        </div>`).join('');
+    if (n.checklist && n.checklist.length) {
+      inner += `<div class="cl-list">` + n.checklist.map((c, i) => `
+        <div class="checklist-item">
+          <div class="cl-hit" onclick="toggleChecklistItem(${n.id},${i})">
+            <div class="cl-box${c.done ? ' done' : ''}"></div>
+            <div class="cl-text${c.done ? ' done' : ''}">${clEsc(c.text)}</div>
+          </div>
+          <button class="cl-del" title="Remove" onclick="deleteChecklistItem(${n.id},${i})">×</button>
+        </div>`).join('') + `</div>`;
     }
+    // Inline add-item row on every note — this is what makes checklists buildable.
+    inner += `
+      <div class="cl-add-row">
+        <input class="cl-add-inp" id="note-cl-inp-${n.id}" placeholder="${(n.checklist && n.checklist.length) ? 'Add item…' : 'Add a checklist item…'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklistItemToNote(${n.id});}">
+        <button class="cl-add-btn" title="Add item" onclick="addChecklistItemToNote(${n.id})"><i class="ti ti-plus"></i></button>
+      </div>`;
     if (n.tags.length) {
       inner += `<div class="note-tags" style="margin-top:8px">${n.tags.map(t => `<span class="ntag">#${t}</span>`).join('')}</div>`;
     }
