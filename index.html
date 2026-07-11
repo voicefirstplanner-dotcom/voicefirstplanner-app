@@ -2053,7 +2053,7 @@ let isDemo = false;      // demo mode = nothing persists
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
-                    'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders'];
+                    'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak'];
 
 function serializeState() {
   const out = {};
@@ -2254,6 +2254,7 @@ let state = {
   appointments: [],
   habits: DEFAULT_HABITS.map(h => ({ ...h })),
   habitLog: {},
+  habitMaxStreak: 0,
   goals: DEFAULT_GOALS.map(g => ({ ...g })),
   bucket: [
     { id: 1, text: 'See the southern lights', done: false },
@@ -4311,7 +4312,11 @@ function renderCalStrip() {
 function renderHabits() {
   const el = document.getElementById('habit-grid');
   el.innerHTML = '';
-  let maxStreak = 0;
+  // Fix D: derive the week/day from a LIVE clock read, not the module-level
+  // `weekKey`/`todayDow` captured at page load — otherwise an app left open
+  // across midnight into a new week writes ticks into the wrong week's grid.
+  const gridWeek = weekKeyFor(new Date());
+  const liveDow = (new Date().getDay() + 6) % 7;
   state.habits.forEach(h => {
     const row = document.createElement('div');
     row.className = 'habit-row';
@@ -4321,13 +4326,16 @@ function renderHabits() {
     const days = document.createElement('div');
     days.className = 'habit-days';
     DAYS.forEach((d, i) => {
-      const k = weekKey + '-' + h.id + '-' + i;
+      const k = gridWeek + '-' + h.id + '-' + i;
       const done = !!state.habitLog[k];
       const cell = document.createElement('div');
-      cell.className = 'h-day' + (done ? ' done' : '') + (i === todayDow ? ' today' : '');
+      cell.className = 'h-day' + (done ? ' done' : '') + (i === liveDow ? ' today' : '');
       cell.innerHTML = done ? '<i class="ti ti-check" style="font-size:13px"></i>' : d;
       cell.onclick = () => {
-        state.habitLog[k] = !state.habitLog[k];
+        // Recompute the key at click time so a tick after midnight lands in the
+        // correct week even if this grid was rendered on a previous day.
+        const liveKey = weekKeyFor(new Date()) + '-' + h.id + '-' + i;
+        state.habitLog[liveKey] = !state.habitLog[liveKey];
         renderHabits();
       };
       days.appendChild(cell);
@@ -4344,17 +4352,54 @@ function renderHabits() {
     row.appendChild(hdel);
     el.appendChild(row);
   });
+  // --- Streak (Fixes A, B, C) ---------------------------------------------
+  // A tick on ANY habit keeps that day alive (global streak — ledger L15).
+  const dayDone = (d) => {
+    const wk = weekKeyFor(d);
+    const dow = (d.getDay() + 6) % 7;
+    return state.habits.some(h => state.habitLog[wk + '-' + h.id + '-' + dow]);
+  };
+
   let streak = 0;
-  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let graceUsed = false; // Fix B: exactly one missed day is forgiven — never more.
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  // Fix A: today isn't over yet. An un-ticked today must NOT zero an existing
+  // streak — begin the backward walk at today only if it's already done,
+  // otherwise start from yesterday. (A 40-day streak no longer reads 0 at 7am.)
+  if (!dayDone(cursor)) cursor.setDate(cursor.getDate() - 1);
+
   for (let guard = 0; guard < 3650; guard++) { // safety cap: 10 years
-    const dow = (cursor.getDay() + 6) % 7;
-    const wk = weekKeyFor(cursor);
-    if (state.habits.some(h => state.habitLog[wk + '-' + h.id + '-' + dow])) {
+    if (dayDone(cursor)) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
-    } else break;
+      continue;
+    }
+    // A missed day: forgive exactly one, and only when a completed day lies
+    // beyond it — so a streak is never "graced" into existence out of nothing.
+    if (!graceUsed) {
+      const probe = new Date(cursor);
+      probe.setDate(probe.getDate() - 1);
+      if (dayDone(probe)) { graceUsed = true; cursor.setDate(cursor.getDate() - 1); continue; }
+    }
+    break;
   }
+
+  // Fix C: remember the best streak ever reached — a reset never erases it.
+  if (typeof state.habitMaxStreak !== 'number') state.habitMaxStreak = 0;
+  if (streak > state.habitMaxStreak) state.habitMaxStreak = streak;
+
   document.getElementById('streak-num').textContent = streak;
+  const sub = document.querySelector('.streak-sub');
+  if (sub) {
+    const best = state.habitMaxStreak || 0;
+    // Non-shaming (ledger L16): surface the best only when it's ahead of the
+    // current run, so a reset still shows what you built. Copy is Marketing's.
+    sub.textContent = (best > streak && best > 0)
+      ? `Best yet: ${best} ${best === 1 ? 'day' : 'days'} — that stays yours`
+      : 'Keep going — consistency compounds';
+  }
   renderHabitSuggestions();
 }
 
@@ -4421,7 +4466,7 @@ function logHabitByVoice(t) {
     });
   });
   if (!best) return false;
-  state.habitLog[weekKey + '-' + best.id + '-' + todayDow] = true;
+  state.habitLog[weekKeyFor(new Date()) + '-' + best.id + '-' + ((new Date().getDay() + 6) % 7)] = true;
   renderHabits();
   showToast(best.name + ' logged for today!');
   return true;
