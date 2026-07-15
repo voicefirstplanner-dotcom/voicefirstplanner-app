@@ -482,6 +482,38 @@ html, body {
   resize: vertical;
 }
 .edit-input:focus { outline: none; border-color: var(--orange); }
+
+/* Full-size note reader/editor (added 2026-07-15).
+   Notes only — every other caller of openEditModal keeps the compact sheet. */
+.modal-sheet.sheet-full {
+  max-width: 430px;
+  height: 92vh;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.modal-sheet.sheet-full #edit-modal-fields {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;              /* lets the flex child actually scroll */
+  display: flex;
+  flex-direction: column;
+}
+/* The note body takes the slack, so the editor is as big as the sheet allows. */
+.modal-sheet.sheet-full .edit-input-grow {
+  flex: 1 1 auto;
+  min-height: 140px;
+  resize: none;
+  line-height: 1.55;
+}
+.modal-sheet.sheet-full .edit-row-grow {
+  flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
+}
+.modal-sheet.sheet-full .edit-row-grow > div { flex: 1 1 auto; min-height: 0; }
+.modal-sheet.sheet-full #edit-note-cl-block { flex-shrink: 0; }
+.modal-sheet.sheet-full #edit-note-cl-list { max-height: 30vh; overflow-y: auto; }
 /* Inline edit pencil on rows/cards */
 .row-edit {
   background: none;
@@ -1263,6 +1295,19 @@ html, body {
   transition: background 0.15s;
 }
 .modal-cta:hover { background: var(--orange-hover); color: var(--white); }
+/* Recurring-delete choice options (added 2026-07-15) */
+.recur-opt {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+  font-family: inherit; transition: border-color .15s, background .15s;
+}
+.recur-opt:hover { border-color: var(--orange); background: rgba(242,119,26,0.04); }
+.recur-opt-t { display: block; font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 2px; }
+.recur-opt-n { display: block; font-size: 12px; color: var(--text-mid); line-height: 1.4; }
+.recur-opt-danger:hover { border-color: #C0392B; background: rgba(192,57,43,0.04); }
+.recur-opt-danger .recur-opt-t { color: #C0392B; }
+
 .modal-close-btn {
   width: 100%;
   padding: 12px;
@@ -1457,13 +1502,501 @@ html, body {
     animation: modalPop 0.2s ease;
   }
   .modal-handle { display: none; }
+  .modal-sheet.sheet-full {
+    max-width: 760px;
+    height: 86vh;
+    max-height: 86vh;
+    border-radius: var(--radius-lg);
+  }
   @keyframes modalPop { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+
+  /* ---- Type scale: 768px and up (added 2026-07-15). Additive, media-query
+       scoped, #app/.modal-overlay only — the phone is provably untouched. ---- */
+  #app .cap-soon,
+  .modal-overlay .cap-soon { font-size: 8px !important; }
+  #app .h-day,
+  .modal-overlay .h-day,
+  #app .nav-btn,
+  .modal-overlay .nav-btn { font-size: 10px !important; }
+  #app .ai-btn .soon-badge,
+  .modal-overlay .ai-btn .soon-badge,
+  #app .cap-label,
+  .modal-overlay .cap-label,
+  #app .card-label,
+  .modal-overlay .card-label,
+  #app .carry-tag,
+  .modal-overlay .carry-tag,
+  #app .cl-box.done::after,
+  .modal-overlay .cl-box.done::after,
+  #app .goal-role,
+  .modal-overlay .goal-role,
+  #app .ntag,
+  .modal-overlay .ntag,
+  #app .proj-status-badge,
+  .modal-overlay .proj-status-badge,
+  #app .pstat-l,
+  .modal-overlay .pstat-l,
+  #app .ptag,
+  .modal-overlay .ptag,
+  #app .week-tag,
+  .modal-overlay .week-tag { font-size: 12px !important; }
+  #app .cap-meta,
+  .modal-overlay .cap-meta,
+  #app .goal-btn,
+  .modal-overlay .goal-btn,
+  #app .goal-meta,
+  .modal-overlay .goal-meta,
+  #app .priority-badge,
+  .modal-overlay .priority-badge,
+  #app .quote-auth,
+  .modal-overlay .quote-auth,
+  #app .role-def,
+  .modal-overlay .role-def,
+  #app .settings-section-title,
+  .modal-overlay .settings-section-title,
+  #app .streak-sub,
+  .modal-overlay .streak-sub,
+  #app .suggest-label,
+  .modal-overlay .suggest-label,
+  #app .tag-pill,
+  .modal-overlay .tag-pill,
+  #app .task-check.done::after,
+  .modal-overlay .task-check.done::after,
+  #app .topbar-date,
+  .modal-overlay .topbar-date,
+  #app .voice-hint,
+  .modal-overlay .voice-hint,
+  #app .week-counts,
+  .modal-overlay .week-counts,
+  #app .week-time,
+  .modal-overlay .week-time { font-size: 13px !important; }
+  #app .detail-desc,
+  .modal-overlay .detail-desc,
+  #app .pro-lock,
+  .modal-overlay .pro-lock,
+  #app .quote-text,
+  .modal-overlay .quote-text,
+  #app .recur-opt-n,
+  .modal-overlay .recur-opt-n,
+  #app .reflect-label,
+  .modal-overlay .reflect-label,
+  #app .rem-alert-btn,
+  .modal-overlay .rem-alert-btn,
+  #app .shop-tab,
+  .modal-overlay .shop-tab,
+  #app .streak-label,
+  .modal-overlay .streak-label,
+  #app .user-badge,
+  .modal-overlay .user-badge,
+  #app .week-empty,
+  .modal-overlay .week-empty { font-size: 14px !important; }
+  #app .add-btn,
+  .modal-overlay .add-btn,
+  #app .ai-btn,
+  .modal-overlay .ai-btn,
+  #app .cap-title,
+  .modal-overlay .cap-title,
+  #app .cl-add-inp,
+  .modal-overlay .cl-add-inp,
+  #app .cl-text,
+  .modal-overlay .cl-text,
+  #app .cl-toggle-btn,
+  .modal-overlay .cl-toggle-btn,
+  #app .detail-back,
+  .modal-overlay .detail-back,
+  #app .fb-chip,
+  .modal-overlay .fb-chip,
+  #app .goal-name,
+  .modal-overlay .goal-name,
+  #app .group-btn,
+  .modal-overlay .group-btn,
+  #app .habit-name,
+  .modal-overlay .habit-name,
+  #app .note-body,
+  .modal-overlay .note-body,
+  #app .ob-skip,
+  .modal-overlay .ob-skip,
+  #app .pro-feat,
+  .modal-overlay .pro-feat,
+  #app .quick-cap-ta,
+  .modal-overlay .quick-cap-ta,
+  #app .reflect-ta,
+  .modal-overlay .reflect-ta,
+  #app .rem-alert-title,
+  .modal-overlay .rem-alert-title,
+  #app .role-name,
+  .modal-overlay .role-name,
+  #app .saved-badge,
+  .modal-overlay .saved-badge,
+  #app .settings-row-action,
+  .modal-overlay .settings-row-action,
+  #app .settings-row-value,
+  .modal-overlay .settings-row-value,
+  #app .task-inp,
+  .modal-overlay .task-inp,
+  #app .task-pri-sel,
+  .modal-overlay .task-pri-sel,
+  #app .task-text,
+  .modal-overlay .task-text,
+  #app .toast,
+  .modal-overlay .toast,
+  #app .val-chip,
+  .modal-overlay .val-chip,
+  #app .week-date,
+  .modal-overlay .week-date,
+  #app .week-item,
+  .modal-overlay .week-item { font-size: 15px !important; }
+  #app .fb-textarea,
+  .modal-overlay .fb-textarea,
+  #app .focus-input,
+  .modal-overlay .focus-input,
+  #app .focus-set,
+  .modal-overlay .focus-set,
+  #app .modal-close-btn,
+  .modal-overlay .modal-close-btn,
+  #app .modal-sub,
+  .modal-overlay .modal-sub,
+  #app .new-proj-btn,
+  .modal-overlay .new-proj-btn,
+  #app .note-title,
+  .modal-overlay .note-title,
+  #app .onboard-sub,
+  .modal-overlay .onboard-sub,
+  #app .pro-price span,
+  .modal-overlay .pro-price span,
+  #app .proj-name,
+  .modal-overlay .proj-name,
+  #app .recur-opt-t,
+  .modal-overlay .recur-opt-t,
+  #app .rem-alert-text,
+  .modal-overlay .rem-alert-text,
+  #app .row-edit,
+  .modal-overlay .row-edit,
+  #app .save-btn,
+  .modal-overlay .save-btn,
+  #app .settings-row-label,
+  .modal-overlay .settings-row-label,
+  #app .signout-btn,
+  .modal-overlay .signout-btn,
+  #app .val-item,
+  .modal-overlay .val-item,
+  #app .voice-btn-text,
+  .modal-overlay .voice-btn-text { font-size: 16px !important; }
+  #app .card-title,
+  .modal-overlay .card-title,
+  #app .cl-add-btn,
+  .modal-overlay .cl-add-btn,
+  #app .edit-input,
+  .modal-overlay .edit-input,
+  #app .field-mic i,
+  .modal-overlay .field-mic i,
+  #app .modal-cta,
+  .modal-overlay .modal-cta,
+  #app .ob-btn,
+  .modal-overlay .ob-btn { font-size: 17px !important; }
+  #app .ai-btn i,
+  .modal-overlay .ai-btn i,
+  #app .cap-icon i,
+  .modal-overlay .cap-icon i,
+  #app .group-btn i,
+  .modal-overlay .group-btn i,
+  #app .pro-feat i,
+  .modal-overlay .pro-feat i,
+  #app .pstat-n,
+  .modal-overlay .pstat-n { font-size: 18px !important; }
+  #app .nav-btn i,
+  .modal-overlay .nav-btn i,
+  #app .role-icon i,
+  .modal-overlay .role-icon i { font-size: 19px !important; }
+  #app .cl-del,
+  .modal-overlay .cl-del,
+  #app .val-item i,
+  .modal-overlay .val-item i,
+  #app .voice-btn i,
+  .modal-overlay .voice-btn i { font-size: 20px !important; }
+  #app .cap-btn i,
+  .modal-overlay .cap-btn i,
+  #app .settings-back,
+  .modal-overlay .settings-back,
+  #app .settings-title,
+  .modal-overlay .settings-title,
+  #app .wm-bot,
+  .modal-overlay .wm-bot,
+  #app .wm-top,
+  .modal-overlay .wm-top { font-size: 22px !important; }
+  #app .detail-name,
+  .modal-overlay .detail-name,
+  #app .modal-title,
+  .modal-overlay .modal-title,
+  #app .proj-emoji,
+  .modal-overlay .proj-emoji { font-size: 24px !important; }
+  #app .onboard-title,
+  .modal-overlay .onboard-title { font-size: 28px !important; }
+  #app .pro-price,
+  .modal-overlay .pro-price { font-size: 30px !important; }
+  #app .streak-num,
+  .modal-overlay .streak-num { font-size: 34px !important; }
+  /* Inline style="font-size:Npx" in JS templates. All are uniform px with no
+     spaces, so these attribute selectors reach every one — nothing marooned. */
+  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 12px !important; }
+  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 13px !important; }
+  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 14px !important; }
+  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 15px !important; }
+  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 16px !important; }
+  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 17px !important; }
+  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 18px !important; }
+  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 20px !important; }
+  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 22px !important; }
+  /* Boxes holding scaled text grow in step so nothing crowds. */
+  #app .priority-badge { height: 24px !important; }
+  #app .h-day { height: 33px !important; }
 }
 
 @media (min-width: 1024px) {
   #app[style*="flex"] { max-width: 1120px; grid-template-columns: 248px 1fr; }
+  .modal-sheet.sheet-full { max-width: 880px; }
   .content { padding: 24px 40px 48px; }
   .content > .sec { max-width: 920px; }
+
+  /* ---- Type scale: 1024px and up (added 2026-07-15). Additive, media-query
+       scoped, #app/.modal-overlay only — the phone is provably untouched. ---- */
+  #app .cap-soon,
+  .modal-overlay .cap-soon { font-size: 9px !important; }
+  #app .h-day,
+  .modal-overlay .h-day,
+  #app .nav-btn,
+  .modal-overlay .nav-btn { font-size: 11px !important; }
+  #app .ai-btn .soon-badge,
+  .modal-overlay .ai-btn .soon-badge,
+  #app .cap-label,
+  .modal-overlay .cap-label,
+  #app .card-label,
+  .modal-overlay .card-label,
+  #app .carry-tag,
+  .modal-overlay .carry-tag,
+  #app .cl-box.done::after,
+  .modal-overlay .cl-box.done::after,
+  #app .goal-role,
+  .modal-overlay .goal-role,
+  #app .ntag,
+  .modal-overlay .ntag,
+  #app .proj-status-badge,
+  .modal-overlay .proj-status-badge,
+  #app .pstat-l,
+  .modal-overlay .pstat-l,
+  #app .ptag,
+  .modal-overlay .ptag,
+  #app .week-tag,
+  .modal-overlay .week-tag { font-size: 13px !important; }
+  #app .cap-meta,
+  .modal-overlay .cap-meta,
+  #app .goal-btn,
+  .modal-overlay .goal-btn,
+  #app .goal-meta,
+  .modal-overlay .goal-meta,
+  #app .priority-badge,
+  .modal-overlay .priority-badge,
+  #app .quote-auth,
+  .modal-overlay .quote-auth,
+  #app .role-def,
+  .modal-overlay .role-def,
+  #app .settings-section-title,
+  .modal-overlay .settings-section-title,
+  #app .streak-sub,
+  .modal-overlay .streak-sub,
+  #app .suggest-label,
+  .modal-overlay .suggest-label,
+  #app .tag-pill,
+  .modal-overlay .tag-pill,
+  #app .task-check.done::after,
+  .modal-overlay .task-check.done::after,
+  #app .topbar-date,
+  .modal-overlay .topbar-date,
+  #app .voice-hint,
+  .modal-overlay .voice-hint,
+  #app .week-counts,
+  .modal-overlay .week-counts,
+  #app .week-time,
+  .modal-overlay .week-time { font-size: 14px !important; }
+  #app .detail-desc,
+  .modal-overlay .detail-desc,
+  #app .pro-lock,
+  .modal-overlay .pro-lock,
+  #app .quote-text,
+  .modal-overlay .quote-text,
+  #app .recur-opt-n,
+  .modal-overlay .recur-opt-n,
+  #app .reflect-label,
+  .modal-overlay .reflect-label,
+  #app .rem-alert-btn,
+  .modal-overlay .rem-alert-btn,
+  #app .shop-tab,
+  .modal-overlay .shop-tab,
+  #app .streak-label,
+  .modal-overlay .streak-label,
+  #app .user-badge,
+  .modal-overlay .user-badge,
+  #app .week-empty,
+  .modal-overlay .week-empty { font-size: 15px !important; }
+  #app .add-btn,
+  .modal-overlay .add-btn,
+  #app .ai-btn,
+  .modal-overlay .ai-btn,
+  #app .cap-title,
+  .modal-overlay .cap-title,
+  #app .cl-add-inp,
+  .modal-overlay .cl-add-inp,
+  #app .cl-text,
+  .modal-overlay .cl-text,
+  #app .cl-toggle-btn,
+  .modal-overlay .cl-toggle-btn,
+  #app .detail-back,
+  .modal-overlay .detail-back,
+  #app .fb-chip,
+  .modal-overlay .fb-chip,
+  #app .goal-name,
+  .modal-overlay .goal-name,
+  #app .group-btn,
+  .modal-overlay .group-btn,
+  #app .habit-name,
+  .modal-overlay .habit-name,
+  #app .note-body,
+  .modal-overlay .note-body,
+  #app .ob-skip,
+  .modal-overlay .ob-skip,
+  #app .pro-feat,
+  .modal-overlay .pro-feat,
+  #app .quick-cap-ta,
+  .modal-overlay .quick-cap-ta,
+  #app .reflect-ta,
+  .modal-overlay .reflect-ta,
+  #app .rem-alert-title,
+  .modal-overlay .rem-alert-title,
+  #app .role-name,
+  .modal-overlay .role-name,
+  #app .saved-badge,
+  .modal-overlay .saved-badge,
+  #app .settings-row-action,
+  .modal-overlay .settings-row-action,
+  #app .settings-row-value,
+  .modal-overlay .settings-row-value,
+  #app .task-inp,
+  .modal-overlay .task-inp,
+  #app .task-pri-sel,
+  .modal-overlay .task-pri-sel,
+  #app .task-text,
+  .modal-overlay .task-text,
+  #app .toast,
+  .modal-overlay .toast,
+  #app .val-chip,
+  .modal-overlay .val-chip,
+  #app .week-date,
+  .modal-overlay .week-date,
+  #app .week-item,
+  .modal-overlay .week-item { font-size: 16px !important; }
+  #app .fb-textarea,
+  .modal-overlay .fb-textarea,
+  #app .focus-input,
+  .modal-overlay .focus-input,
+  #app .focus-set,
+  .modal-overlay .focus-set,
+  #app .modal-close-btn,
+  .modal-overlay .modal-close-btn,
+  #app .modal-sub,
+  .modal-overlay .modal-sub,
+  #app .new-proj-btn,
+  .modal-overlay .new-proj-btn,
+  #app .note-title,
+  .modal-overlay .note-title,
+  #app .onboard-sub,
+  .modal-overlay .onboard-sub,
+  #app .pro-price span,
+  .modal-overlay .pro-price span,
+  #app .proj-name,
+  .modal-overlay .proj-name,
+  #app .recur-opt-t,
+  .modal-overlay .recur-opt-t,
+  #app .rem-alert-text,
+  .modal-overlay .rem-alert-text,
+  #app .row-edit,
+  .modal-overlay .row-edit,
+  #app .save-btn,
+  .modal-overlay .save-btn,
+  #app .settings-row-label,
+  .modal-overlay .settings-row-label,
+  #app .signout-btn,
+  .modal-overlay .signout-btn,
+  #app .val-item,
+  .modal-overlay .val-item,
+  #app .voice-btn-text,
+  .modal-overlay .voice-btn-text { font-size: 17px !important; }
+  #app .card-title,
+  .modal-overlay .card-title,
+  #app .cl-add-btn,
+  .modal-overlay .cl-add-btn,
+  #app .edit-input,
+  .modal-overlay .edit-input,
+  #app .field-mic i,
+  .modal-overlay .field-mic i,
+  #app .modal-cta,
+  .modal-overlay .modal-cta,
+  #app .ob-btn,
+  .modal-overlay .ob-btn { font-size: 18px !important; }
+  #app .ai-btn i,
+  .modal-overlay .ai-btn i,
+  #app .cap-icon i,
+  .modal-overlay .cap-icon i,
+  #app .group-btn i,
+  .modal-overlay .group-btn i,
+  #app .pro-feat i,
+  .modal-overlay .pro-feat i,
+  #app .pstat-n,
+  .modal-overlay .pstat-n { font-size: 19px !important; }
+  #app .nav-btn i,
+  .modal-overlay .nav-btn i,
+  #app .role-icon i,
+  .modal-overlay .role-icon i { font-size: 20px !important; }
+  #app .cl-del,
+  .modal-overlay .cl-del,
+  #app .val-item i,
+  .modal-overlay .val-item i,
+  #app .voice-btn i,
+  .modal-overlay .voice-btn i { font-size: 21px !important; }
+  #app .cap-btn i,
+  .modal-overlay .cap-btn i,
+  #app .settings-back,
+  .modal-overlay .settings-back,
+  #app .settings-title,
+  .modal-overlay .settings-title,
+  #app .wm-bot,
+  .modal-overlay .wm-bot,
+  #app .wm-top,
+  .modal-overlay .wm-top { font-size: 23px !important; }
+  #app .detail-name,
+  .modal-overlay .detail-name,
+  #app .modal-title,
+  .modal-overlay .modal-title,
+  #app .proj-emoji,
+  .modal-overlay .proj-emoji { font-size: 25px !important; }
+  #app .onboard-title,
+  .modal-overlay .onboard-title { font-size: 30px !important; }
+  #app .pro-price,
+  .modal-overlay .pro-price { font-size: 32px !important; }
+  #app .streak-num,
+  .modal-overlay .streak-num { font-size: 36px !important; }
+  /* Inline style="font-size:Npx" in JS templates. All are uniform px with no
+     spaces, so these attribute selectors reach every one — nothing marooned. */
+  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 13px !important; }
+  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 14px !important; }
+  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 15px !important; }
+  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 16px !important; }
+  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 17px !important; }
+  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 18px !important; }
+  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 19px !important; }
+  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 21px !important; }
+  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 23px !important; }
+  #app .priority-badge { height: 26px !important; }
+  #app .h-day { height: 35px !important; }
 }
 </style>
 </head>
@@ -2122,9 +2655,31 @@ html, body {
     <div class="modal-handle"></div>
     <div class="modal-title" id="edit-modal-title">Edit</div>
     <div id="edit-modal-fields" style="margin-top:6px"></div>
-    <button class="modal-cta" onclick="saveEdit()">Save changes</button>
+    <button class="modal-cta" id="edit-modal-save" onclick="saveEdit()">Save changes</button>
     <button class="modal-close-btn" id="edit-modal-delete" onclick="deleteFromEdit()" style="color:#C0392B">Delete</button>
-    <button class="modal-close-btn" onclick="closeEditModal()">Cancel</button>
+    <button class="modal-close-btn" id="edit-modal-cancel" onclick="closeEditModal({skipSave:true})">Cancel</button>
+  </div>
+</div>
+
+<!-- Recurring delete — three-way choice (added 2026-07-15) -->
+<div class="modal-overlay" id="recur-del-modal" onclick="if(event.target===this)closeRecurDeleteModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="recur-del-title">Delete</div>
+    <div class="modal-sub" id="recur-del-sub"></div>
+    <button class="recur-opt" onclick="confirmRecurDelete('one')">
+      <span class="recur-opt-t">This occurrence only</span>
+      <span class="recur-opt-n">Just this one. The rest of the series carries on.</span>
+    </button>
+    <button class="recur-opt" onclick="confirmRecurDelete('future')">
+      <span class="recur-opt-t">This and all future occurrences</span>
+      <span class="recur-opt-n" id="recur-del-future-note"></span>
+    </button>
+    <button class="recur-opt recur-opt-danger" onclick="confirmRecurDelete('all')">
+      <span class="recur-opt-t">The entire series</span>
+      <span class="recur-opt-n" id="recur-del-all-note"></span>
+    </button>
+    <button class="modal-close-btn" onclick="closeRecurDeleteModal()">Cancel</button>
   </div>
 </div>
 
@@ -2168,7 +2723,8 @@ let isDemo = false;      // demo mode = nothing persists
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
-                    'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak'];
+                    'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
+                    'recurEnds'];
 
 function serializeState() {
   const out = {};
@@ -2315,6 +2871,13 @@ const DEFAULT_GOALS = [
   { id: 2, name: 'Run a half-marathon', cur: 0, tot: 21, unit: 'km', role: 'Health' },
 ];
 
+// Free-tier project cap (Claims Ledger L9: "5 tasks/day, 4 habits, 2 projects, 5 values").
+// Counts EVERY project the user holds, including the seeded demo below. A new free
+// user therefore has the demo (1) and can create one of their own (2); the wall lands
+// on the third. Keeping the demo in the count is what makes L9's "2 projects" true in
+// every case — including for a user who deletes the demo.
+const FREE_PROJECT_LIMIT = 2;
+
 const DEFAULT_PROJECTS = [
   { id: 1, name: 'Boat refit', desc: 'Full restoration of the 38ft sloop', icon: '⛵', status: 'Active', progress: 35, tags: ['sailing','2026'], captures: [
     { type: 'voice', title: 'Outboard motor notes — boat show', meta: '2 min voice memo', icon: 'ti-microphone' },
@@ -2376,6 +2939,7 @@ let state = {
     { id: 2, text: 'Learn to sail', done: false },
   ],
   projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
+  recurEnds: {},   // seriesId -> last date the series may ever cover (L14: an ended series stays ended)
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
   shoppingLists: [
     { id: 'list_default', name: 'Shopping', items: [
@@ -2403,6 +2967,7 @@ let state = {
 };
 
 let currentProject = null;
+let pendingRecurDelete = null;   // { id, seriesId, date } while the recurring-delete modal is open
 let voiceActive = false;
 let hintIdx = 0;
 let hintTimer = null;
@@ -3142,7 +3707,7 @@ function addHelpChips() {
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
-const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','capture-input-1','capture-input-2'];
+const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2'];
 function attachFieldMics() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
@@ -3523,8 +4088,8 @@ function processVoice(text) {
                  .replace(/\ba\s+project\b/i,'').replace(/\bthe\s+project\b/i,'').replace(/\bproject\b/i,'')
                  .replace(/^\s*(?:called|named|for|to|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
     if (!pj) { showToast('Tell me the project name — e.g. "start a project called boat refit"'); return; }
-    if (!vtPracticeMode && !isPremium() && state.projects.length >= 1) {
-      showToast('Free plan: 1 project on the free plan — upgrade for unlimited'); showUpgrade(); return;
+    if (!vtPracticeMode && !isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
+      showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`); showUpgrade(); return;
     }
     state.projects = state.projects || [];
     state.projects.push({ id: Date.now(), name: pj, desc: '', icon: '📁', status: 'Planning', progress: 0, tags: [], captures: [] });
@@ -3712,12 +4277,19 @@ function topUpRecurringSeries() {
     const list = series[sid].slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     const last = list[list.length - 1];
     if (last.date < todayK) return;    // series ended or was ended by the user — stays ended
+    // L14: the user explicitly ended this series at a date. Never generate past it —
+    // this is what stops "this and all future" from being undone on the next app open
+    // when the chosen date was in the future and past occurrences remain.
+    const endAt = (state.recurEnds || {})[sid];
+    if (endAt && last.date >= endAt) return;
     if (last.date >= horizon) return;  // already covered
     const type = last.recurType || inferRecurType(list);
     if (!type) return;
     const start = new Date(last.date + 'T12:00:00');
     start.setDate(start.getDate() + (type === 'weekly' ? 7 : 1));
-    const newDates = collectRecurDates(type, start, 1).filter(dk => dk > last.date);
+    let newDates = collectRecurDates(type, start, 1).filter(dk => dk > last.date);
+    if (endAt) newDates = newDates.filter(dk => dk <= endAt);
+    if (!newDates.length) return;
     newDates.forEach((dk, i) => {
       state.appointments.push({ id: Date.now() + added + i, title: last.title, timeStart: last.timeStart, timeEnd: last.timeEnd, date: dk, location: last.location || '', done: false, recurring: true, seriesId: last.seriesId, recurType: type });
     });
@@ -3807,6 +4379,102 @@ function deleteAppointment(id) {
   renderCalStrip();
 }
 
+// ============================================================
+// RECURRING DELETE — anything that can be added as a multiple
+// must be deletable as a multiple. Appointments are currently the
+// only series type in the app, so this covers the whole list.
+// ============================================================
+
+// Every stored occurrence sharing a seriesId, oldest first.
+function seriesMembers(seriesId) {
+  return (state.appointments || [])
+    .filter(a => a.recurring && a.seriesId === seriesId)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+// Single entry point for every delete affordance. A lone appointment
+// gets a plain confirm; a series member gets the three-way choice.
+function requestDeleteAppointment(id) {
+  const a = (state.appointments || []).find(x => x.id === id);
+  if (!a) return;
+  const members = (a.recurring && a.seriesId) ? seriesMembers(a.seriesId) : [];
+  if (members.length <= 1) {
+    if (confirm(`Delete "${a.title}"?`)) deleteAppointment(id);
+    return;
+  }
+  openRecurDeleteModal(a, members);
+}
+
+function openRecurDeleteModal(a, members) {
+  pendingRecurDelete = { id: a.id, seriesId: a.seriesId, date: a.date };
+  const future = members.filter(m => m.date >= a.date).length;
+  document.getElementById('recur-del-title').textContent = `Delete "${a.title}"`;
+  document.getElementById('recur-del-sub').textContent =
+    `This repeats — ${members.length} occurrence${members.length === 1 ? '' : 's'} stored. What would you like to remove?`;
+  document.getElementById('recur-del-future-note').textContent =
+    `${future} occurrence${future === 1 ? '' : 's'}, from ${fmtDateLabel(a.date)} onward. Completed days before this stay as a record.`;
+  document.getElementById('recur-del-all-note').textContent =
+    `All ${members.length}, past and future. This cannot be undone.`;
+  document.getElementById('recur-del-modal').classList.add('open');
+}
+
+function closeRecurDeleteModal() {
+  document.getElementById('recur-del-modal').classList.remove('open');
+  pendingRecurDelete = null;
+}
+
+// mode: 'one' | 'future' | 'all'
+function confirmRecurDelete(mode) {
+  const ctx = pendingRecurDelete;
+  if (!ctx) return;
+  const { seriesId, date, id } = ctx;
+  state.recurEnds = state.recurEnds || {};
+  let removed = 0;
+  const before = (state.appointments || []).length;
+
+  if (mode === 'one') {
+    // Must not end the series and must not resurrect it. Top-up only ever
+    // appends after the last stored date, so a gap in the middle stays a gap.
+    state.appointments = state.appointments.filter(x => x.id !== id);
+  } else if (mode === 'future') {
+    // Leave completed past occurrences intact (L4). Mark the series ended the
+    // day before, so top-up can never regenerate what we just removed (L14).
+    state.appointments = state.appointments.filter(
+      x => !(x.recurring && x.seriesId === seriesId && x.date >= date)
+    );
+    state.recurEnds[seriesId] = prevDateKey(date);
+  } else if (mode === 'all') {
+    state.appointments = state.appointments.filter(
+      x => !(x.recurring && x.seriesId === seriesId)
+    );
+    // No members remain, so top-up skips it anyway — but mark it ended so a
+    // stale occurrence restored from an older device can never revive it.
+    state.recurEnds[seriesId] = '0000-00-00';
+  }
+  removed = before - state.appointments.length;
+
+  closeRecurDeleteModal();
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+  try { persistNow(); } catch (e) {}
+  showToast(mode === 'one'
+    ? 'Occurrence deleted — the series continues'
+    : `${removed} occurrence${removed === 1 ? '' : 's'} deleted`);
+}
+
+// Day before a YYYY-MM-DD key, as a YYYY-MM-DD key.
+function prevDateKey(dk) {
+  const d = new Date(dk + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  return dateKey(d);
+}
+
+function fmtDateLabel(dk) {
+  const d = new Date(dk + 'T12:00:00');
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 function fmt12(m) {
   if (!m) return '';
   let [hh, mm] = m.split(':').map(Number);
@@ -3839,7 +4507,7 @@ function renderAppointments() {
         </div>
       </div>
       <button onclick="editAppointment(${a.id})" title="Edit" style="background:none;border:none;color:#4A9EF7;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.75"><i class="ti ti-pencil"></i></button>
-      <button onclick="deleteAppointment(${a.id})" title="Delete" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 4px;opacity:0.6">×</button>`;
+      <button onclick="requestDeleteAppointment(${a.id})" title="Delete" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 4px;opacity:0.6">×</button>`;
     el.appendChild(d);
   });
 }
@@ -3924,7 +4592,7 @@ function renderScheduleGrid() {
       apptEl.onclick = (e) => {
         e.stopPropagation();
         if (e.target.classList.contains('appt-del')) {
-          if (confirm(`Delete "${a.title}"?`)) deleteAppointment(a.id);
+          requestDeleteAppointment(a.id);
         }
       };
       slotContent.appendChild(apptEl);
@@ -4030,11 +4698,65 @@ function editTask(id) {
 function editNote(id) {
   const n = state.notes.find(x => x.id === id);
   if (!n) return;
-  editCtx = { kind: 'note', id };
-  openEditModal('Edit note', [
+  editCtx = { kind: 'note', id, full: true };
+  openEditModal('Note', [
     { id: 'edit-f1', label: 'Title', value: n.title, mic: true },
-    { id: 'edit-f2', label: 'Note', value: n.body || '', mic: true, big: true }
-  ]);
+    { id: 'edit-f2', label: 'Note', value: n.body || '', mic: true, big: true, rows: 10, grow: true }
+  ], { size: 'full', extra: wrap => wrap.appendChild(buildNoteChecklistBlock(id)) });
+}
+
+// The checklist is part of the note — a full-size editor without it is half a note.
+// Live claim B5 / L18: "build your own checklists in Notes — by voice or tap".
+function buildNoteChecklistBlock(noteId) {
+  const block = document.createElement('div');
+  block.id = 'edit-note-cl-block';
+  block.style.cssText = 'margin-top:4px;border-top:0.5px solid var(--border);padding-top:14px';
+  const lab = document.createElement('label');
+  lab.textContent = 'Checklist';
+  lab.style.cssText = 'display:block;font-size:12px;font-weight:600;color:var(--text-mid);margin-bottom:6px';
+  block.appendChild(lab);
+  const list = document.createElement('div');
+  list.id = 'edit-note-cl-list';
+  block.appendChild(list);
+  const addRow = document.createElement('div');
+  addRow.className = 'cl-add-row';
+  addRow.innerHTML =
+    '<input class="cl-add-inp" id="note-edit-cl-inp" placeholder="Add a checklist item\u2026" ' +
+    'onkeydown="if(event.key===\'Enter\'){event.preventDefault();addChecklistItemToNote(' + noteId + ',\'note-edit-cl-inp\');}">' +
+    '<button class="cl-add-btn" title="Add item" onclick="addChecklistItemToNote(' + noteId + ',\'note-edit-cl-inp\')"><i class="ti ti-plus"></i></button>';
+  block.appendChild(addRow);
+  const mic = makeEditMic('note-edit-cl-inp');
+  mic.style.marginLeft = '6px';
+  addRow.appendChild(mic);
+  renderNoteEditorChecklist(noteId, list);
+  return block;
+}
+
+function renderNoteEditorChecklist(noteId, listEl) {
+  listEl = listEl || document.getElementById('edit-note-cl-list');
+  if (!listEl) return;
+  const n = state.notes.find(x => x.id === noteId);
+  if (!n) return;
+  const items = Array.isArray(n.checklist) ? n.checklist : [];
+  if (!items.length) {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px">No items yet \u2014 add one below, by tap or voice.</div>';
+    return;
+  }
+  listEl.className = 'cl-list';
+  listEl.innerHTML = items.map((c, i) =>
+    '<div class="checklist-item">' +
+      '<div class="cl-hit" onclick="toggleChecklistItem(' + noteId + ',' + i + ')">' +
+        '<div class="cl-box' + (c.done ? ' done' : '') + '"></div>' +
+        '<div class="cl-text' + (c.done ? ' done' : '') + '">' + clEsc(c.text) + '</div>' +
+      '</div>' +
+      '<button class="cl-del" title="Remove" onclick="deleteChecklistItem(' + noteId + ',' + i + ')">\u00d7</button>' +
+    '</div>').join('');
+}
+
+// True when the full note editor is open on this note.
+function noteEditorOpenFor(noteId) {
+  return editCtx && editCtx.kind === 'note' && editCtx.full && editCtx.id === noteId
+         && document.getElementById('edit-note-cl-list');
 }
 
 function editAppointment(id) {
@@ -4088,13 +4810,25 @@ function editRole(idx) {
   ]);
 }
 
-function openEditModal(title, fields) {
+function openEditModal(title, fields, opts) {
+  opts = opts || {};
   document.getElementById('edit-modal-title').textContent = title;
+  // Notes-only: a full-size reader/editor. Every other caller keeps the compact sheet.
+  const sheet = document.querySelector('#edit-modal .modal-sheet');
+  const isFull = opts.size === 'full';
+  if (sheet) sheet.classList.toggle('sheet-full', isFull);
+  // In the full note editor, dismissing commits — so "Cancel" would be a lie.
+  // The note is always saved; the CTA just closes.
+  const saveBtn = document.getElementById('edit-modal-save');
+  const cancelBtn = document.getElementById('edit-modal-cancel');
+  if (saveBtn) saveBtn.textContent = isFull ? 'Done' : 'Save changes';
+  if (cancelBtn) cancelBtn.style.display = isFull ? 'none' : '';
   const wrap = document.getElementById('edit-modal-fields');
   wrap.innerHTML = '';
   fields.forEach(f => {
     const row = document.createElement('div');
     row.style.cssText = 'margin-bottom:12px';
+    if (f.grow) row.className = 'edit-row-grow';
     const lab = document.createElement('label');
     lab.textContent = f.label;
     lab.style.cssText = 'display:block;font-size:12px;font-weight:600;color:var(--text-mid);margin-bottom:4px';
@@ -4114,7 +4848,8 @@ function openEditModal(title, fields) {
       const cell = document.createElement('div');
       cell.style.cssText = 'display:flex;gap:6px;align-items:flex-start';
       inputEl = document.createElement('textarea');
-      inputEl.id = f.id; inputEl.className = 'edit-input'; inputEl.rows = 3;
+      inputEl.id = f.id; inputEl.className = 'edit-input'; inputEl.rows = f.rows || 3;
+      if (f.grow) inputEl.classList.add('edit-input-grow');
       inputEl.value = f.value || '';
       cell.appendChild(inputEl);
       if (f.mic) cell.appendChild(makeEditMic(f.id));
@@ -4132,6 +4867,7 @@ function openEditModal(title, fields) {
     }
     wrap.appendChild(row);
   });
+  if (typeof opts.extra === 'function') opts.extra(wrap);
   document.getElementById('edit-modal').classList.add('open');
 }
 
@@ -4146,9 +4882,33 @@ function makeEditMic(fieldId) {
   return mic;
 }
 
-function closeEditModal() {
+// opts.skipSave — used by saveEdit()/deleteFromEdit(), which have already
+// committed (or intentionally destroyed) the record.
+function closeEditModal(opts) {
+  // "No lost text, ever": the full note editor is a place people type into at
+  // length, and tapping the overlay is easy. Dismissing it commits the note
+  // rather than throwing the typing away.
+  if (editCtx && editCtx.kind === 'note' && editCtx.full && !(opts && opts.skipSave)) {
+    commitNoteEdit(editCtx.id);
+  }
   document.getElementById('edit-modal').classList.remove('open');
+  const sheet = document.querySelector('#edit-modal .modal-sheet');
+  if (sheet) sheet.classList.remove('sheet-full');
   editCtx = null;
+}
+
+// Write the open note's title/body back to state. The checklist mutates state
+// directly as it's edited, so it needs no commit step.
+function commitNoteEdit(id) {
+  const n = state.notes.find(x => x.id === id);
+  if (!n) return;
+  const t = document.getElementById('edit-f1');
+  const b = document.getElementById('edit-f2');
+  if (!t && !b) return;
+  n.title = (t ? t.value.trim() : '') || 'Quick capture';
+  n.body = b ? b.value.trim() : '';
+  renderNotes();
+  try { persistNow(); } catch (e) {}
 }
 
 function saveEdit() {
@@ -4162,9 +4922,7 @@ function saveEdit() {
     if (t) { if (!v1) { showToast('Task can\u2019t be empty'); return; } t.text = v1; t.p = v2 || t.p; }
     renderTasks(); renderCalStrip();
   } else if (editCtx.kind === 'note') {
-    const n = state.notes.find(x => x.id === editCtx.id);
-    if (n) { n.title = v1 || 'Quick capture'; n.body = v2; }
-    renderNotes();
+    commitNoteEdit(editCtx.id);
   } else if (editCtx.kind === 'appt') {
     const a = state.appointments.find(x => x.id === editCtx.id);
     if (a) {
@@ -4199,11 +4957,23 @@ function saveEdit() {
     renderValues();
   }
   showToast('Saved');
-  closeEditModal();
+  closeEditModal({ skipSave: true });
 }
 
 function deleteFromEdit() {
   if (!editCtx) return;
+  // A recurring appointment must offer the same three-way choice here as it does
+  // from the list and the grid — otherwise Edit > Delete quietly removes one
+  // occurrence and the series lives on, which is the trap this fix exists to close.
+  if (editCtx.kind === 'appt') {
+    const a = (state.appointments || []).find(x => x.id === editCtx.id);
+    if (a && a.recurring && a.seriesId && seriesMembers(a.seriesId).length > 1) {
+      const targetId = editCtx.id;
+      closeEditModal();
+      requestDeleteAppointment(targetId);
+      return;
+    }
+  }
   if (editCtx.kind === 'task') { state.tasks = state.tasks.filter(x => x.id !== editCtx.id); renderTasks(); renderCalStrip(); }
   else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); renderNotes(); }
   else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
@@ -4213,7 +4983,7 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
   else if (editCtx.kind === 'role') { state.roles.splice(editCtx.idx, 1); renderValues(); }
   showToast('Deleted');
-  closeEditModal();
+  closeEditModal({ skipSave: true });
 }
 
 function renderTasks() {
@@ -4703,8 +5473,8 @@ function renderGoals() {
 // PROJECTS TAB
 // ============================================================
 function showNewProjForm() {
-  if (!isPremium() && state.projects.length >= 1) {
-    showToast('Free plan: 1 project on the free plan — upgrade for unlimited');
+  if (!isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
+    showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`);
     showUpgrade();
     return;
   }
@@ -4720,8 +5490,8 @@ function cycleIcon() {
 function createProject() {
   const name = document.getElementById('np-name').value.trim();
   if (!name) { showToast('Please enter a project name'); return; }
-  if (!isPremium() && state.projects.length >= 1) {
-    showToast('Free plan: 1 project on the free plan — upgrade for unlimited');
+  if (!isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
+    showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`);
     showUpgrade();
     return;
   }
@@ -4979,18 +5749,21 @@ function saveNote() {
 }
 
 // Add / remove items on an EXISTING note (works even if it had no checklist yet).
-function addChecklistItemToNote(noteId) {
+function addChecklistItemToNote(noteId, inputId) {
   const n = state.notes.find(function(x){ return x.id === noteId; });
   if (!n) return;
-  const inp = document.getElementById('note-cl-inp-' + noteId);
+  const fieldId = inputId || ('note-cl-inp-' + noteId);
+  const inp = document.getElementById(fieldId);
   if (!inp) return;
   const items = parseShoppingItems(inp.value);
   if (!items.length) return;
   if (!Array.isArray(n.checklist)) n.checklist = [];
   items.forEach(function(t){ n.checklist.push({ text: t, done: false }); });
+  inp.value = '';
   renderNotes();
+  if (noteEditorOpenFor(noteId)) renderNoteEditorChecklist(noteId);
   try { persistNow(); } catch (e) {}
-  const again = document.getElementById('note-cl-inp-' + noteId);
+  const again = document.getElementById(fieldId);
   if (again) again.focus();
 }
 
@@ -5000,6 +5773,7 @@ function deleteChecklistItem(noteId, idx) {
   n.checklist.splice(idx, 1);
   if (!n.checklist.length) n.checklist = null; // empty checklist -> back to null
   renderNotes();
+  if (noteEditorOpenFor(noteId)) renderNoteEditorChecklist(noteId);
   try { persistNow(); } catch (e) {}
 }
 
@@ -5012,7 +5786,12 @@ function toggleNoteTag(tag) {
 
 function toggleChecklistItem(noteId, idx) {
   const n = state.notes.find(x => x.id === noteId);
-  if (n && n.checklist) { n.checklist[idx].done = !n.checklist[idx].done; renderNotes(); }
+  if (n && n.checklist) {
+    n.checklist[idx].done = !n.checklist[idx].done;
+    renderNotes();
+    if (noteEditorOpenFor(noteId)) renderNoteEditorChecklist(noteId);
+    try { persistNow(); } catch (e) {}
+  }
 }
 
 function renderTagPills() {
