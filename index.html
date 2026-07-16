@@ -7205,6 +7205,11 @@ function openDayInDaily(k) {
   showTab('daily');
 }
 
+// Paints every screen that reads persisted state. Anything restored by
+// applyState() MUST be rendered from here, or it loads into memory and stays
+// invisible — the class of bug that hid the Daily Focus, the appointment list,
+// the schedule grid, the calendar strip and un-acked reminder banners.
+// If you add a new persisted key to STATE_KEYS, add its render call here.
 function renderAll() {
   renderFocus();
   renderTasks();
@@ -7217,6 +7222,10 @@ function renderAll() {
   renderValues();
   renderHappened();
   renderWeek();
+  renderAppointments();    // was only reached via topUpRecurringSeries()'s `added > 0` branch
+  renderScheduleGrid();    // same
+  renderCalStrip();        // same, plus checkCarryForward()'s `if (moved)` branch
+  renderReminderAlert();   // a reminder fired-but-not-acked before logout never repainted
 }
 
 // ============================================================
