@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     form.append('file', new Blob([buffer], { type }), `audio.${ext}`);
     // whisper-1 works on every OpenAI account. To halve the cost once you've
     // confirmed it all works, change the model below to: gpt-4o-mini-transcribe
-    form.append('model', 'gpt-4o-mini-transcribe');
+    form.append('model', 'whisper-1');
     form.append('language', 'en'); // remove this line if you want auto language detection
 
     const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
