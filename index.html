@@ -1510,14 +1510,15 @@ html, body {
   }
   @keyframes modalPop { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
 
-  /* ---- Type scale: 768px and up (added 2026-07-15). Additive, media-query
-       scoped, #app/.modal-overlay only — the phone is provably untouched. ---- */
+  /* ---- Type scale v2: 768px and up (iPad) (16 Jul 2026). Phone size + 4px, applied
+       uniformly to every size present. Additive, media-query scoped,
+       #app/.modal-overlay only — the phone base stays provably untouched. ---- */
   #app .cap-soon,
-  .modal-overlay .cap-soon { font-size: 8px !important; }
+  .modal-overlay .cap-soon { font-size: 11px !important; }
   #app .h-day,
   .modal-overlay .h-day,
   #app .nav-btn,
-  .modal-overlay .nav-btn { font-size: 10px !important; }
+  .modal-overlay .nav-btn { font-size: 13px !important; }
   #app .ai-btn .soon-badge,
   .modal-overlay .ai-btn .soon-badge,
   #app .cap-label,
@@ -1539,7 +1540,7 @@ html, body {
   #app .ptag,
   .modal-overlay .ptag,
   #app .week-tag,
-  .modal-overlay .week-tag { font-size: 12px !important; }
+  .modal-overlay .week-tag { font-size: 14px !important; }
   #app .cap-meta,
   .modal-overlay .cap-meta,
   #app .goal-btn,
@@ -1569,7 +1570,7 @@ html, body {
   #app .week-counts,
   .modal-overlay .week-counts,
   #app .week-time,
-  .modal-overlay .week-time { font-size: 13px !important; }
+  .modal-overlay .week-time { font-size: 15px !important; }
   #app .detail-desc,
   .modal-overlay .detail-desc,
   #app .pro-lock,
@@ -1589,7 +1590,7 @@ html, body {
   #app .user-badge,
   .modal-overlay .user-badge,
   #app .week-empty,
-  .modal-overlay .week-empty { font-size: 14px !important; }
+  .modal-overlay .week-empty { font-size: 16px !important; }
   #app .add-btn,
   .modal-overlay .add-btn,
   #app .ai-btn,
@@ -1645,7 +1646,7 @@ html, body {
   #app .week-date,
   .modal-overlay .week-date,
   #app .week-item,
-  .modal-overlay .week-item { font-size: 15px !important; }
+  .modal-overlay .week-item { font-size: 17px !important; }
   #app .fb-textarea,
   .modal-overlay .fb-textarea,
   #app .focus-input,
@@ -1681,7 +1682,7 @@ html, body {
   #app .val-item,
   .modal-overlay .val-item,
   #app .voice-btn-text,
-  .modal-overlay .voice-btn-text { font-size: 16px !important; }
+  .modal-overlay .voice-btn-text { font-size: 18px !important; }
   #app .card-title,
   .modal-overlay .card-title,
   #app .cl-add-btn,
@@ -1693,7 +1694,7 @@ html, body {
   #app .modal-cta,
   .modal-overlay .modal-cta,
   #app .ob-btn,
-  .modal-overlay .ob-btn { font-size: 17px !important; }
+  .modal-overlay .ob-btn { font-size: 19px !important; }
   #app .ai-btn i,
   .modal-overlay .ai-btn i,
   #app .cap-icon i,
@@ -1703,17 +1704,17 @@ html, body {
   #app .pro-feat i,
   .modal-overlay .pro-feat i,
   #app .pstat-n,
-  .modal-overlay .pstat-n { font-size: 18px !important; }
+  .modal-overlay .pstat-n { font-size: 20px !important; }
   #app .nav-btn i,
   .modal-overlay .nav-btn i,
   #app .role-icon i,
-  .modal-overlay .role-icon i { font-size: 19px !important; }
+  .modal-overlay .role-icon i { font-size: 21px !important; }
   #app .cl-del,
   .modal-overlay .cl-del,
   #app .val-item i,
   .modal-overlay .val-item i,
   #app .voice-btn i,
-  .modal-overlay .voice-btn i { font-size: 20px !important; }
+  .modal-overlay .voice-btn i { font-size: 22px !important; }
   #app .cap-btn i,
   .modal-overlay .cap-btn i,
   #app .settings-back,
@@ -1723,33 +1724,39 @@ html, body {
   #app .wm-bot,
   .modal-overlay .wm-bot,
   #app .wm-top,
-  .modal-overlay .wm-top { font-size: 22px !important; }
+  .modal-overlay .wm-top { font-size: 24px !important; }
   #app .detail-name,
   .modal-overlay .detail-name,
   #app .modal-title,
   .modal-overlay .modal-title,
   #app .proj-emoji,
-  .modal-overlay .proj-emoji { font-size: 24px !important; }
+  .modal-overlay .proj-emoji { font-size: 26px !important; }
   #app .onboard-title,
-  .modal-overlay .onboard-title { font-size: 28px !important; }
+  .modal-overlay .onboard-title { font-size: 30px !important; }
   #app .pro-price,
-  .modal-overlay .pro-price { font-size: 30px !important; }
+  .modal-overlay .pro-price { font-size: 32px !important; }
   #app .streak-num,
-  .modal-overlay .streak-num { font-size: 34px !important; }
-  /* Inline style="font-size:Npx" in JS templates. All are uniform px with no
-     spaces, so these attribute selectors reach every one — nothing marooned. */
-  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 12px !important; }
-  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 13px !important; }
-  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 14px !important; }
-  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 15px !important; }
-  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 16px !important; }
-  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 17px !important; }
-  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 18px !important; }
-  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 20px !important; }
-  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 22px !important; }
-  /* Boxes holding scaled text grow in step so nothing crowds. */
-  #app .priority-badge { height: 24px !important; }
-  #app .h-day { height: 33px !important; }
+  .modal-overlay .streak-num { font-size: 36px !important; }
+  /* Inline style="font-size:Npx" in JS templates. All uniform px, no spaces,
+     so attribute selectors reach every one — nothing marooned. */
+  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 14px !important; }
+  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 15px !important; }
+  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 16px !important; }
+  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 17px !important; }
+  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 18px !important; }
+  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 19px !important; }
+  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 20px !important; }
+  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 22px !important; }
+  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 24px !important; }
+  #app [style*="font-size:22px"], .modal-overlay [style*="font-size:22px"] { font-size: 26px !important; }
+  /* Fixed-size boxes holding scaled text/glyphs — grown in step, never by
+     shrinking type back down. Width AND height together: these are square or
+     round, so growing height alone deforms them (corrects the v1 defect). */
+  #app .priority-badge { width: 26px !important; height: 26px !important; }
+  #app .h-day { width: 34px !important; height: 34px !important; }
+  #app .task-check, .modal-overlay .task-check { width: 22px !important; height: 22px !important; }
+  #app .cl-box, .modal-overlay .cl-box { width: 20px !important; height: 20px !important; }
+  #app .field-mic, .modal-overlay .field-mic { width: 34px !important; height: 34px !important; }
 }
 
 @media (min-width: 1024px) {
@@ -1758,14 +1765,15 @@ html, body {
   .content { padding: 24px 40px 48px; }
   .content > .sec { max-width: 920px; }
 
-  /* ---- Type scale: 1024px and up (added 2026-07-15). Additive, media-query
-       scoped, #app/.modal-overlay only — the phone is provably untouched. ---- */
+  /* ---- Type scale v2: 1024px and up (desktop) (16 Jul 2026). Phone size + 6px, applied
+       uniformly to every size present. Additive, media-query scoped,
+       #app/.modal-overlay only — the phone base stays provably untouched. ---- */
   #app .cap-soon,
-  .modal-overlay .cap-soon { font-size: 9px !important; }
+  .modal-overlay .cap-soon { font-size: 13px !important; }
   #app .h-day,
   .modal-overlay .h-day,
   #app .nav-btn,
-  .modal-overlay .nav-btn { font-size: 11px !important; }
+  .modal-overlay .nav-btn { font-size: 15px !important; }
   #app .ai-btn .soon-badge,
   .modal-overlay .ai-btn .soon-badge,
   #app .cap-label,
@@ -1787,7 +1795,7 @@ html, body {
   #app .ptag,
   .modal-overlay .ptag,
   #app .week-tag,
-  .modal-overlay .week-tag { font-size: 13px !important; }
+  .modal-overlay .week-tag { font-size: 16px !important; }
   #app .cap-meta,
   .modal-overlay .cap-meta,
   #app .goal-btn,
@@ -1817,7 +1825,7 @@ html, body {
   #app .week-counts,
   .modal-overlay .week-counts,
   #app .week-time,
-  .modal-overlay .week-time { font-size: 14px !important; }
+  .modal-overlay .week-time { font-size: 17px !important; }
   #app .detail-desc,
   .modal-overlay .detail-desc,
   #app .pro-lock,
@@ -1837,7 +1845,7 @@ html, body {
   #app .user-badge,
   .modal-overlay .user-badge,
   #app .week-empty,
-  .modal-overlay .week-empty { font-size: 15px !important; }
+  .modal-overlay .week-empty { font-size: 18px !important; }
   #app .add-btn,
   .modal-overlay .add-btn,
   #app .ai-btn,
@@ -1893,7 +1901,7 @@ html, body {
   #app .week-date,
   .modal-overlay .week-date,
   #app .week-item,
-  .modal-overlay .week-item { font-size: 16px !important; }
+  .modal-overlay .week-item { font-size: 19px !important; }
   #app .fb-textarea,
   .modal-overlay .fb-textarea,
   #app .focus-input,
@@ -1929,7 +1937,7 @@ html, body {
   #app .val-item,
   .modal-overlay .val-item,
   #app .voice-btn-text,
-  .modal-overlay .voice-btn-text { font-size: 17px !important; }
+  .modal-overlay .voice-btn-text { font-size: 20px !important; }
   #app .card-title,
   .modal-overlay .card-title,
   #app .cl-add-btn,
@@ -1941,7 +1949,7 @@ html, body {
   #app .modal-cta,
   .modal-overlay .modal-cta,
   #app .ob-btn,
-  .modal-overlay .ob-btn { font-size: 18px !important; }
+  .modal-overlay .ob-btn { font-size: 21px !important; }
   #app .ai-btn i,
   .modal-overlay .ai-btn i,
   #app .cap-icon i,
@@ -1951,17 +1959,17 @@ html, body {
   #app .pro-feat i,
   .modal-overlay .pro-feat i,
   #app .pstat-n,
-  .modal-overlay .pstat-n { font-size: 19px !important; }
+  .modal-overlay .pstat-n { font-size: 22px !important; }
   #app .nav-btn i,
   .modal-overlay .nav-btn i,
   #app .role-icon i,
-  .modal-overlay .role-icon i { font-size: 20px !important; }
+  .modal-overlay .role-icon i { font-size: 23px !important; }
   #app .cl-del,
   .modal-overlay .cl-del,
   #app .val-item i,
   .modal-overlay .val-item i,
   #app .voice-btn i,
-  .modal-overlay .voice-btn i { font-size: 21px !important; }
+  .modal-overlay .voice-btn i { font-size: 24px !important; }
   #app .cap-btn i,
   .modal-overlay .cap-btn i,
   #app .settings-back,
@@ -1971,32 +1979,39 @@ html, body {
   #app .wm-bot,
   .modal-overlay .wm-bot,
   #app .wm-top,
-  .modal-overlay .wm-top { font-size: 23px !important; }
+  .modal-overlay .wm-top { font-size: 26px !important; }
   #app .detail-name,
   .modal-overlay .detail-name,
   #app .modal-title,
   .modal-overlay .modal-title,
   #app .proj-emoji,
-  .modal-overlay .proj-emoji { font-size: 25px !important; }
+  .modal-overlay .proj-emoji { font-size: 28px !important; }
   #app .onboard-title,
-  .modal-overlay .onboard-title { font-size: 30px !important; }
+  .modal-overlay .onboard-title { font-size: 32px !important; }
   #app .pro-price,
-  .modal-overlay .pro-price { font-size: 32px !important; }
+  .modal-overlay .pro-price { font-size: 34px !important; }
   #app .streak-num,
-  .modal-overlay .streak-num { font-size: 36px !important; }
-  /* Inline style="font-size:Npx" in JS templates. All are uniform px with no
-     spaces, so these attribute selectors reach every one — nothing marooned. */
-  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 13px !important; }
-  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 14px !important; }
-  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 15px !important; }
-  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 16px !important; }
-  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 17px !important; }
-  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 18px !important; }
-  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 19px !important; }
-  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 21px !important; }
-  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 23px !important; }
-  #app .priority-badge { height: 26px !important; }
-  #app .h-day { height: 35px !important; }
+  .modal-overlay .streak-num { font-size: 38px !important; }
+  /* Inline style="font-size:Npx" in JS templates. All uniform px, no spaces,
+     so attribute selectors reach every one — nothing marooned. */
+  #app [style*="font-size:10px"], .modal-overlay [style*="font-size:10px"] { font-size: 16px !important; }
+  #app [style*="font-size:11px"], .modal-overlay [style*="font-size:11px"] { font-size: 17px !important; }
+  #app [style*="font-size:12px"], .modal-overlay [style*="font-size:12px"] { font-size: 18px !important; }
+  #app [style*="font-size:13px"], .modal-overlay [style*="font-size:13px"] { font-size: 19px !important; }
+  #app [style*="font-size:14px"], .modal-overlay [style*="font-size:14px"] { font-size: 20px !important; }
+  #app [style*="font-size:15px"], .modal-overlay [style*="font-size:15px"] { font-size: 21px !important; }
+  #app [style*="font-size:16px"], .modal-overlay [style*="font-size:16px"] { font-size: 22px !important; }
+  #app [style*="font-size:18px"], .modal-overlay [style*="font-size:18px"] { font-size: 24px !important; }
+  #app [style*="font-size:20px"], .modal-overlay [style*="font-size:20px"] { font-size: 26px !important; }
+  #app [style*="font-size:22px"], .modal-overlay [style*="font-size:22px"] { font-size: 28px !important; }
+  /* Fixed-size boxes holding scaled text/glyphs — grown in step, never by
+     shrinking type back down. Width AND height together: these are square or
+     round, so growing height alone deforms them (corrects the v1 defect). */
+  #app .priority-badge { width: 28px !important; height: 28px !important; }
+  #app .h-day { width: 36px !important; height: 36px !important; }
+  #app .task-check, .modal-overlay .task-check { width: 24px !important; height: 24px !important; }
+  #app .cl-box, .modal-overlay .cl-box { width: 22px !important; height: 22px !important; }
+  #app .field-mic, .modal-overlay .field-mic { width: 36px !important; height: 36px !important; }
 }
 </style>
 </head>
