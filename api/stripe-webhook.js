@@ -39,6 +39,34 @@ async function upsertEntitlement(row) {
   if (error) console.error('Supabase upsert error:', error);
 }
 
+// Read what we already hold for this user. Needed because some events must NOT
+// blindly overwrite: a Lifetime member is premium forever regardless of what any
+// subscription does afterwards.
+async function getEntitlement(userId) {
+  if (!userId) return null;
+  const { data } = await supabase
+    .from('entitlements')
+    .select('plan,source,status,founding_number')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data || null;
+}
+
+// Idempotent founding-number claim (cap 1,000). Calling it twice for the same user
+// returns the SAME number rather than burning a second one — which matters because
+// Stripe retries any non-2xx, and retries are routine, not exceptional.
+async function claimFoundingNumber(userId) {
+  try {
+    const { data, error } = await supabase.rpc('claim_founding_number', { p_user_id: userId });
+    if (error) { console.error('claim_founding_number failed:', error.message); return null; }
+    if (data === null) console.warn('Founding numbers exhausted (1000) — user', userId, 'has Lifetime without one');
+    return data;
+  } catch (e) {
+    console.error('claim_founding_number threw:', e.message);
+    return null;   // never block the entitlement over a counter
+  }
+}
+
 async function findUserIdByCustomer(customerId) {
   if (!customerId) return null;
   const { data } = await supabase
@@ -73,6 +101,16 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
   const price = sub.items?.data?.[0]?.price;
   const interval = price?.recurring?.interval; // 'month' | 'year'
   const active = ['active', 'trialing', 'past_due'].includes(sub.status);
+
+  // LIFETIME IS FOREVER. A lifetime member who also holds (or once held) a
+  // subscription must never be downgraded by it. Without this, an old monthly
+  // lapsing would silently strip the Premium they paid $99 for — and, under the
+  // Library, their books with it.
+  const current = await getEntitlement(userId);
+  if (current?.source === 'lifetime') {
+    console.log('Lifetime member', userId, '— subscription', sub.id, sub.status, 'ignored for entitlement');
+    return;
+  }
 
   await upsertEntitlement({
     user_id: userId,
@@ -113,7 +151,11 @@ export default async function handler(req, res) {
         }
 
         if (session.mode === 'payment') {
-          // One-off lifetime purchase — premium forever, no subscription.
+          // One-off Lifetime purchase.
+          // plan='premium' + source='lifetime' — NEVER plan='lifetime'. The app's
+          // isPremium() only recognises 'premium' and 'pro', so plan='lifetime'
+          // would gate a paying founding member as free. `plan` is what you can do;
+          // `source` is what you paid. (CORE BLOCK v23.)
           await upsertEntitlement({
             user_id: userId,
             plan: 'premium',
@@ -123,6 +165,11 @@ export default async function handler(req, res) {
             stripe_subscription_id: null,
             current_period_end: null,
           });
+          // Entitlement first, number second: if the counter ever fails, the member
+          // still owns what they bought. A missing founding number is an admin job;
+          // a missing entitlement is a locked-out customer.
+          const n = await claimFoundingNumber(userId);
+          console.log('Lifetime purchase user=%s founding_number=%s session=%s', userId, n, session.id);
         } else if (session.mode === 'subscription') {
           // Seed the row so the customer -> user mapping exists, then sync the
           // subscription's CURRENT state (premium/active when paid).
@@ -150,9 +197,15 @@ export default async function handler(req, res) {
         const userId =
           sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
         if (!userId) break;
-        // NOTE: simple model — a cancelled subscription drops the user to free.
-        // When Pro + the $2 lifetime add-on ship, change this to only drop the
-        // Pro add-on and keep lifetime Premium intact for those users.
+        // ⛔ A cancelled subscription must never touch a Lifetime member. They paid
+        // once, for forever. Before this guard, any lapsed monthly/annual would set
+        // plan='free' and strip the Premium (and, under the Library, the books) they
+        // own outright.
+        const held = await getEntitlement(userId);
+        if (held?.source === 'lifetime') {
+          console.log('Lifetime member', userId, '— subscription', sub.id, 'cancelled; entitlement untouched');
+          break;
+        }
         await upsertEntitlement({
           user_id: userId,
           plan: 'free',
