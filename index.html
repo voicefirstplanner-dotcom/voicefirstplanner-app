@@ -3257,6 +3257,12 @@ const DEFAULT_GOALS = [
 // every case — including for a user who deletes the demo.
 const FREE_PROJECT_LIMIT = 2;
 
+// Free-tier caps, CORE BLOCK v22 (LOCKED 15 Jul): 5 tasks/day, 4 habits, 2 projects,
+// 5 values, 1 device. The published pricing page carries these numbers, so the app
+// moves to match the docs — never the reverse (precedent: "2 projects", 15 Jul).
+const FREE_HABIT_LIMIT = 4;
+const FREE_VALUE_LIMIT = 5;   // total values held, seeded ones included
+
 const DEFAULT_PROJECTS = [
   { id: 1, name: 'Boat refit', desc: 'Full restoration of the 38ft sloop', icon: '⛵', status: 'Active', progress: 35, tags: ['sailing','2026'], captures: [
     { type: 'voice', title: 'Outboard motor notes — boat show', meta: '2 min voice memo', icon: 'ti-microphone' },
@@ -3275,7 +3281,10 @@ const DEFAULT_NOTES = [
   ]},
 ];
 
-const DEFAULT_VALUES = ['Family','Integrity','Growth','Health','Excellence'];
+// Seeded values: TWO, not five. A cap of 5 with five seeded would leave a free user
+// unable to add a single value of their own — the same trap the seeded demo project
+// sprang in July. Two seeded + three of their own = the 5 the docs promise.
+const DEFAULT_VALUES = ['Family','Health'];
 const DEFAULT_ROLES = [
   { name: 'Parent', icon: 'ti-home', def: 'Present, patient, and supportive' },
   { name: 'Professional', icon: 'ti-briefcase', def: 'Skilled, reliable, and growth-focused' },
@@ -3351,6 +3360,8 @@ let pendingRecurDelete = null;   // { id, seriesId, date } while the recurring-d
 let voiceActive = false;
 let hintIdx = 0;
 let hintTimer = null;
+let hintLocked = false;   // true once a transcript is on screen: the user's only
+                          // confirmation of what was captured must not rotate away.
 
 const today = new Date();
 const todayDow = (today.getDay() + 6) % 7;
@@ -3420,7 +3431,8 @@ function setQuote() {
 
 function startHintRotation() {
   hintTimer = setInterval(() => {
-    if (!voiceActive) {
+    // Placeholder hints only run when there is no fresh transcript to show.
+    if (!voiceActive && !hintLocked) {
       hintIdx = (hintIdx + 1) % VOICE_HINTS.length;
       const el = document.getElementById('voice-hint');
       el.style.opacity = '0';
@@ -3768,11 +3780,26 @@ async function transcribeBlob(blob) {
     fr.onerror = reject;
     fr.readAsDataURL(blob);
   });
+  // D17: attribute the call. Signed-in users send their Supabase access token so the
+  // server can rate-limit per user; the signed-out demo sends none and is limited by IP.
+  const headers = { 'Content-Type': 'application/json' };
+  if (sb && !isDemo) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    } catch (e) { /* no token -> server treats as anonymous */ }
+  }
   const resp = await fetch('/api/transcribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ audio: b64, mime: blob.type || 'audio/webm' })
   });
+  if (resp.status === 429 || resp.status === 401) {
+    // Show the server's own message rather than a generic failure.
+    let msg = resp.status === 429 ? 'Voice limit reached — try again shortly' : 'Sign in to use voice';
+    try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+    const err = new Error(msg); err.userMessage = msg; throw err;
+  }
   if (!resp.ok) throw new Error('transcribe http ' + resp.status);
   const data = await resp.json();
   return ((data && data.text) || '').trim();
@@ -3793,6 +3820,7 @@ function toggleVoice() {
       const b = document.getElementById('voice-btn'); if (b) b.classList.add('voice-listening');
       const a = document.getElementById('app'); if (a) a.classList.add('voice-listening');
       const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Listening… tap to finish';
+      hintLocked = false;   // new capture starting — the old transcript is stale
       const h = document.getElementById('voice-hint'); if (h) h.textContent = 'Speak now, then tap the mic again';
     },
     () => {
@@ -4121,9 +4149,15 @@ function processVoice(text) {
   // Whisper often mishears the command word "Add" as "And" or "Ad" at the start of
   // a sentence (e.g. "Add pay the insurance" -> "And pay the insurance"), which left
   // the command with no task trigger word. Normalise it back so those tasks register.
+  // "Ed" is the same mishearing, but "Ed" is also a name — so it is only rewritten
+  // when a task-like verb follows. "Ed called me about the invoice" stays a name;
+  // "Ed review the proposal" becomes "Add review the proposal". Verified against the
+  // three observed failures (Whisper test 17 Jul, scripts 8, 4 and 11).
+  text = text.replace(/^\s*ed\b[,.:;]?(?=\s+(?:review|pay|paid|finish|finished|call|book|send|buy|get|pick|clean|fix|check|email|renew|submit|file|water|schedule|chase|confirm|order|cancel|update|print|collect|prep|prepare|write|draft|arrange|sort|return|text|remind|sign|pack|post|ring)\b)/i, 'Add');
   text = text.replace(/^\s*(?:and|ad)\b/i, 'Add');
   const t = text.toLowerCase();
   document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
+  hintLocked = true;   // this line is the user's confirmation — it stays put
   // Reminder intent — intercept before appointment parsing.
   if (/\bremind me\b/i.test(t) || /\bset (?:a |an )?reminder\b/i.test(t) || /^\s*reminder\b/i.test(t)) {
     handleReminderVoice(text);
@@ -4438,6 +4472,7 @@ function processVoice(text) {
     renderValues();
     showTab('values', null);
     if (rv.added.length) showToast(rv.added.length === 1 ? `Value added: "${rv.added[0]}"` : `${rv.added.length} values added`);
+    else if (rv.blocked) { showToast(`Free plan: up to ${FREE_VALUE_LIMIT} values — upgrade for unlimited`); showUpgrade(); }
     else if (rv.dup.length) showToast('That value is already in your list');
     else showToast('Tell me the value — e.g. "add health to values"');
     return;
@@ -5769,7 +5804,7 @@ function logHabitByVoice(t) {
 function addHabitNamed(name) {
   state.habits = state.habits || [];
   if (state.habits.some(h => h.name.toLowerCase() === name.toLowerCase())) { showToast('Already on your list'); return; }
-  if (!isPremium() && state.habits.length >= 3) { showToast('Free plan: up to 3 habits — upgrade for unlimited'); showUpgrade(); return; }
+  if (!isPremium() && state.habits.length >= FREE_HABIT_LIMIT) { showToast(`Free plan: up to ${FREE_HABIT_LIMIT} habits — upgrade for unlimited`); showUpgrade(); return; }
   state.habits.push({ id: Date.now(), name });
   renderHabits(); showToast(name + ' added');
 }
@@ -5786,7 +5821,7 @@ function addHabit() {
   const inp = document.getElementById('habit-inp');
   const name = (inp.value || '').trim(); if (!name) { showToast('Type a habit first'); return; }
   state.habits = state.habits || [];
-  if (!isPremium() && state.habits.length >= 3) { showToast('Free plan: up to 3 habits — upgrade for unlimited'); showUpgrade(); return; }
+  if (!isPremium() && state.habits.length >= FREE_HABIT_LIMIT) { showToast(`Free plan: up to ${FREE_HABIT_LIMIT} habits — upgrade for unlimited`); showUpgrade(); return; }
   state.habits.push({ id: Date.now(), name });
   inp.value = '';
   renderHabits(); showToast('Habit added');
@@ -6536,8 +6571,11 @@ function renderHappened() {
 // ============================================================
 // Add one or more values from a raw string (typed or spoken). Title-cases, de-dupes,
 // re-activates any that already exist. Returns {added:[names], dup:[names]}.
+// Both the typed field and the voice path come through here, so the free-tier cap
+// lives here too — one gate, no way round it. `blocked` lets the callers tell the
+// user why, rather than silently dropping what they said.
 function addValuesFromText(raw) {
-  const res = { added: [], dup: [] };
+  const res = { added: [], dup: [], blocked: 0 };
   if (!raw) return res;
   const parts = raw.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
   state.values = state.values || [];
@@ -6546,8 +6584,11 @@ function addValuesFromText(raw) {
     const name = p.replace(/\b\w/g, c => c.toUpperCase()).trim();
     if (!name) return;
     const hit = state.values.find(v => v.toLowerCase() === name.toLowerCase());
-    if (hit) { state.inactiveValues.delete(hit); res.dup.push(hit); }
-    else { state.values.push(name); res.added.push(name); }
+    if (hit) { state.inactiveValues.delete(hit); res.dup.push(hit); return; }
+    // Re-checked per item: "Courage, Service and Wonder" must fill the remaining
+    // slots and stop, not add all three or none.
+    if (!isPremium() && state.values.length >= FREE_VALUE_LIMIT) { res.blocked++; return; }
+    state.values.push(name); res.added.push(name);
   });
   return res;
 }
@@ -6560,6 +6601,7 @@ function addValue() {
   inp.value = '';
   renderValues();
   if (r.added.length) showToast(r.added.length === 1 ? `Value added: "${r.added[0]}"` : `${r.added.length} values added`);
+  else if (r.blocked) { showToast(`Free plan: up to ${FREE_VALUE_LIMIT} values — upgrade for unlimited`); showUpgrade(); }
   else showToast('Already in your values');
 }
 // Add one or more life roles from a raw string (typed or spoken). Title-cases, de-dupes.
