@@ -2554,9 +2554,9 @@ html, body {
         <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
         <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value" id="set-plan">Free</span><span class="settings-row-action" id="set-plan-action" onclick="showUpgrade()">Upgrade</span></div>
       </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Your free workbook</div>
-        <div class="settings-row"><span class="settings-row-label">10 guided worksheets (PDF)</span><a href="https://voicefirstdayplanner.com/wp-content/uploads/2026/06/VoiceFirstPlanner-Workbook.pdf" target="_blank" rel="noopener" style="font-size:13px;color:var(--orange);font-weight:600">Download</a></div>
+      <div class="settings-section" id="library-section">
+        <div class="settings-section-title" id="library-title">Your Library</div>
+        <div id="library-rows"><div class="settings-row"><span class="settings-row-label" style="color:var(--text-light)">Loading…</span></div></div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">App</div>
@@ -6706,7 +6706,7 @@ function registerAiInterest() {
 // ============================================================
 // SETTINGS
 // ============================================================
-function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+function openSettings() { document.getElementById('settings-overlay').classList.add('open'); renderLibrary(); }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
 
 // ============================================================
@@ -6790,6 +6790,9 @@ async function loadEntitlement() {
     } catch (e) { /* default to free */ }
   }
   renderPlan();
+  renderLibrary();
+  // Deep-link from the Lifetime welcome email: /#library opens the library once signed in.
+  if (location.hash === '#library') { openSettings(); history.replaceState({}, '', location.pathname); }
 }
 
 function renderPlan() {
@@ -6811,6 +6814,71 @@ function renderPlan() {
     actEl.onclick = showUpgrade;
   }
 }
+
+// -------------------------------------------------------------------------
+// Your Library — entitlement-gated downloads (D25).
+// Files live in the PRIVATE lifetime-library bucket. /api/library-download is the
+// real gate; this UI mirrors the same matrix for display only. Access is decided
+// server-side, so a row shown here that shouldn't be still gets a 403 from the API.
+const LIBRARY_ITEMS = [
+  { id: 'workbook', title: 'The Workbook' },
+  { id: 'guide',    title: 'The Voice Command Guide' },
+  { id: 'values',   title: "Values \u2014 Busy Isn't the Same as Living Well" },
+  { id: 'goals',    title: "Goals \u2014 Wishing Isn't the Same as Deciding" },
+  { id: 'habits',   title: "Habits \u2014 Motivation Isn't the Same as Momentum" },
+  { id: 'bucket',   title: "Bucket List \u2014 Someday Isn't the Same as a Plan" },
+  { id: 'projects', title: "Projects \u2014 Effort Isn't the Same as Progress" },
+  { id: 'daily',    title: "Daily Planning \u2014 A Full Day Isn't the Same as a Good Day" },
+  { id: 'week',     title: "Week Ahead \u2014 A Week Isn't the Same as Seven Days" },
+  { id: 'reflect',  title: "Reflect \u2014 Experience Isn't the Same as Wisdom" },
+  { id: 'research', title: 'Why Planning This Way Works (research)' },
+];
+const LIB_STARTER  = ['workbook', 'guide'];
+const LIB_ANNUAL   = [...LIB_STARTER, 'research', 'values', 'goals', 'habits'];
+const LIB_LIFETIME = LIBRARY_ITEMS.map(i => i.id);
+
+function libraryAllowed() {
+  const ent = state.entitlement || { plan: 'free' };
+  if (ent.source === 'lifetime') return LIB_LIFETIME;
+  const paid = ent.plan === 'premium' || ent.plan === 'pro';
+  if (paid && ent.source === 'annual') return LIB_ANNUAL;
+  return LIB_STARTER;
+}
+
+function renderLibrary() {
+  const wrap = document.getElementById('library-rows');
+  const titleEl = document.getElementById('library-title');
+  if (!wrap) return;
+  if (titleEl) titleEl.textContent = (state.entitlement?.source === 'lifetime') ? 'Your Lifetime Library' : 'Your Library';
+  const allowed = libraryAllowed();
+  const items = LIBRARY_ITEMS.filter(i => allowed.includes(i.id));
+  wrap.innerHTML = items.map(i =>
+    '<div class="settings-row"><span class="settings-row-label">' + i.title + '</span>' +
+    '<span class="settings-row-action" style="color:var(--orange);font-weight:600" onclick="downloadLibraryItem(\'' + i.id + '\', this)">Download</span></div>'
+  ).join('');
+}
+
+async function downloadLibraryItem(item, el) {
+  if (isDemo) { showToast('Sign in to download your library'); return; }
+  const label = el ? el.textContent : '';
+  if (el) { el.textContent = '\u2026'; el.style.pointerEvents = 'none'; }
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    const r = await fetch('/api/library-download', { method: 'POST', headers, body: JSON.stringify({ item }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.url) { showToast(data.error || 'Download unavailable'); return; }
+    const a = document.createElement('a');
+    a.href = data.url; a.download = ''; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) {
+    showToast('Download failed \u2014 please try again');
+  } finally {
+    if (el) { el.textContent = label || 'Download'; el.style.pointerEvents = ''; }
+  }
+}
+// -------------------------------------------------------------------------
 
 // Runs when the browser returns from Stripe Checkout (?checkout=success|cancel).
 function handleCheckoutReturn() {
