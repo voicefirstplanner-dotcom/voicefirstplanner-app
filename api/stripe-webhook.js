@@ -21,19 +21,11 @@ export const config = { api: { bodyParser: false } };
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM = process.env.RESEND_FROM || 'Dave Rees <dave@voicefirstdayplanner.com>';
 
-const FILE_URLS = {
-  workbook: process.env.VFP_URL_WORKBOOK || '',
-  guide:    process.env.VFP_URL_GUIDE    || '',
-  values:   process.env.VFP_URL_VALUES   || '',
-  goals:    process.env.VFP_URL_GOALS    || '',
-  habits:   process.env.VFP_URL_HABITS   || '',
-  bucket:   process.env.VFP_URL_BUCKET   || '',
-  projects: process.env.VFP_URL_PROJECTS || '',
-  daily:    process.env.VFP_URL_DAILY    || '',
-  week:     process.env.VFP_URL_WEEK     || '',
-  reflect:  process.env.VFP_URL_REFLECT  || '',
-  research: process.env.VFP_URL_RESEARCH || '',
-};
+// D25: files are delivered in-app through the gated /api/library-download endpoint,
+// not by public links. The email links to the app; the member signs in and their
+// Library serves each file behind the entitlement check. The old VFP_URL_* env vars
+// are now OBSOLETE and can be removed from Vercel.
+const APP_LIBRARY_URL = (process.env.APP_URL || 'https://app.voicefirstdayplanner.com') + '/#library';
 
 const WELCOME_SUBJECT = 'Welcome to Lifetime — your whole library\u2019s inside.';
 
@@ -204,16 +196,12 @@ function esc(s) {
 // One download row. If a URL is missing we render the title without a broken
 // link rather than a dead <a> — a filled URL is a go-live pre-req, but a blank
 // one should never produce a "click here -> nowhere".
-function fileRow(title, url) {
-  const safeTitle = esc(title);
-  return url
-    ? `<li style="margin:6px 0;">${safeTitle} — <a href="${esc(url)}" style="color:#0C447C;font-weight:600;">download</a></li>`
-    : `<li style="margin:6px 0;">${safeTitle}</li>`;
+function fileRow(title) {
+  return `<li style="margin:6px 0;">${esc(title)}</li>`;
 }
 
 function renderWelcomeHtml(firstName) {
   const name = esc(firstName || 'there');
-  const u = FILE_URLS;
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#F0F5FB;">
 <div style="display:none;max-height:0;overflow:hidden;">Your Lifetime access, all eight workbooks, and the research — all in this email.</div>
@@ -229,27 +217,32 @@ function renderWelcomeHtml(firstName) {
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your Premium account, for life</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 20px;">Every planning feature, no subscription, ever. Sign in any time at <a href="https://app.voicefirstdayplanner.com" style="color:#0C447C;font-weight:600;">app.voicefirstdayplanner.com</a> — you're already Premium.</p>
 
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px;"><tr><td style="border-radius:8px;background:#0C447C;">
+      <a href="${esc(APP_LIBRARY_URL)}" style="display:inline-block;padding:14px 28px;color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;">Open your Library &rarr;</a>
+    </td></tr></table>
+    <p style="font-size:14px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;">Sign in and every file below is waiting in Settings under <strong>Your Lifetime Library</strong>, ready to download.</p>
+
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your two starter books</p>
     <ul style="font-size:16px;line-height:1.5;margin:0 0 20px;padding-left:20px;">
-      ${fileRow('The Workbook', u.workbook)}
-      ${fileRow('The Voice Command Guide', u.guide)}
+      ${fileRow('The Workbook')}
+      ${fileRow('The Voice Command Guide')}
     </ul>
 
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">The full Voice-First Life Planning System — all eight workbooks</p>
     <ul style="font-size:16px;line-height:1.5;margin:0 0 20px;padding-left:20px;">
-      ${fileRow('Values — Busy Isn\u2019t the Same as Living Well', u.values)}
-      ${fileRow('Goals — Wishing Isn\u2019t the Same as Deciding', u.goals)}
-      ${fileRow('Habits — Motivation Isn\u2019t the Same as Momentum', u.habits)}
-      ${fileRow('Bucket List — Someday Isn\u2019t the Same as a Plan', u.bucket)}
-      ${fileRow('Projects — Effort Isn\u2019t the Same as Progress', u.projects)}
-      ${fileRow('Daily Planning — A Full Day Isn\u2019t the Same as a Good Day', u.daily)}
-      ${fileRow('Week Ahead — A Week Isn\u2019t the Same as Seven Days', u.week)}
-      ${fileRow('Reflect — Experience Isn\u2019t the Same as Wisdom', u.reflect)}
+      ${fileRow('Values — Busy Isn\u2019t the Same as Living Well')}
+      ${fileRow('Goals — Wishing Isn\u2019t the Same as Deciding')}
+      ${fileRow('Habits — Motivation Isn\u2019t the Same as Momentum')}
+      ${fileRow('Bucket List — Someday Isn\u2019t the Same as a Plan')}
+      ${fileRow('Projects — Effort Isn\u2019t the Same as Progress')}
+      ${fileRow('Daily Planning — A Full Day Isn\u2019t the Same as a Good Day')}
+      ${fileRow('Week Ahead — A Week Isn\u2019t the Same as Seven Days')}
+      ${fileRow('Reflect — Experience Isn\u2019t the Same as Wisdom')}
     </ul>
 
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">The research</p>
     <ul style="font-size:16px;line-height:1.5;margin:0 0 20px;padding-left:20px;">
-      ${fileRow('Why Planning This Way Works — the studies behind the whole system', u.research)}
+      ${fileRow('Why Planning This Way Works — the studies behind the whole system')}
     </ul>
 
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">And going forward</p>
