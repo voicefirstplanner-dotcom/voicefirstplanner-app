@@ -2220,6 +2220,10 @@ html, body {
             <button onclick="toggleApptForm()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:7px;font-family:var(--font);font-size:12px;color:var(--text-mid);cursor:pointer">Cancel</button>
           </div>
         </div>
+        <div id="appt-popup-hint" style="display:none;align-items:center;gap:8px;background:var(--ice);border:1px solid var(--border,#B5D4F4);border-radius:9px;padding:7px 10px;margin-bottom:8px">
+          <span style="flex:1;font-size:12px;color:var(--navy,#0C447C);font-weight:600">Tap any appointment to edit, move or rebook.</span>
+          <button onclick="dismissApptHint(event)" title="Dismiss" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px">×</button>
+        </div>
         <div id="appt-list"></div>
         <div id="appt-empty" style="text-align:center;padding:12px 0;color:var(--text-mid);font-size:13px">No appointments for this day.<br><span style="font-size:11px;opacity:0.7">Tap + Add or say "Add meeting with John at 2pm"</span></div>
       </div>
@@ -2520,6 +2524,10 @@ html, body {
     .vt-help-chip{display:inline-flex;align-items:center;gap:5px;background:var(--ice);color:var(--navy,#0C447C);border:1px solid var(--border,#B5D4F4);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);}
     .vt-help-chip i{font-size:14px;color:var(--orange);}
     .vt-help-chip:hover{background:#DCEafe;}
+    .ap-field{margin-bottom:8px;}
+    .ap-label{display:block;font-size:11px;font-weight:700;color:var(--text-mid);margin-bottom:3px;}
+    .ap-field .task-inp{width:100%;box-sizing:border-box;}
+    .ap-time{width:100%;box-sizing:border-box;border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--card);}
   </style>
   <div class="vt-overlay" id="voice-tut">
     <div class="vt-card">
@@ -2702,6 +2710,40 @@ html, body {
   </div>
 </div>
 
+<!-- APPOINTMENT POPUP — the one surface for everything about an appointment:
+     adjust time/length/date, all-day, who it's with, notes, Move (edit date/time
+     in place and Save), Rebook with the same person, Delete. iCloud-style card. -->
+<div class="modal-overlay" id="appt-popup" onclick="if(event.target===this)closeApptPopup()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="ap-heading">Appointment</div>
+    <div class="ap-field"><label class="ap-label" for="ap-title">Title</label><input class="task-inp" id="ap-title" placeholder="Appointment title"></div>
+    <div class="ap-field"><label class="ap-label" for="ap-with">With</label><input class="task-inp" id="ap-with" placeholder="Who it's with (optional)"></div>
+    <div class="ap-field"><label class="ap-label" for="ap-location">Location</label><input class="task-inp" id="ap-location" placeholder="Location or link (optional)"></div>
+    <div class="ap-field"><label class="ap-label" for="ap-notes">Notes</label><textarea class="task-inp" id="ap-notes" rows="2" placeholder="Notes (optional)" style="resize:vertical"></textarea></div>
+    <div class="ap-field"><label class="ap-label" for="ap-date">Date</label><input type="date" id="ap-date" class="ap-time"></div>
+    <div class="ap-field" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><label class="ap-label" for="ap-allday" style="margin:0">All-day</label><input type="checkbox" id="ap-allday" onchange="apAllDayToggle()" style="width:20px;height:20px;accent-color:var(--orange)"></div>
+    <div id="ap-time-row" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <div style="flex:1"><label class="ap-label" for="ap-start">Start</label><input type="time" id="ap-start" class="ap-time"></div>
+      <div style="flex:1"><label class="ap-label" for="ap-end">End</label><input type="time" id="ap-end" class="ap-time"></div>
+    </div>
+    <!-- Series scope choice — appears on Save only when this is one of several stored occurrences -->
+    <div id="ap-series-choice" style="display:none;background:var(--ice);border:1px solid var(--border,#B5D4F4);border-radius:9px;padding:9px 10px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--navy,#0C447C);margin-bottom:6px">This appointment repeats. Apply changes to:</div>
+      <div style="display:flex;gap:6px">
+        <button class="modal-cta" style="flex:1;margin:0;padding:8px" onclick="apApplySave('one')">This one only</button>
+        <button class="modal-cta" style="flex:1;margin:0;padding:8px" onclick="apApplySave('series')">Whole series</button>
+      </div>
+    </div>
+    <button class="modal-cta" id="ap-save" onclick="apSave()">Save</button>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button id="ap-rebook" onclick="apRebook()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer">Rebook</button>
+      <button id="ap-delete" onclick="apDelete()" style="flex:1;background:none;border:1px solid #e08a8a;border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:#c0392b;cursor:pointer">Delete</button>
+    </div>
+    <button class="modal-close-btn" onclick="closeApptPopup()">Cancel</button>
+  </div>
+</div>
+
 <!-- AI coming-soon / interest modal -->
 <div class="modal-overlay" id="ai-modal" onclick="if(event.target===this)closeAiModal()">
   <div class="modal-sheet">
@@ -2743,7 +2785,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','focusByDate','inactiveValues'];
+                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed'];
 
 function serializeState() {
   const out = {};
@@ -3359,6 +3401,7 @@ let state = {
   voiceTutDone: false,
   selectedValues: new Set(['Family','Growth','Health']),
   inactiveValues: new Set(),
+  apptHintDismissed: false,
   iconIdx: 0,
   reminders: [],
 };
@@ -4144,7 +4187,7 @@ function addHelpChips() {
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
-const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2'];
+const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2','ap-title','ap-with','ap-location','ap-notes'];
 function attachFieldMics() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
@@ -4914,6 +4957,163 @@ function prevDateKey(dk) {
   return dateKey(d);
 }
 
+// ============================================================
+// APPOINTMENT POPUP (Stage 2) — the ONE surface for everything
+// about an appointment. One tap on an appointment anywhere it
+// renders opens this; edit time/length/date (Move = change the
+// date or time here and Save), Rebook with the same person,
+// Delete (series-aware via the existing three-way modal).
+// ============================================================
+let apCtx = null;   // { mode: 'edit', id } | { mode: 'new', prefill }
+
+function openApptPopup(id) {
+  const a = (state.appointments || []).find(x => x.id === id);
+  if (!a) return;
+  apCtx = { mode: 'edit', id };
+  document.getElementById('ap-heading').textContent = 'Appointment';
+  document.getElementById('ap-title').value = a.title || '';
+  document.getElementById('ap-with').value = a.with || '';
+  document.getElementById('ap-location').value = a.location || '';
+  document.getElementById('ap-notes').value = a.notes || '';
+  document.getElementById('ap-date').value = a.date || viewingDate;
+  document.getElementById('ap-allday').checked = !!a.allDay;
+  document.getElementById('ap-start').value = a.timeStart || '';
+  document.getElementById('ap-end').value = a.timeEnd || '';
+  document.getElementById('ap-series-choice').style.display = 'none';
+  document.getElementById('ap-save').style.display = '';
+  document.getElementById('ap-rebook').style.display = '';
+  document.getElementById('ap-delete').style.display = '';
+  apAllDayToggle();
+  document.getElementById('appt-popup').classList.add('open');
+}
+
+// Rebook flow: a NEW appointment pre-filled with the same person + title —
+// pick a new date/time and Save. Nothing touches the original.
+function openApptPopupNew(prefill) {
+  apCtx = { mode: 'new' };
+  document.getElementById('ap-heading').textContent = 'Rebook';
+  document.getElementById('ap-title').value = prefill.title || '';
+  document.getElementById('ap-with').value = prefill.with || '';
+  document.getElementById('ap-location').value = prefill.location || '';
+  document.getElementById('ap-notes').value = prefill.notes || '';
+  document.getElementById('ap-date').value = viewingDate;
+  document.getElementById('ap-allday').checked = !!prefill.allDay;
+  document.getElementById('ap-start').value = prefill.timeStart || '';
+  document.getElementById('ap-end').value = prefill.timeEnd || '';
+  document.getElementById('ap-series-choice').style.display = 'none';
+  document.getElementById('ap-save').style.display = '';
+  document.getElementById('ap-rebook').style.display = 'none';
+  document.getElementById('ap-delete').style.display = 'none';
+  apAllDayToggle();
+  document.getElementById('appt-popup').classList.add('open');
+}
+
+function closeApptPopup() {
+  document.getElementById('appt-popup').classList.remove('open');
+  apCtx = null;
+}
+
+function apAllDayToggle() {
+  const allDay = document.getElementById('ap-allday').checked;
+  document.getElementById('ap-time-row').style.display = allDay ? 'none' : 'flex';
+}
+
+function apReadForm() {
+  return {
+    title: document.getElementById('ap-title').value.trim(),
+    with: document.getElementById('ap-with').value.trim(),
+    location: document.getElementById('ap-location').value.trim(),
+    notes: document.getElementById('ap-notes').value.trim(),
+    date: document.getElementById('ap-date').value || viewingDate,
+    allDay: document.getElementById('ap-allday').checked,
+    timeStart: document.getElementById('ap-start').value,
+    timeEnd: document.getElementById('ap-end').value,
+  };
+}
+
+function apSave() {
+  if (!apCtx) return;
+  const f = apReadForm();
+  if (!f.title) { showToast('Appointment needs a title'); return; }
+  if (apCtx.mode === 'new') {
+    state.appointments.push({ id: Date.now(), title: f.title, timeStart: f.timeStart, timeEnd: f.timeEnd, date: f.date, location: f.location, with: f.with, notes: f.notes, allDay: f.allDay, done: false });
+    closeApptPopup();
+    viewingDate = f.date;
+    calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
+    updateViewingDateLabel();
+    apRefresh();
+    showToast(`Rebooked: "${f.title}" on ${fmtDateLabel(f.date)}`);
+    return;
+  }
+  const a = (state.appointments || []).find(x => x.id === apCtx.id);
+  if (!a) { closeApptPopup(); return; }
+  // Series-aware: one of several stored occurrences → this one / whole series,
+  // reusing the same seriesMembers machinery as recurring delete.
+  const members = (a.recurring && a.seriesId) ? seriesMembers(a.seriesId) : [];
+  if (members.length > 1) {
+    document.getElementById('ap-series-choice').style.display = 'block';
+    return;
+  }
+  apApplySave('one');
+}
+
+// scope: 'one' | 'series'. Whole-series applies everything EXCEPT the date —
+// each occurrence keeps its own day (that is what makes it a series); a date
+// change is inherently per-occurrence and applies to this one.
+function apApplySave(scope) {
+  if (!apCtx || apCtx.mode !== 'edit') return;
+  const f = apReadForm();
+  if (!f.title) { showToast('Appointment needs a title'); return; }
+  const a = (state.appointments || []).find(x => x.id === apCtx.id);
+  if (!a) { closeApptPopup(); return; }
+  const targets = scope === 'series' ? seriesMembers(a.seriesId) : [a];
+  targets.forEach(t => {
+    t.title = f.title;
+    t.with = f.with;
+    t.location = f.location;
+    t.notes = f.notes;
+    t.allDay = f.allDay;
+    t.timeStart = f.timeStart || t.timeStart;
+    t.timeEnd = f.timeEnd;
+  });
+  a.date = f.date;   // Move: date lands on this occurrence only, every scope
+  closeApptPopup();
+  viewingDate = f.date;
+  calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
+  updateViewingDateLabel();
+  apRefresh();
+  showToast(scope === 'series' ? `Series updated: "${f.title}"` : `Saved: "${f.title}"`);
+}
+
+function apRebook() {
+  if (!apCtx || apCtx.mode !== 'edit') return;
+  const a = (state.appointments || []).find(x => x.id === apCtx.id);
+  if (!a) return;
+  openApptPopupNew({ title: a.title, with: a.with, location: a.location, notes: a.notes, allDay: a.allDay, timeStart: a.timeStart, timeEnd: a.timeEnd });
+}
+
+function apDelete() {
+  if (!apCtx || apCtx.mode !== 'edit') return;
+  const id = apCtx.id;
+  closeApptPopup();
+  requestDeleteAppointment(id);   // lone → confirm; series → the three-way modal
+}
+
+function apRefresh() {
+  renderAppointments();
+  renderScheduleGrid();
+  renderCalStrip();
+  try { persistNow(); } catch (e) {}
+}
+
+function dismissApptHint(e) {
+  if (e) e.stopPropagation();
+  state.apptHintDismissed = true;
+  const hint = document.getElementById('appt-popup-hint');
+  if (hint) hint.style.display = 'none';
+  try { persistNow(); } catch (err) {}
+}
+
 function fmtDateLabel(dk) {
   const d = new Date(dk + 'T12:00:00');
   return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -4929,9 +5129,13 @@ function fmt12(m) {
 function renderAppointments() {
   const el = document.getElementById('appt-list');
   const empty = document.getElementById('appt-empty');
+  // One-time popup hint — shown until dismissed; the dismissal persists
+  // (STATE_KEYS carries apptHintDismissed, so it survives reload).
+  const hint = document.getElementById('appt-popup-hint');
+  if (hint) hint.style.display = state.apptHintDismissed ? 'none' : 'flex';
   const appts = state.appointments
     .filter(a => a.date === viewingDate)
-    .sort((a,b) => a.timeStart.localeCompare(b.timeStart));
+    .sort((a,b) => (a.timeStart || '').localeCompare(b.timeStart || ''));
   if (appts.length === 0) {
     el.innerHTML = '';
     empty.style.display = 'block';
@@ -4941,17 +5145,21 @@ function renderAppointments() {
   el.innerHTML = '';
   appts.forEach(a => {
     const d = document.createElement('div');
-    d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:rgba(74,158,247,0.1);border-left:3px solid #4A9EF7;margin-bottom:6px';
+    // Tappable card: raised border + chevron so it reads as "this opens".
+    // The popup is the one edit surface — no pencil, no X on the row.
+    d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:rgba(74,158,247,0.1);border:1px solid rgba(74,158,247,0.35);border-left:3px solid #4A9EF7;margin-bottom:6px;cursor:pointer;box-shadow:0 1px 2px rgba(12,68,124,0.06)';
+    d.onclick = () => openApptPopup(a.id);
+    const when = a.allDay ? 'All day' : `${fmt12(a.timeStart)}${a.timeEnd ? ' – ' + fmt12(a.timeEnd) : ''}`;
     d.innerHTML = `
-      <div style="flex:1">
+      <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text)">${a.title}</div>
         <div style="font-size:11px;color:#4A9EF7;margin-top:2px">
-          ${fmt12(a.timeStart)}${a.timeEnd ? ' – ' + fmt12(a.timeEnd) : ''}
+          ${when}
+          ${a.with ? ' · <span style="color:var(--text-mid)">with ' + a.with + '</span>' : ''}
           ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}
         </div>
       </div>
-      <button onclick="editAppointment(${a.id})" title="Edit" style="background:none;border:none;color:#4A9EF7;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.75"><i class="ti ti-pencil"></i></button>
-      <button onclick="requestDeleteAppointment(${a.id})" title="Delete" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 4px;opacity:0.6">×</button>`;
+      <div style="font-size:16px;color:#4A9EF7;opacity:0.7;flex-shrink:0">›</div>`;
     el.appendChild(d);
   });
 }
@@ -4985,6 +5193,7 @@ function renderScheduleGrid() {
 
   hours.forEach(h => {
     const slotAppts = appts.filter(a => {
+      if (a.allDay) return false;          // all-day appointments live in the list, not the timed grid
       if (!a.timeStart) return false;
       const [sh, sm] = a.timeStart.split(':').map(Number);
       const startM = sh * 60 + (sm || 0);
@@ -4995,7 +5204,7 @@ function renderScheduleGrid() {
     });
 
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:36px;position:relative;cursor:pointer';
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:72px;position:relative;cursor:pointer';
     row.onclick = () => quickAddAppt(h);
 
     const timeLabel = document.createElement('div');
@@ -5003,7 +5212,13 @@ function renderScheduleGrid() {
     timeLabel.textContent = h === 12 ? '12pm' : h < 12 ? h + 'am' : (h-12) + 'pm';
 
     const slotContent = document.createElement('div');
-    slotContent.style.cssText = 'flex:1;border-top:1px solid var(--border);padding:4px 0;min-height:36px;position:relative';
+    slotContent.style.cssText = 'flex:1;border-top:1px solid var(--border);padding:4px 0;min-height:72px;position:relative';
+    // Dotted 30-minute line, sitting where the hour line sits — the half-hour
+    // mark the doubled slot height exists to make readable. Purely visual:
+    // pointer-events off so tap-to-add on the hour row is untouched.
+    const halfLine = document.createElement('div');
+    halfLine.style.cssText = 'position:absolute;top:50%;left:0;right:0;border-top:1px dotted var(--border);pointer-events:none';
+    slotContent.appendChild(halfLine);
 
     // Current time indicator
     if (isToday && nowH === h) {
@@ -5031,13 +5246,11 @@ function renderScheduleGrid() {
       const apptEl = document.createElement('div');
       apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:rgba(74,158,247,0.18);border-left:3px solid #4A9EF7;${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:3px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
-        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:18px;min-width:0"><span style="font-size:11px;font-weight:600;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span><span style="font-size:10px;color:#4A9EF7;white-space:nowrap;flex-shrink:0">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</span></div><div class="appt-del" title="Delete" style="position:absolute;top:2px;right:4px;font-size:15px;line-height:1;color:var(--text-mid);opacity:0.6;padding:2px">×</div>`;
+        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:16px;min-width:0"><span style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span><span style="font-size:11px;color:#4A9EF7;white-space:nowrap;flex-shrink:0">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</span></div><div style="position:absolute;top:3px;right:6px;font-size:14px;line-height:1;color:#4A9EF7;opacity:0.7;pointer-events:none">›</div>`;
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
-        if (e.target.classList.contains('appt-del')) {
-          requestDeleteAppointment(a.id);
-        }
+        openApptPopup(a.id);
       };
       slotContent.appendChild(apptEl);
     });
@@ -5228,15 +5441,8 @@ function noteEditorOpenFor(noteId) {
 }
 
 function editAppointment(id) {
-  const a = state.appointments.find(x => x.id === id);
-  if (!a) return;
-  editCtx = { kind: 'appt', id };
-  openEditModal('Edit appointment', [
-    { id: 'edit-f1', label: 'Title', value: a.title, mic: true },
-    { id: 'edit-t1', label: 'Start', value: a.timeStart || '', type: 'time' },
-    { id: 'edit-t2', label: 'End (optional)', value: a.timeEnd || '', type: 'time' },
-    { id: 'edit-f2', label: 'Location (optional)', value: a.location || '', mic: true }
-  ]);
+  // Repurposed (Stage 2): the popup is the one edit surface for appointments.
+  openApptPopup(id);
 }
 
 function editCapture(idx) {
@@ -7351,7 +7557,7 @@ function renderWeek() {
     else if (i === 1) tag = '<span class="week-tag">Tomorrow</span>';
     let body = '';
     appts.forEach(a => {
-      body += `<div class="week-item"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span></div>`;
+      body += `<div class="week-item" style="cursor:pointer" onclick="openApptPopup(${a.id})"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span><span style="margin-left:auto;color:#4A9EF7;opacity:0.7">›</span></div>`;
     });
     tasks.forEach(t => {
       body += `<div class="week-item"><span class="priority-badge p${t.p}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">${t.p}</span><span class="week-task">${t.text}</span></div>`;
