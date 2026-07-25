@@ -12,6 +12,12 @@
 <title>VoiceFirstPlanner — Just talk. We'll handle the rest.</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Rewardful affiliate tracking. Cross-domain via data-domains so a referral set
+     on voicefirstdayplanner.com survives the hop to app.voicefirstdayplanner.com at
+     checkout. NOTE: verify data-rewardful key against Rewardful > Company settings
+     before ship — 1e3933 is from records, dashboard wins if it differs. -->
+<script>(function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');</script>
+<script async src="https://r.wdfl.co/rw.js" data-rewardful="1e3933" data-domains="voicefirstdayplanner.com,app.voicefirstdayplanner.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -6746,10 +6752,15 @@ async function startCheckout(priceId) {
     return;
   }
   try {
+    // Rewardful referral, if the visitor arrived via an affiliate link. Read HERE
+    // (user-triggered, long after async rw.js has loaded) — do NOT hoist to page
+    // load, where Rewardful.referral may not be populated yet. undefined when there
+    // is no referral or Rewardful hasn't loaded -> the API omits client_reference_id.
+    const referral = (window.Rewardful && window.Rewardful.referral) || undefined;
     const r = await fetch('/api/create-checkout-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceId, userId: authUserId, email: state.user?.email || '' }),
+      body: JSON.stringify({ priceId, userId: authUserId, email: state.user?.email || '', referral }),
     });
     const data = await r.json();
     if (data.url) window.location.href = data.url;
@@ -6889,8 +6900,9 @@ function handleCheckoutReturn() {
   if (c === 'cancel') { showToast('Checkout cancelled — no charge made'); return; }
   // Sign-in-before-checkout (C17 option 1). The marketing site's Lifetime button
   // links here rather than straight to Stripe: by the time we run, the user is
-  // signed in, so client_reference_id is always present and the webhook can never
-  // take $99 and have no one to give it to.
+  // signed in, so metadata.supabase_user_id is always set and the webhook can never
+  // take $99 and have no one to give it to. (client_reference_id now carries the
+  // Rewardful referral, not the user id — see stripe-webhook.js.)
   if (c === 'lifetime') {
     if (!LIFETIME_LIVE) { showToast('Lifetime is coming soon'); return; }
     startCheckout(STRIPE_PRICES.lifetime);
