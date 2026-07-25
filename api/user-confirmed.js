@@ -40,6 +40,15 @@ const HOOK_SECRET = process.env.CONFIRM_HOOK_SECRET;
 // URL inside an <a href> over the REST path — hence server-side substitution).
 const WELCOME0_TEMPLATE_ID = process.env.WELCOME0_TEMPLATE_ID || '84e94ece-926b-4498-8ab1-42977828d74a';
 
+// Delivery mode for Welcome 0:
+//   'template' (default) = B2: fetch the published Resend template, substitute
+//                          links, and fall back to the baked design if that fails.
+//   'baked'              = B1: skip the dashboard entirely and send the
+//                          code-owned design below (always correct, no fetch).
+// Set WELCOME0_MODE=baked in Vercel to flip. See the diagnosis note for the
+// trade-off (dashboard-editable copy vs. zero fetch fragility).
+const WELCOME0_MODE = (process.env.WELCOME0_MODE || 'template').toLowerCase();
+
 // Frozen placeholder hrefs sitting in the template. The code finds these and
 // swaps in per-user tokenised links. DO NOT rename these in the template without
 // telling the App Room — a renamed sentinel silently breaks substitution (the
@@ -62,41 +71,83 @@ function dlHref(token, doc) {
   return downloadUrl(DL_BASE, token, doc).replace(/&/g, '&amp;');
 }
 
-// Rewrite the href of an anchor whose visible text contains `textNeedle`.
-// Safety net for the guide link if its sentinel wasn't set in the template.
+// Rewrite the href of an anchor whose text contains `textNeedle` — the safety net
+// when a sentinel href isn't present (e.g. the guide link, or a fetched version
+// that predates the sentinel edit). Tolerates nested markup inside the anchor
+// (visual-editor buttons wrap their label in <span>/<strong>), matching any
+// content up to the closing </a> rather than assuming a flat text node.
 function rewriteAnchorByText(html, textNeedle, newHref) {
+  const n = textNeedle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(
-    '(<a\\b[^>]*href=")[^"]*("[^>]*>\\s*[^<]*' +
-    textNeedle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-    '[^<]*</a>)',
+    '(<a\\b[^>]*href=")[^"]*("[^>]*>(?:(?!</a>)[\\s\\S])*?' + n + '(?:(?!</a>)[\\s\\S])*?</a>)',
     'i'
   );
   return html.replace(re, `$1${newHref}$2`);
 }
 
-// Baked-in last-known-good Welcome 0 — sent ONLY if the fetched template can't be
-// turned into a valid two-link email. Fail loud (log), don't fail silent (a
-// broken or link-less email). Self-contained with working tokenised links.
-function fallbackWelcome0Html(firstName, token) {
+// The code-owned Welcome 0 — a faithful build of the intended design (post-
+// confirmation intro, the two book downloads, and the "add to Home Screen" block
+// that Job 2 strips out of the Supabase confirmation email). Used as the primary
+// email in 'baked' mode, and as the fallback in 'template' mode — so a fallback
+// is a fully-styled email, never a degraded one. Links are tokenised directly.
+export function bakedWelcome0Html(firstName, token) {
   const name = esc(firstName || 'there');
   const wb = dlHref(token, 'workbook');
   const gd = dlHref(token, 'guide');
+  const APP = 'https://app.voicefirstdayplanner.com';
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#F0F5FB;">
+<div style="display:none;max-height:0;overflow:hidden;">Your free Workbook and Voice Command Guide are ready \u2014 download them right here.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0F5FB;padding:24px 0;">
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#2C2C2A;">
   <tr><td style="background:#0C447C;height:6px;line-height:6px;">&nbsp;</td></tr>
-  <tr><td style="padding:32px;">
-    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Hi ${name},</p>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">You're confirmed — welcome to VoiceFirstPlanner. Here are your two free books. They download straight from this email, and they're always in your Library under Settings too.</p>
-    <ul style="font-size:16px;line-height:1.6;margin:0 0 20px;padding-left:20px;">
-      <li style="margin:6px 0;"><a href="${wb}" style="color:#0C447C;font-weight:600;">Download the Workbook</a></li>
-      <li style="margin:6px 0;"><a href="${gd}" style="color:#0C447C;font-weight:600;">Download the Voice Command Guide</a></li>
-    </ul>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Then just tap the mic and talk — your day plans itself.</p>
+  <tr><td style="padding:32px 32px 8px 32px;">
+    <h1 style="font-size:22px;line-height:1.3;color:#0C447C;margin:0 0 12px;">You\u2019re all set, ${name} \u2014 welcome to VoiceFirstPlanner</h1>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 24px;">Your email\u2019s confirmed and your free account is ready. Here\u2019s everything to get you started.</p>
+
+    <div style="border-top:1px solid #E2E8F0;margin:0 0 24px;line-height:1px;font-size:1px;">&nbsp;</div>
+
+    <h2 style="font-size:17px;color:#0C447C;margin:0 0 8px;">Your free workbook and command guide are ready</h2>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 20px;">Ten guided worksheets to plan your whole life \u2014 values, goals, habits, dreams and every day \u2014 plus the full Voice Command Guide so you always know what to say. Both free with your account.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 10px;"><tr><td style="border:1.5px solid #0C447C;border-radius:26px;">
+      <a href="${wb}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Workbook</a>
+    </td></tr></table>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td style="border:1.5px solid #0C447C;border-radius:26px;">
+      <a href="${gd}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Voice Command Guide</a>
+    </td></tr></table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F7FB;border-left:4px solid #F26A21;border-radius:4px;margin:0 0 24px;">
+      <tr><td style="padding:20px 22px;">
+        <h2 style="font-size:17px;line-height:1.3;color:#0C447C;margin:0 0 10px;">Get the full experience \u2014 add it to your Home Screen</h2>
+        <p style="font-size:15px;line-height:1.5;margin:0 0 16px;">VoiceFirstPlanner works right in your browser, but it\u2019s even better on your Home Screen \u2014 it opens full-screen like a real app, with a tap-to-open icon so your planner is always one tap away. It takes about ten seconds:</p>
+
+        <p style="font-size:15px;font-weight:700;margin:0 0 6px;">On iPhone (Safari)</p>
+        <ol style="font-size:15px;line-height:1.5;margin:0 0 16px;padding-left:20px;">
+          <li>Open <a href="${APP}" style="color:#0C447C;">app.voicefirstdayplanner.com</a> in Safari.</li>
+          <li>Tap the <strong>Share</strong> button (the square with an up-arrow).</li>
+          <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+          <li>Tap <strong>Add</strong> \u2014 then open it from your new icon.</li>
+        </ol>
+
+        <p style="font-size:15px;font-weight:700;margin:0 0 6px;">On Android (Chrome)</p>
+        <ol style="font-size:15px;line-height:1.5;margin:0 0 16px;padding-left:20px;">
+          <li>Open <a href="${APP}" style="color:#0C447C;">app.voicefirstdayplanner.com</a> in Chrome.</li>
+          <li>Tap the <strong>\u22ee menu</strong> (top-right).</li>
+          <li>Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).</li>
+          <li>Tap <strong>Install / Add</strong> \u2014 then open it from your new icon.</li>
+        </ol>
+
+        <p style="font-size:15px;line-height:1.5;margin:0;font-style:italic;">Then just tap the mic and talk \u2014 your day plans itself.</p>
+      </td></tr>
+    </table>
+
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Any trouble getting in, just reply to this email \u2014 it comes to me.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 4px;">Dave</p>
+    <p style="font-size:13px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;"><em>When you\u2019re organized, the stress goes out of your day.</em></p>
   </td></tr>
+  <tr><td style="background:#E6F1FB;padding:14px 32px;font-size:12px;color:#6b6b6b;">VoiceFirstPlanner \u00b7 You\u2019re receiving this because you created a free account.</td></tr>
 </table>
 </td></tr>
 </table>
@@ -124,27 +175,51 @@ export function applyWelcome0Links(templateHtml, token) {
   return { html, ok };
 }
 
-// Build the Welcome 0 HTML from the published template (B2), or fall back.
-// Returns { html, subject, usedFallback }.
+// Build the Welcome 0 HTML. Returns { html, subject, mode } where mode is
+// 'baked' (B1 chosen), 'template' (B2 fetch+substitute worked), or 'fallback'
+// (B2 attempted, failed, baked design sent instead). The log line this produces
+// is the authoritative diagnosis for any test — read `mode=` first.
 async function buildWelcome0(firstName, token) {
-  let subject = 'Your books are ready';
+  const DEFAULT_SUBJECT = 'Your books are ready';
+
+  // B1: baked is the primary. Not a fallback — always correct, no fetch.
+  if (WELCOME0_MODE === 'baked') {
+    return { html: bakedWelcome0Html(firstName, token), subject: DEFAULT_SUBJECT, mode: 'baked' };
+  }
+
+  // B2: fetch the published template and substitute links.
+  let subject = DEFAULT_SUBJECT;
   try {
     const r = await fetch(`https://api.resend.com/templates/${WELCOME0_TEMPLATE_ID}`, {
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}` },
     });
-    if (!r.ok) throw new Error(`template fetch ${r.status}`);
+    if (!r.ok) {
+      // Include status AND body so a permission problem (401/403 from a send-only
+      // key) is instantly distinguishable from a bad ID (404).
+      const body = await r.text().catch(() => '');
+      throw new Error(`template fetch ${r.status} ${body.slice(0, 140)}`);
+    }
     const tpl = await r.json();
     if (tpl?.subject) subject = tpl.subject;
-    if (!tpl?.html || typeof tpl.html !== 'string') throw new Error('template html empty');
 
-    const { html, ok } = applyWelcome0Links(tpl.html, token);
-    if (ok) return { html, subject, usedFallback: false };
+    // Diagnostic: report exactly what came back, so a fallback is never a mystery
+    // and a draft-vs-published version issue is visible in one line.
+    const htmlStr = typeof tpl?.html === 'string' ? tpl.html : '';
+    const hasWb = htmlStr.includes(SENTINELS.workbook);
+    const hasGd = htmlStr.includes(SENTINELS.guide);
+    console.log('Welcome0 template fetched: status=%s unpublished=%s sentinels(wb=%s gd=%s) htmlLen=%s',
+      tpl?.status, tpl?.has_unpublished_versions, hasWb, hasGd, htmlStr.length);
 
-    console.error('Welcome0 substitution incomplete — using fallback');
+    if (!htmlStr) throw new Error('template html empty');
+
+    const { html, ok } = applyWelcome0Links(htmlStr, token);
+    if (ok) return { html, subject, mode: 'template' };
+
+    console.error('Welcome0 substitution incomplete (wb-sentinel=%s gd-sentinel=%s) — sending baked design', hasWb, hasGd);
   } catch (e) {
-    console.error('Welcome0 template build failed:', e.message, '— using fallback');
+    console.error('Welcome0 template build failed:', e.message, '— sending baked design');
   }
-  return { html: fallbackWelcome0Html(firstName, token), subject, usedFallback: true };
+  return { html: bakedWelcome0Html(firstName, token), subject, mode: 'fallback' };
 }
 
 // One-shot guard. INSERT ... ON CONFLICT DO NOTHING: exactly one caller inserts
@@ -220,7 +295,7 @@ export default async function handler(req, res) {
     const firstName = String(rawName).trim().split(/\s+/)[0] || '';
     const token = mintToken(userId); // 30-day per-user download token
 
-    const { html, subject, usedFallback } = await buildWelcome0(firstName, token);
+    const { html, subject, mode } = await buildWelcome0(firstName, token);
 
     const send = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -239,8 +314,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'send failed' });
     }
 
-    console.log('Welcome0 sent to', to, 'user=', userId, 'fallback=', usedFallback);
-    return res.status(200).json({ ok: true, fallback: usedFallback });
+    console.log('Welcome0 sent to', to, 'user=', userId, 'mode=', mode);
+    return res.status(200).json({ ok: true, mode });
   } catch (err) {
     console.error('user-confirmed error:', err);
     return res.status(500).json({ error: 'Handler error' });
