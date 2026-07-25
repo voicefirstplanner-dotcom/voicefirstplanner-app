@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { priceId, userId, email } = req.body || {};
+    const { priceId, userId, email, referral } = req.body || {};
     if (!priceId) return res.status(400).json({ error: 'Missing priceId' });
 
     // Let the price itself decide: recurring => subscription, otherwise => one-off payment (lifetime).
@@ -24,7 +24,10 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${APP_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
-      client_reference_id: userId || undefined,
+      // Rewardful referral ONLY. Must be OMITTED entirely when absent — a blank
+      // client_reference_id makes Stripe throw and breaks all checkout. The buyer's
+      // identity travels in metadata.supabase_user_id below, not here.
+      ...(referral ? { client_reference_id: referral } : {}),
       customer_email: email || undefined,
       allow_promotion_codes: true,
       metadata: { supabase_user_id: userId || '' },

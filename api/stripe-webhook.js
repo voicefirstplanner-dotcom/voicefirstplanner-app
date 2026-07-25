@@ -479,7 +479,10 @@ export default async function handler(req, res) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        const userId = session.client_reference_id || session.metadata?.supabase_user_id;
+        // Buyer identity travels in metadata.supabase_user_id (set at checkout).
+        // client_reference_id is NO LONGER read here — it now carries the Rewardful
+        // referral id, not the user id (see create-checkout-session.js).
+        const userId = session.metadata?.supabase_user_id;
         const customerId = session.customer;
         if (!userId) {
           console.warn('No supabase_user_id on checkout session', session.id);
