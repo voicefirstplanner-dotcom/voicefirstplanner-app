@@ -2235,7 +2235,7 @@ html, body {
       </div>
 
       <!-- PRIORITISED TASKS -->
-      <div class="card">
+      <div class="card" id="tasks-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div class="card-label" style="margin-bottom:0">✅ Prioritised tasks</div>
         </div>
@@ -2743,12 +2743,14 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','focusByDate'];
+                    'recurEnds','focusByDate','inactiveValues'];
 
 function serializeState() {
   const out = {};
   STATE_KEYS.forEach(k => {
-    out[k] = (k === 'selectedValues') ? [...state.selectedValues] : state[k];
+    if (k === 'selectedValues') out[k] = [...state.selectedValues];
+    else if (k === 'inactiveValues') out[k] = [...(state.inactiveValues || new Set())];
+    else out[k] = state[k];
   });
   return out;
 }
@@ -2757,6 +2759,7 @@ function applyState(data) {
   STATE_KEYS.forEach(k => {
     if (data[k] === undefined) return;
     if (k === 'selectedValues') state.selectedValues = new Set(data[k] || []);
+    else if (k === 'inactiveValues') state.inactiveValues = new Set(data[k] || []);
     else state[k] = data[k];
   });
   // One-time carry of the legacy single 'focus' value onto today's date, so an
@@ -3355,6 +3358,7 @@ let state = {
   onboardStep: 0,
   voiceTutDone: false,
   selectedValues: new Set(['Family','Growth','Health']),
+  inactiveValues: new Set(),
   iconIdx: 0,
   reminders: [],
 };
@@ -4112,6 +4116,22 @@ function addHelpChips() {
     const key = map[name];
     const row = document.createElement('div');
     row.className = 'vt-help-row';
+    // Daily gets a "Tasks" jump chip on the left, opposite the Voice tips chip —
+    // one tap straight to the Prioritised tasks card without scrolling past the
+    // calendar, schedule and appointments. Same chip style, no layout reflow.
+    if (name === 'daily') {
+      row.style.justifyContent = 'space-between';
+      const jump = document.createElement('button');
+      jump.type = 'button';
+      jump.className = 'vt-help-chip';
+      jump.title = 'Jump to tasks';
+      jump.innerHTML = '<i class="ti ti-checklist"></i> Tasks';
+      jump.onclick = () => {
+        const card = document.getElementById('tasks-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      row.appendChild(jump);
+    }
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'vt-help-chip';
@@ -4389,7 +4409,7 @@ function processVoice(text) {
       const dates = collectRecurDates(recurrence.type, firstDate, 12);
 
       dates.forEach((dk, i) => {
-        state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', done: false, recurring: true, seriesId, recurType: recurrence.type });
+        state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', with: '', notes: '', allDay: false, done: false, recurring: true, seriesId, recurType: recurrence.type });
       });
 
       const firstKey = dates[0];
@@ -4404,7 +4424,7 @@ function processVoice(text) {
       return;
     }
 
-    state.appointments.push({ id: Date.now(), title: clean || text, timeStart, timeEnd, date: apptDate, location: '', done: false });
+    state.appointments.push({ id: Date.now(), title: clean || text, timeStart, timeEnd, date: apptDate, location: '', with: '', notes: '', allDay: false, done: false });
     viewingDate = apptDate;
     calViewMonth = new Date(apptDate + 'T12:00:00'); calViewMonth.setDate(1);
     updateViewingDateLabel();
@@ -4715,7 +4735,7 @@ function topUpRecurringSeries() {
     if (endAt) newDates = newDates.filter(dk => dk <= endAt);
     if (!newDates.length) return;
     newDates.forEach((dk, i) => {
-      state.appointments.push({ id: Date.now() + added + i, title: last.title, timeStart: last.timeStart, timeEnd: last.timeEnd, date: dk, location: last.location || '', done: false, recurring: true, seriesId: last.seriesId, recurType: type });
+      state.appointments.push({ id: Date.now() + added + i, title: last.title, timeStart: last.timeStart, timeEnd: last.timeEnd, date: dk, location: last.location || '', with: last.with || '', notes: last.notes || '', allDay: !!last.allDay, done: false, recurring: true, seriesId: last.seriesId, recurType: type });
     });
     added += newDates.length;
   });
@@ -4779,7 +4799,7 @@ function addAppointment() {
   const date = document.getElementById('appt-date').value || viewingDate;
   const location = document.getElementById('appt-location').value.trim();
   state.appointments.push({
-    id: Date.now(), title, timeStart, timeEnd, date, location, done: false
+    id: Date.now(), title, timeStart, timeEnd, date, location, with: '', notes: '', allDay: false, done: false
   });
   // Reset form
   document.getElementById('appt-title').value = '';
