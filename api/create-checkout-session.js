@@ -33,7 +33,13 @@ export default async function handler(req, res) {
       metadata: { supabase_user_id: userId || '' },
       ...(mode === 'subscription'
         ? { subscription_data: { metadata: { supabase_user_id: userId || '' } } }
-        : { payment_intent_data: { metadata: { supabase_user_id: userId || '' } } }),
+        // customer_creation:'always' forces a Stripe Customer on the one-off
+        // (Lifetime) path — in 'payment' mode Stripe can otherwise charge a guest
+        // with no Customer, and Rewardful attributes referrals to a Customer, so
+        // without this an affiliate's Lifetime sale earns silently nothing. Stripe
+        // rejects this key in 'subscription' mode, so it lives only on this branch.
+        : { customer_creation: 'always',
+            payment_intent_data: { metadata: { supabase_user_id: userId || '' } } }),
     });
 
     return res.status(200).json({ url: session.url });
