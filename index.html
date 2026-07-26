@@ -2146,8 +2146,8 @@ html, body {
   <div class="nav" id="main-nav">
     <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('week',this)"><i class="ti ti-calendar-week"></i>Week</button>
-    <button class="nav-btn" data-group="daily-planning" onclick="showTab('month',this)"><i class="ti ti-calendar-month"></i>Month</button>
-    <button class="nav-btn" data-group="daily-planning" onclick="showTab('year',this)"><i class="ti ti-calendar-stats"></i>Year</button>
+    <button class="nav-btn nav-mv" data-group="daily-planning" onclick="showTab('month',this)"><i class="ti ti-calendar-month"></i>Month</button>
+    <button class="nav-btn nav-mv" data-group="daily-planning" onclick="showTab('year',this)"><i class="ti ti-calendar-stats"></i>Year</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
@@ -2580,6 +2580,15 @@ html, body {
     .yv-d.pad{cursor:default;}
     .yv-d.has{background:var(--ice);color:var(--navy);font-weight:700;}
     .yv-d.today{outline:1.5px solid var(--orange);color:var(--orange);font-weight:800;}
+    /* ---- Change 1 (phone-only): Month + Year as sheet tabs on the daily page.
+       Styled as file-folder tabs — "lift this page to a bigger view" — visually
+       distinct from the chip/button either side. Hidden at >=768 where the
+       four-in-a-row switcher stays exactly as shipped. ---- */
+    .mv-sheettabs{display:flex;gap:3px;align-items:flex-end;}
+    .sheet-tab{background:var(--card);border:1px solid var(--border);border-bottom:2px solid var(--orange);border-radius:9px 9px 0 0;padding:5px 12px 4px;font-family:var(--font);font-size:11.5px;font-weight:700;color:var(--navy,#0C447C);cursor:pointer;box-shadow:0 -1px 2px rgba(12,68,124,0.07);display:flex;align-items:center;gap:4px;}
+    .sheet-tab i{font-size:13px;color:var(--orange);}
+    @media (max-width:767.98px){ .nav-btn.nav-mv{display:none !important;} }
+    @media (min-width:768px){ .mv-sheettabs{display:none;} }
     @media (min-width:768px){
       .mv-cell{min-height:96px;padding:5px 5px 6px;}
       .mv-daynum{font-size:12px;}
@@ -4258,6 +4267,14 @@ function addHelpChips() {
         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       };
       row.appendChild(jump);
+      // Change 1 (phone-only, CSS-gated): Month + Year sheet tabs between the
+      // Tasks jump and the Voice-tips chip. Same showTab targets as the
+      // desktop switcher, so last-used-view memory works identically.
+      const tabs = document.createElement('div');
+      tabs.className = 'mv-sheettabs';
+      tabs.innerHTML = '<button type="button" class="sheet-tab" onclick="showTab(\'month\')"><i class="ti ti-calendar-month"></i>Month</button>' +
+                       '<button type="button" class="sheet-tab" onclick="showTab(\'year\')"><i class="ti ti-calendar-stats"></i>Year</button>';
+      row.appendChild(tabs);
     }
     const btn = document.createElement('button');
     btn.type = 'button';
