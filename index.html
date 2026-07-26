@@ -1414,12 +1414,13 @@ html, body {
 .settings-header {
   background: var(--navy);
   padding: 14px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top));  /* the X was jammed under the notch/status bar */
   display: flex;
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
 }
-.settings-back { background: none; border: none; color: var(--orange); cursor: pointer; padding: 0; font-size: 20px; }
+.settings-back { background: none; border: none; color: var(--orange); cursor: pointer; padding: 10px; margin: -4px 0 -4px 2px; font-size: 22px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .settings-title { font-family: var(--font-display); font-size: 20px; color: var(--ice); }
 .settings-body { padding: 16px; }
 .settings-section { margin-bottom: 20px; }
@@ -2360,7 +2361,6 @@ html, body {
           <button class="field-mic" onclick="dictateInto('habit-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addHabit()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
-        <div class="habit-suggest" id="habit-suggest"></div>
         <div class="streak-bar">
           <div class="streak-num" id="streak-num">0</div>
           <div class="streak-info">
@@ -2368,6 +2368,21 @@ html, body {
             <div class="streak-sub">Keep going — consistency compounds</div>
           </div>
         </div>
+      </div>
+      <!-- Popular habits, grouped (26 Jul): each family in its own box so the
+           photo floats between them. A box hides itself once everything in it
+           is on the user's list. -->
+      <div class="card" id="hs-card-physical" style="display:none">
+        <div class="card-label">Physical</div>
+        <div id="hs-physical"></div>
+      </div>
+      <div class="card" id="hs-card-mind" style="display:none">
+        <div class="card-label">For the mind</div>
+        <div id="hs-mind"></div>
+      </div>
+      <div class="card" id="hs-card-learn" style="display:none">
+        <div class="card-label">Learn &amp; unplug</div>
+        <div id="hs-learn"></div>
       </div>
       <button class="ai-btn" onclick="aiAction('Suggest 3 new daily habits for me based on a values-based planning approach that would support my goals and life roles')">
         <i class="ti ti-sparkles"></i>AI habit suggestions<span class="soon-badge">Pro · soon</span>
@@ -2400,13 +2415,16 @@ html, body {
     <!-- BUCKET LIST TAB -->
     <div class="sec" id="sec-bucket">
       <div class="card">
-        <div class="card-label">Bucket list</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div class="card-label">My bucket list</div>
+        <div id="bucket-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Add to your bucket list</div>
+        <div style="display:flex;gap:8px">
           <input class="task-inp" id="bucket-inp" placeholder="Something you want to do someday…" style="flex:1" onkeydown="if(event.key==='Enter')addBucketItem()">
           <button class="field-mic" onclick="dictateInto('bucket-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addBucketItem()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 16px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
-        <div id="bucket-list"></div>
       </div>
     </div>
 
@@ -2511,10 +2529,15 @@ html, body {
         <div id="val-quote" style="font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--text);line-height:1.6;margin-bottom:4px"></div>
         <div id="val-author" style="font-size:12px;color:var(--navy-light)"></div>
       </div>
+      <!-- Values + roles each split into a view box and an add box (26 Jul)
+           so the photo floats between them. Ids and handlers unchanged. -->
       <div class="card">
-        <div class="card-label">My values</div>
+        <div class="card-label">Your values</div>
         <div id="values-chips"></div>
-        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+      </div>
+      <div class="card">
+        <div class="card-label">Add a value</div>
+        <div style="display:flex;gap:6px;align-items:center">
           <input class="task-inp" id="value-inp" placeholder="Add a value…" style="flex:1" onkeydown="if(event.key==='Enter')addValue()">
           <button class="field-mic" onclick="dictateInto('value-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addValue()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
@@ -2526,7 +2549,10 @@ html, body {
       <div class="card">
         <div class="card-label">My life roles</div>
         <div id="roles-list"></div>
-        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+      </div>
+      <div class="card">
+        <div class="card-label">Add a life role</div>
+        <div style="display:flex;gap:6px;align-items:center">
           <input class="task-inp" id="role-inp" placeholder="Add a life role…" style="flex:1" onkeydown="if(event.key==='Enter')addRole()">
           <button class="field-mic" onclick="dictateInto('role-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addRole()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
@@ -5339,6 +5365,10 @@ function renderThemePicker() {
 // load failure the section renders in the plain theme.
 // ============================================================
 const LP_PHOTOS = { values:'assets/lp/values', goals:'assets/lp/goals', habits:'assets/lp/habits', bucket:'assets/lp/bucket', reflect:'assets/lp/reflect' };
+// Per-photo focal position — goals is nudged down so the mountain peak sits
+// below the navy header instead of hiding behind it. The shifted band above
+// the image lands behind the opaque topbar, so no seam shows.
+const LP_POS = { goals: 'center 170px' };
 const lpLoaded = {};   // section -> resolved URL | 'failed'
 function updateAtmosphere(tab) {
   const base = LP_PHOTOS[tab];
@@ -5348,6 +5378,7 @@ function updateAtmosphere(tab) {
   const cached = lpLoaded[tab];
   if (cached && cached !== 'failed') {
     el.style.backgroundImage = `url('${cached}')`;
+    el.style.backgroundPosition = LP_POS[tab] || 'center';
     document.body.classList.add('atmo-on');
     return;
   }
@@ -5361,6 +5392,7 @@ function updateAtmosphere(tab) {
       const active = document.querySelector('.sec.active');
       if (active && active.id === 'sec-' + tab) {
         el.style.backgroundImage = `url('${url}')`;
+        el.style.backgroundPosition = LP_POS[tab] || 'center';
         document.body.classList.add('atmo-on');
       }
     };
@@ -6014,9 +6046,15 @@ function updateViewingDateLabel() {
 }
 
 function goToToday() {
+  // Full return to today: date, the strip's visible month, and every surface
+  // that shows the viewed day. (Previously appointments + schedule kept
+  // showing the old day and the strip stayed on the old month.)
   viewingDate = dateKey(today);
+  calViewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   updateViewingDateLabel();
   renderTasks();
+  renderAppointments();
+  renderScheduleGrid();
   renderCalStrip();
 }
 
@@ -6302,14 +6340,27 @@ function addHabitNamed(name) {
   state.habits.push({ id: Date.now(), name });
   renderHabits(); showToast(name + ' added');
 }
+// Popular habits, grouped into three floating boxes (26 Jul). Names must
+// match HABIT_LIBRARY exactly — every library habit appears in exactly one
+// group (asserted by the test harness, not at runtime).
+const HABIT_GROUPS = [
+  { box: 'hs-physical', card: 'hs-card-physical', names: ['Exercise','Walk','Run','Stretch','Drink water','Eat healthy','Early night','Vitamins','Fresh air'] },
+  { box: 'hs-mind',     card: 'hs-card-mind',     names: ['Morning reflection','Meditate','Gratitude','Plan tomorrow','Connect'] },
+  { box: 'hs-learn',    card: 'hs-card-learn',    names: ['Read','Study','Screen-free evening'] },
+];
 function renderHabitSuggestions() {
-  const box = document.getElementById('habit-suggest'); if (!box) return;
   const have = new Set((state.habits || []).map(h => h.name.toLowerCase()));
-  const avail = HABIT_LIBRARY.filter(L => !have.has(L.name.toLowerCase()));
-  if (!avail.length) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="suggest-label">Popular habits — tap to add</div><div class="suggest-chips">' +
-    avail.map(L => `<button type="button" class="vt-help-chip" onclick="addHabitNamed('${L.name.replace(/'/g, "\\'")}')"><i class="ti ti-plus"></i>${L.name}</button>`).join('') +
-    '</div>';
+  HABIT_GROUPS.forEach(g => {
+    const box = document.getElementById(g.box);
+    const card = document.getElementById(g.card);
+    if (!box || !card) return;
+    const avail = HABIT_LIBRARY.filter(L => g.names.includes(L.name) && !have.has(L.name.toLowerCase()));
+    if (!avail.length) { box.innerHTML = ''; card.style.display = 'none'; return; }
+    card.style.display = '';
+    box.innerHTML = '<div class="suggest-label">Tap to add</div><div class="suggest-chips">' +
+      avail.map(L => `<button type="button" class="vt-help-chip" onclick="addHabitNamed('${L.name.replace(/'/g, "\\'")}')"><i class="ti ti-plus"></i>${L.name}</button>`).join('') +
+      '</div>';
+  });
 }
 function addHabit() {
   const inp = document.getElementById('habit-inp');
@@ -7950,7 +8001,7 @@ function renderYear() {
     for (let day = 1; day <= daysInMonth; day++) {
       const k = `${yearCursor}-${String(m + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const cls = 'yv-d' + (byDay[k] ? ' has' : '') + (k === todayK ? ' today' : '');
-      cells += `<div class="${cls}" onclick="openDayInDaily('${k}')">${day}</div>`;
+      cells += `<div class="${cls}" onclick="openMonthView(${yearCursor},${m})">${day}</div>`;
     }
     html += `<div class="yv-month"><div class="yv-name" onclick="openMonthView(${yearCursor},${m})">${name}</div>` +
             `<div class="yv-days">${dows}${cells}</div></div>`;
