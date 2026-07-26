@@ -2676,6 +2676,11 @@ html, body {
        theme; cards go translucent with a blur so the photo breathes through.
        If no photo has loaded, none of this applies — the plain theme renders. ---- */
     #lp-atmo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;opacity:0;transition:opacity .6s ease;pointer-events:none;}
+    /* Goals: peak sits below the header (desktop) and below the header + the
+       Month/Year sheet tabs (phone, which stacks taller). The empty band the
+       shift creates hides behind the opaque topbar. */
+    #lp-atmo.pos-goals{background-position:center 170px;}
+    @media (max-width:767.98px){ #lp-atmo.pos-goals{background-position:center 290px;} }
     /* Scrim fix (26 Jul): light gradient wash — the photo reads as a photo at
        first glance. Densest behind the content column where the cards sit,
        lightest at the edges. Legibility lives on the cards, not the wash. */
@@ -5368,7 +5373,7 @@ const LP_PHOTOS = { values:'assets/lp/values', goals:'assets/lp/goals', habits:'
 // Per-photo focal position — goals is nudged down so the mountain peak sits
 // below the navy header instead of hiding behind it. The shifted band above
 // the image lands behind the opaque topbar, so no seam shows.
-const LP_POS = { goals: 'center 170px' };
+const LP_POS = { goals: 'pos-goals' };   // CSS class per photo — lets the phone shift further than desktop
 const lpLoaded = {};   // section -> resolved URL | 'failed'
 function updateAtmosphere(tab) {
   const base = LP_PHOTOS[tab];
@@ -5378,7 +5383,7 @@ function updateAtmosphere(tab) {
   const cached = lpLoaded[tab];
   if (cached && cached !== 'failed') {
     el.style.backgroundImage = `url('${cached}')`;
-    el.style.backgroundPosition = LP_POS[tab] || 'center';
+    el.className = LP_POS[tab] || '';
     document.body.classList.add('atmo-on');
     return;
   }
@@ -5392,7 +5397,7 @@ function updateAtmosphere(tab) {
       const active = document.querySelector('.sec.active');
       if (active && active.id === 'sec-' + tab) {
         el.style.backgroundImage = `url('${url}')`;
-        el.style.backgroundPosition = LP_POS[tab] || 'center';
+        el.className = LP_POS[tab] || '';
         document.body.classList.add('atmo-on');
       }
     };
