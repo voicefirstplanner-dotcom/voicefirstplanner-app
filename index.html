@@ -1540,6 +1540,12 @@ html, body {
   /* group filtering unchanged — only the active group's tabs render */
   .nav-btn[data-group].in-group { display: flex; }
 
+  /* Life Planning atmosphere (scrim fix follow-up, 26 Jul): when a photo is
+     up, the sidebar stops just below its last tab (Reflect) so the photo
+     shows beneath — instead of a full-height navy column. Photo pages only;
+     the daily-planning side keeps the full column. */
+  body.atmo-on .nav { align-self: start; border-radius: 0 0 14px 14px; padding-bottom: 14px; }
+
   /* Cap readable width so cards & list items don't sprawl */
   .content > .sec { max-width: 860px; }
 
@@ -2639,10 +2645,15 @@ html, body {
        theme; cards go translucent with a blur so the photo breathes through.
        If no photo has loaded, none of this applies — the plain theme renders. ---- */
     #lp-atmo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;opacity:0;transition:opacity .6s ease;pointer-events:none;}
-    #lp-atmo::after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(var(--atmo-tint),0.62), rgba(var(--atmo-tint),0.72));}
+    /* Scrim fix (26 Jul): light gradient wash — the photo reads as a photo at
+       first glance. Densest behind the content column where the cards sit,
+       lightest at the edges. Legibility lives on the cards, not the wash. */
+    #lp-atmo::after{content:'';position:absolute;inset:0;background:
+      linear-gradient(180deg, rgba(var(--atmo-tint),0.16) 0%, rgba(var(--atmo-tint),0.26) 45%, rgba(var(--atmo-tint),0.34) 100%),
+      radial-gradient(ellipse 62% 80% at 50% 42%, rgba(var(--atmo-tint),0.22), rgba(var(--atmo-tint),0) 72%);}
     body.atmo-on #lp-atmo{opacity:1;}
-    .topbar,.content,.nav,.group-nav{position:relative;z-index:1;}
-    body.atmo-on .content .sec.active .card{background:color-mix(in srgb, var(--card) 90%, transparent);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);}
+    .topbar,.content,.nav,.nav-group{position:relative;z-index:1;}
+    body.atmo-on .content .sec.active .card{background:color-mix(in srgb, var(--card) 94%, transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
     @media (min-width:768px){
       .mv-cell{min-height:96px;padding:5px 5px 6px;}
       .mv-daynum{font-size:12px;}
