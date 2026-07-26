@@ -50,6 +50,51 @@
   --font-display: 'DM Serif Display', serif;
   --nav-h: 56px;
   --topbar-h: 72px;
+  /* ---- Theme system (Change 2). A theme is a variable set, nothing structural.
+     Classic = these root values. --appt drives the timed-appointment colour
+     everywhere (pills, chevrons, time text via the darker --appt-text);
+     --atmo-tint is the RGB the Life Planning scrim takes from the theme. ---- */
+  --card: #FFFFFF;
+  --appt: var(--appt);
+  --appt-text: #1A66B5;
+  --on-accent: var(--navy);
+  --atmo-tint: 12,68,124;
+}
+html[data-theme="sage"] {
+  --navy:#3E5C50; --navy-deep:#2C443B; --navy-mid:#4E7362; --navy-light:#7C9A83;
+  --orange:#A26124; --orange-hover:#824C1A; --on-accent:#FFFFFF;
+  --ice:#ECF1E8; --pale:#CBD9CD; --bg:#F5F1E6; --card:#FFFFFF;
+  --text:#282C28; --text-mid:#575E56; --text-light:#828A80; --border:#C7D4C6;
+  --appt:#5E8A6E; --appt-text:#396A4C; --atmo-tint:62,92,80;
+}
+html[data-theme="lavender"] {
+  --navy:#5D3A6E; --navy-deep:#432850; --navy-mid:#7A5590; --navy-light:#A78BBA;
+  --orange:#A8437C; --orange-hover:#86325F; --on-accent:#FFFFFF;
+  --ice:#F3EDF7; --pale:#DCCDE8; --bg:#F7F2F8; --card:#FFFFFF;
+  --text:#2C2630; --text-mid:#605868; --text-light:#8B8292; --border:#DCCDE8;
+  --appt:#8E6FB0; --appt-text:#6C4A94; --atmo-tint:93,58,110;
+}
+html[data-theme="ocean"] {
+  --navy:#123A4A; --navy-deep:#0B2833; --navy-mid:#17707A; --navy-light:#3FB3B5;
+  --orange:#BC5225; --orange-hover:#98411C; --on-accent:#FFFFFF;
+  --ice:#E3F2F2; --pale:#B8DADB; --bg:#EFF6F6; --card:#FFFFFF;
+  --text:#20302F; --text-mid:#526260; --text-light:#7E8E8C; --border:#B8DADB;
+  --appt:#1F8A8C; --appt-text:#136B70; --atmo-tint:18,58,74;
+}
+html[data-theme="paper"] {
+  --navy:#2B2B2B; --navy-deep:#1C1C1C; --navy-mid:#4A4A45; --navy-light:#6E6E66;
+  --orange:#B8933E; --orange-hover:#94742D; --on-accent:#262622;
+  --ice:#F1EDE0; --pale:#DDD5C0; --bg:#F7F4EC; --card:#FFFDF6;
+  --text:#262622; --text-mid:#514F46; --text-light:#7B7869; --border:#DDD5C0;
+  --appt:#8A6F2F; --appt-text:#6E5824; --atmo-tint:43,43,43;
+}
+html[data-theme="midnight"] {
+  --navy:#D7E4F6; --navy-deep:#0B0F16; --navy-mid:#2A3A52; --navy-light:#6FB7FF;
+  --orange:#F2913F; --orange-hover:#FFA95C; --on-accent:#0B0F16;
+  --ice:#223146; --pale:#31415A; --bg:#10141B; --card:#1B222D;
+  --text:#E7EDF5; --text-mid:#ADBACB; --text-light:#8494A8; --border:#31415A;
+  --appt:#6FB7FF; --appt-text:#9CCBFF; --atmo-tint:11,15,22;
+  --shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -101,7 +146,7 @@ html, body {
   opacity: 0.8;
 }
 .auth-card {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius-lg);
   padding: 28px 24px;
   width: 100%;
@@ -128,7 +173,7 @@ html, body {
   transition: all 0.2s;
 }
 .auth-tab.active {
-  background: var(--white);
+  background: var(--card);
   color: var(--navy);
   box-shadow: var(--shadow);
 }
@@ -163,7 +208,7 @@ html, body {
   border-radius: var(--radius);
   border: none;
   background: var(--orange);
-  color: var(--navy);
+  color: var(--on-accent);
   font-family: var(--font);
   font-size: 15px;
   font-weight: 600;
@@ -191,7 +236,7 @@ html, body {
   padding: 12px;
   border-radius: var(--radius);
   border: 1.5px solid var(--border);
-  background: var(--white);
+  background: var(--card);
   font-family: var(--font);
   font-size: 14px;
   font-weight: 500;
@@ -259,7 +304,7 @@ html, body {
 .onboard-footer {
   padding: 16px 24px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  background: var(--white);
+  background: var(--card);
   border-top: 1px solid var(--border);
 }
 .ob-btn {
@@ -268,7 +313,7 @@ html, body {
   border-radius: var(--radius);
   border: none;
   background: var(--orange);
-  color: var(--navy);
+  color: var(--on-accent);
   font-family: var(--font);
   font-size: 15px;
   font-weight: 600;
@@ -293,7 +338,7 @@ html, body {
   padding: 12px 14px;
   border-radius: var(--radius);
   border: 1.5px solid var(--border);
-  background: var(--white);
+  background: var(--card);
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
@@ -359,7 +404,7 @@ html, body {
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .user-badge {
   background: var(--orange);
-  color: var(--navy);
+  color: var(--on-accent);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: 12px;
@@ -370,14 +415,14 @@ html, body {
 .fb-chips { display: flex; gap: 8px; margin-bottom: 14px; }
 .fb-chip {
   flex: 1; padding: 10px 6px; border-radius: var(--radius);
-  border: 1px solid var(--border); background: var(--white);
+  border: 1px solid var(--border); background: var(--card);
   font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-mid);
   cursor: pointer; transition: all 0.15s; text-align: center;
 }
 .fb-chip.active { background: var(--ice); border-color: var(--navy-mid); color: var(--navy); }
 .fb-textarea {
   width: 100%; min-height: 96px; padding: 12px; border-radius: var(--radius);
-  border: 1px solid var(--border); background: var(--white);
+  border: 1px solid var(--border); background: var(--card);
   font-family: var(--font); font-size: 14px; color: var(--text); resize: vertical; box-sizing: border-box;
 }
 .fb-textarea:focus { outline: none; border-color: var(--navy-mid); }
@@ -605,7 +650,7 @@ html, body {
    CARDS
    ============================================================ */
 .card {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius-lg);
   border: 0.5px solid var(--border);
   padding: 14px;
@@ -841,7 +886,7 @@ html, body {
   padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--white);
+  background: var(--card);
   font-size: 11px;
   font-weight: 500;
   color: var(--navy-mid);
@@ -853,7 +898,7 @@ html, body {
    PROJECTS
    ============================================================ */
 .proj-card {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius-lg);
   border: 0.5px solid var(--border);
   overflow: hidden;
@@ -879,7 +924,7 @@ html, body {
   border-radius: 20px;
   font-weight: 500;
   background: var(--orange);
-  color: var(--navy);
+  color: var(--on-accent);
 }
 .proj-stats {
   display: grid;
@@ -967,7 +1012,7 @@ html, body {
   margin-bottom: 12px;
 }
 .cap-btn {
-  background: var(--white);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 8px;
@@ -997,7 +1042,7 @@ html, body {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius);
   margin-bottom: 6px;
   border: 0.5px solid var(--border);
@@ -1021,7 +1066,7 @@ html, body {
    NOTES
    ============================================================ */
 .note-card {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius-lg);
   border: 0.5px solid var(--border);
   padding: 12px 14px;
@@ -1095,7 +1140,7 @@ html, body {
 .cl-del { background: none; border: none; color: var(--text-light); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0; opacity: 0.55; }
 .cl-del:hover { opacity: 1; color: #c0392b; }
 .cl-add-row { display: flex; gap: 6px; margin-top: 8px; }
-.cl-add-inp { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-family: var(--font); font-size: 13px; color: var(--text); background: var(--white); box-sizing: border-box; }
+.cl-add-inp { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-family: var(--font); font-size: 13px; color: var(--text); background: var(--card); box-sizing: border-box; }
 .cl-add-inp:focus { outline: none; border-color: var(--orange); }
 .cl-add-btn { flex-shrink: 0; width: 34px; border: none; border-radius: 8px; background: var(--navy); color: #fff; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
 .cl-add-btn:hover { background: var(--orange); color: var(--navy); }
@@ -1266,11 +1311,11 @@ html, body {
 .week-body { padding:4px 12px 8px; }
 .week-item { display:flex; align-items:center; gap:9px; padding:6px 0; border-top:1px solid var(--border,#eef2f6); font-size:13px; }
 .week-item:first-child { border-top:none; }
-.week-time { font-size:11px; font-weight:700; color:#4A9EF7; min-width:58px; }
+.week-time { font-size:11px; font-weight:700; color:var(--appt); min-width:58px; }
 .week-appt, .week-task { color:var(--text,#1d2b3a); }
 .week-empty { font-size:12px; color:var(--text-mid,#8aa0b3); padding:7px 0; }
 .modal-sheet {
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 24px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
@@ -1292,7 +1337,7 @@ html, body {
   border-radius: var(--radius);
   border: none;
   background: var(--orange);
-  color: var(--navy);
+  color: var(--on-accent);
   font-family: var(--font);
   font-size: 15px;
   font-weight: 700;
@@ -1304,7 +1349,7 @@ html, body {
 /* Recurring-delete choice options (added 2026-07-15) */
 .recur-opt {
   display: block; width: 100%; text-align: left; cursor: pointer;
-  background: var(--white); border: 1.5px solid var(--border);
+  background: var(--card); border: 1.5px solid var(--border);
   border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
   font-family: inherit; transition: border-color .15s, background .15s;
 }
@@ -1384,7 +1429,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  background: var(--white);
+  background: var(--card);
   border-radius: var(--radius);
   margin-bottom: 4px;
   border: 0.5px solid var(--border);
@@ -2169,7 +2214,7 @@ html, body {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:8px">
             <div class="card-label" style="margin-bottom:0">Calendar</div>
-            <button onclick="goToToday()" id="go-today-btn" style="display:none;background:var(--orange);color:var(--navy);border:none;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
+            <button onclick="goToToday()" id="go-today-btn" style="display:none;background:var(--orange);color:var(--on-accent);border:none;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
           </div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:10px">
@@ -2180,7 +2225,7 @@ html, body {
         <div id="cal-strip" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center"></div>
         <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:var(--orange)"></div>Tasks</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:#4A9EF7"></div>Appointments</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:var(--appt)"></div>Appointments</div>
           <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid)"><div style="width:8px;height:8px;border-radius:50%;background:var(--navy);border:1.5px solid var(--orange)"></div>Today</div>
         </div>
       </div>
@@ -2245,7 +2290,7 @@ html, body {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div class="card-label" style="margin-bottom:0">✅ Prioritised tasks</div>
         </div>
-        <div id="overload-notice" style="display:none;background:rgba(74,158,247,0.1);border-left:3px solid #4A9EF7;border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
+        <div id="overload-notice" style="display:none;background:color-mix(in srgb, var(--appt) 12%, transparent);border-left:3px solid var(--appt);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
         <div id="task-list"></div>
         <div class="task-add-row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
           <input class="task-inp" id="task-inp" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:120px">
@@ -2280,7 +2325,7 @@ html, body {
             <span id="mv-label" style="font-size:17px;color:var(--navy);font-weight:800;min-width:140px;text-align:center"></span>
             <button onclick="monthShift(1)" aria-label="Next month" class="mv-nav">›</button>
           </div>
-          <button onclick="monthToday()" style="background:var(--orange);color:var(--navy);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
+          <button onclick="monthToday()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
         </div>
         <div class="mv-dowrow" id="mv-dowrow"></div>
         <div class="mv-grid" id="mv-grid"></div>
@@ -2307,7 +2352,7 @@ html, body {
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input class="task-inp" id="habit-inp" placeholder="New habit…" style="flex:1" onkeydown="if(event.key==='Enter')addHabit()">
           <button class="field-mic" onclick="dictateInto('habit-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
-          <button onclick="addHabit()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+          <button onclick="addHabit()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <div class="habit-suggest" id="habit-suggest"></div>
         <div class="streak-bar">
@@ -2332,7 +2377,7 @@ html, body {
           <input class="task-inp" id="goal-inp" placeholder="New goal…" style="flex:1" onkeydown="if(event.key==='Enter')addGoal()">
           <button class="field-mic" onclick="dictateInto('goal-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <input class="task-inp" id="goal-target" type="number" min="1" placeholder="#" style="width:62px;flex:none">
-          <button onclick="addGoal()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+          <button onclick="addGoal()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <select class="task-inp" id="goal-role-sel" style="width:100%;margin-top:6px">
           <option value="">Link to a life role (optional)</option>
@@ -2353,7 +2398,7 @@ html, body {
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="task-inp" id="bucket-inp" placeholder="Something you want to do someday…" style="flex:1" onkeydown="if(event.key==='Enter')addBucketItem()">
           <button class="field-mic" onclick="dictateInto('bucket-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
-          <button onclick="addBucketItem()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 16px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+          <button onclick="addBucketItem()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 16px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <div id="bucket-list"></div>
       </div>
@@ -2364,7 +2409,7 @@ html, body {
       <div class="card" style="padding:10px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div class="card-label" style="margin-bottom:0">My projects</div>
-          <button onclick="showNewProjForm()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:5px 10px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">
+          <button onclick="showNewProjForm()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:5px 10px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">
             <i class="ti ti-plus" style="font-size:14px"></i> New
           </button>
         </div>
@@ -2461,7 +2506,7 @@ html, body {
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input class="task-inp" id="value-inp" placeholder="Add a value…" style="flex:1" onkeydown="if(event.key==='Enter')addValue()">
           <button class="field-mic" onclick="dictateInto('value-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
-          <button onclick="addValue()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+          <button onclick="addValue()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <button class="ai-btn" onclick="aiAction('Help me clarify and deepen my personal values using values-based planning principles. Walk me through identifying what matters most to me.')">
           <i class="ti ti-sparkles"></i>AI values clarification<span class="soon-badge">Pro · soon</span>
@@ -2473,7 +2518,7 @@ html, body {
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
           <input class="task-inp" id="role-inp" placeholder="Add a life role…" style="flex:1" onkeydown="if(event.key==='Enter')addRole()">
           <button class="field-mic" onclick="dictateInto('role-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
-          <button onclick="addRole()" style="background:var(--orange);color:var(--navy);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
+          <button onclick="addRole()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
         <button class="ai-btn" onclick="aiAction('Help me define what success looks like in each of my key life roles: Parent, Professional, Learner, Friend, and Community member.')">
           <i class="ti ti-sparkles"></i>AI role-success coaching<span class="soon-badge">Pro · soon</span>
@@ -2518,7 +2563,7 @@ html, body {
   <style>
     .vt-overlay{position:fixed;inset:0;z-index:2000;display:none;background:rgba(4,44,83,0.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px;font-family:var(--font);}
     .vt-overlay.show{display:flex;}
-    .vt-card{background:var(--white);width:100%;max-width:440px;border-radius:18px;box-shadow:0 18px 50px rgba(4,44,83,0.35);overflow:hidden;display:flex;flex-direction:column;max-height:94vh;}
+    .vt-card{background:var(--card);width:100%;max-width:440px;border-radius:18px;box-shadow:0 18px 50px rgba(4,44,83,0.35);overflow:hidden;display:flex;flex-direction:column;max-height:94vh;}
     .vt-head{background:var(--navy);padding:16px 18px 14px;position:relative;}
     .vt-eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#85B7EB;font-weight:700;}
     .vt-title{font-family:var(--font-display);font-size:21px;line-height:1.15;margin-top:3px;color:#fff;}
@@ -2568,7 +2613,7 @@ html, body {
     .mv-cell.today{border-color:var(--orange);border-width:1.5px;background:rgba(242,119,26,0.05);}
     .mv-daynum{font-size:11px;font-weight:700;color:var(--text);margin-bottom:1px;}
     .mv-cell.today .mv-daynum{color:var(--orange);}
-    .mv-pill{display:block;font-size:9px;font-weight:600;background:rgba(74,158,247,0.18);border-left:2px solid #4A9EF7;color:var(--text);border-radius:4px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-align:left;min-width:0;}
+    .mv-pill{display:block;font-size:9px;font-weight:600;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:2px solid var(--appt);color:var(--text);border-radius:4px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-align:left;min-width:0;}
     .mv-pill.allday{background:rgba(242,119,26,0.15);border-left-color:var(--orange);}
     .mv-more{font-size:9px;font-weight:700;color:var(--text-mid);margin-top:2px;padding-left:3px;}
     .yv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
@@ -2589,6 +2634,15 @@ html, body {
     .sheet-tab i{font-size:13px;color:var(--orange);}
     @media (max-width:767.98px){ .nav-btn.nav-mv{display:none !important;} }
     @media (min-width:768px){ .mv-sheettabs{display:none;} }
+    /* ---- Change 3: Life Planning atmosphere. The photo sits on a fixed layer
+       behind the content; a theme-hued scrim keeps text AA-readable in every
+       theme; cards go translucent with a blur so the photo breathes through.
+       If no photo has loaded, none of this applies — the plain theme renders. ---- */
+    #lp-atmo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;opacity:0;transition:opacity .6s ease;pointer-events:none;}
+    #lp-atmo::after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(var(--atmo-tint),0.62), rgba(var(--atmo-tint),0.72));}
+    body.atmo-on #lp-atmo{opacity:1;}
+    .topbar,.content,.nav,.group-nav{position:relative;z-index:1;}
+    body.atmo-on .content .sec.active .card{background:color-mix(in srgb, var(--card) 90%, transparent);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);}
     @media (min-width:768px){
       .mv-cell{min-height:96px;padding:5px 5px 6px;}
       .mv-daynum{font-size:12px;}
@@ -2597,7 +2651,7 @@ html, body {
       .mv-dow{font-size:11px;}
       .mv-cell:hover{background:var(--ice);}
       .mv-cell.today:hover{background:rgba(242,119,26,0.1);}
-      .mv-pill:hover{background:rgba(74,158,247,0.32);}
+      .mv-pill:hover{background:color-mix(in srgb, var(--appt) 34%, transparent);}
       .mv-pill.allday:hover{background:rgba(242,119,26,0.28);}
       .yv-grid{grid-template-columns:repeat(3,1fr);gap:12px;}
       .yv-d{font-size:10px;padding:3px 0;}
@@ -2652,6 +2706,10 @@ html, body {
         <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
         <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value" id="set-plan">Free</span><span class="settings-row-action" id="set-plan-action" onclick="showUpgrade()">Upgrade</span></div>
       </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div id="theme-picker" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 2px"></div>
+      </div>
       <div class="settings-section" id="library-section">
         <div class="settings-section-title" id="library-title">Your Library</div>
         <div id="library-rows"><div class="settings-row"><span class="settings-row-label" style="color:var(--text-light)">Loading…</span></div></div>
@@ -2676,6 +2734,11 @@ html, body {
   </div>
 
   <div class="rem-alert" id="reminder-alert"></div>
+
+  <!-- Life Planning atmosphere (Change 3): full-bleed photo layer behind the
+       content when a Life Planning section is open. Lazy-loaded — the daily
+       planner never fetches a photo. Scrim tint follows the active theme. -->
+  <div id="lp-atmo" aria-hidden="true"></div>
 
 </div><!-- /app -->
 
@@ -2869,7 +2932,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed','calLastView'];
+                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme'];
 
 function serializeState() {
   const out = {};
@@ -3487,6 +3550,7 @@ let state = {
   inactiveValues: new Set(),
   apptHintDismissed: false,
   calLastView: 'daily',
+  theme: 'classic',
   iconIdx: 0,
   reminders: [],
 };
@@ -3819,6 +3883,7 @@ function showTab(name, btn, skipGroupSync) {
   if (name === 'week') renderWeek();
   if (name === 'month') renderMonth();
   if (name === 'year') renderYear();
+  updateAtmosphere(name);
   // One control, four options — remember the last-used calendar view so the
   // app reopens where the user lives (persisted; survives reload).
   if (['daily','week','month','year'].includes(name) && state.calLastView !== name) {
@@ -5210,6 +5275,80 @@ function apRefresh() {
   try { persistNow(); } catch (e) {}
 }
 
+// ============================================================
+// THEMES (Change 2) — six curated variable sets; Classic default.
+// A theme is CSS variables only; applying one repaints everything
+// (calendar pills included) with zero re-render.
+// ============================================================
+const THEMES = [
+  { id:'classic',  name:'Classic',     a:'#0C447C', b:'#F2771A' },
+  { id:'sage',     name:'Sage',        a:'#3E5C50', b:'#7C9A83' },
+  { id:'lavender', name:'Lavender',    a:'#5D3A6E', b:'#A78BBA' },
+  { id:'ocean',    name:'Ocean',       a:'#123A4A', b:'#1F8A8C' },
+  { id:'paper',    name:'Paper & Ink', a:'#2B2B2B', b:'#B8933E' },
+  { id:'midnight', name:'Midnight',    a:'#151A22', b:'#6FB7FF' },
+];
+function applyTheme() {
+  const t = THEMES.some(x => x.id === state.theme) ? state.theme : 'classic';
+  if (t === 'classic') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+}
+function setTheme(id) {
+  state.theme = id;
+  applyTheme();
+  renderThemePicker();
+  try { persistNow(); } catch (e) {}
+}
+function renderThemePicker() {
+  const el = document.getElementById('theme-picker');
+  if (!el) return;
+  const cur = THEMES.some(x => x.id === state.theme) ? state.theme : 'classic';
+  el.innerHTML = THEMES.map(t =>
+    `<button type="button" onclick="setTheme('${t.id}')" style="border:2px solid ${t.id === cur ? 'var(--orange)' : 'var(--border)'};border-radius:10px;padding:8px 4px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px">` +
+    `<span style="display:flex;gap:3px"><span style="width:16px;height:16px;border-radius:50%;background:${t.a}"></span><span style="width:16px;height:16px;border-radius:50%;background:${t.b}"></span></span>` +
+    `<span style="font-size:10.5px;font-weight:700;color:var(--text)">${t.name}</span>` +
+    (t.id === cur ? '<span style="font-size:9px;font-weight:700;color:var(--orange)">SELECTED</span>' : '<span style="font-size:9px;color:transparent">.</span>') +
+    `</button>`).join('');
+}
+
+// ============================================================
+// LIFE PLANNING ATMOSPHERE (Change 3) — one photo per section,
+// workbook chapter-opener style. WebP with JPEG fallback, lazy:
+// nothing is fetched until a Life Planning tab is opened. On any
+// load failure the section renders in the plain theme.
+// ============================================================
+const LP_PHOTOS = { values:'assets/lp/values', goals:'assets/lp/goals', habits:'assets/lp/habits', bucket:'assets/lp/bucket', reflect:'assets/lp/reflect' };
+const lpLoaded = {};   // section -> resolved URL | 'failed'
+function updateAtmosphere(tab) {
+  const base = LP_PHOTOS[tab];
+  const el = document.getElementById('lp-atmo');
+  if (!el) return;
+  if (!base) { document.body.classList.remove('atmo-on'); return; }
+  const cached = lpLoaded[tab];
+  if (cached && cached !== 'failed') {
+    el.style.backgroundImage = `url('${cached}')`;
+    document.body.classList.add('atmo-on');
+    return;
+  }
+  if (cached === 'failed') { document.body.classList.remove('atmo-on'); return; }
+  document.body.classList.remove('atmo-on');   // plain theme until the photo is ready
+  const tryLoad = (url, onFail) => {
+    const img = new Image();
+    img.onload = () => {
+      lpLoaded[tab] = url;
+      // Only apply if the user is still on this tab when the photo arrives.
+      const active = document.querySelector('.sec.active');
+      if (active && active.id === 'sec-' + tab) {
+        el.style.backgroundImage = `url('${url}')`;
+        document.body.classList.add('atmo-on');
+      }
+    };
+    img.onerror = onFail;
+    img.src = url;
+  };
+  tryLoad(base + '.webp', () => tryLoad(base + '.jpg', () => { lpLoaded[tab] = 'failed'; }));
+}
+
 function dismissApptHint(e) {
   if (e) e.stopPropagation();
   state.apptHintDismissed = true;
@@ -5251,19 +5390,19 @@ function renderAppointments() {
     const d = document.createElement('div');
     // Tappable card: raised border + chevron so it reads as "this opens".
     // The popup is the one edit surface — no pencil, no X on the row.
-    d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:rgba(74,158,247,0.1);border:1px solid rgba(74,158,247,0.35);border-left:3px solid #4A9EF7;margin-bottom:6px;cursor:pointer;box-shadow:0 1px 2px rgba(12,68,124,0.06)';
+    d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:color-mix(in srgb, var(--appt) 12%, transparent);border:1px solid color-mix(in srgb, var(--appt) 40%, transparent);border-left:3px solid var(--appt);margin-bottom:6px;cursor:pointer;box-shadow:0 1px 2px rgba(12,68,124,0.06)';
     d.onclick = () => openApptPopup(a.id);
     const when = a.allDay ? 'All day' : `${fmt12(a.timeStart)}${a.timeEnd ? ' – ' + fmt12(a.timeEnd) : ''}`;
     d.innerHTML = `
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text)">${a.title}</div>
-        <div style="font-size:11px;color:#4A9EF7;margin-top:2px">
+        <div style="font-size:11px;color:var(--appt-text);margin-top:2px">
           ${when}
           ${a.with ? ' · <span style="color:var(--text-mid)">with ' + a.with + '</span>' : ''}
           ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}
         </div>
       </div>
-      <div style="font-size:16px;color:#4A9EF7;opacity:0.7;flex-shrink:0">›</div>`;
+      <div style="font-size:16px;color:var(--appt);opacity:0.8;flex-shrink:0">›</div>`;
     el.appendChild(d);
   });
 }
@@ -5348,9 +5487,9 @@ function renderScheduleGrid() {
       const segTop = (Math.max(startM, h * 60) - h * 60) / 60;      // 0..1 within this hour
       const segBot = (Math.min(endM, (h + 1) * 60) - h * 60) / 60;  // 0..1 within this hour
       const apptEl = document.createElement('div');
-      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:rgba(74,158,247,0.18);border-left:3px solid #4A9EF7;${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:3px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
+      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:3px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
-        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:16px;min-width:0"><span style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span><span style="font-size:11px;color:#4A9EF7;white-space:nowrap;flex-shrink:0">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</span></div><div style="position:absolute;top:3px;right:6px;font-size:14px;line-height:1;color:#4A9EF7;opacity:0.7;pointer-events:none">›</div>`;
+        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:16px;min-width:0"><span style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span><span style="font-size:11px;color:var(--appt-text);white-space:nowrap;flex-shrink:0">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</span></div><div style="position:absolute;top:3px;right:6px;font-size:14px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">›</div>`;
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
@@ -6413,14 +6552,14 @@ function renderDetailCaptures() {
     let detailHtml = '';
     if (isLink && (c.title.startsWith('http') || c.body.startsWith('http'))) {
       const url = c.title.startsWith('http') ? c.title : c.body;
-      detailHtml += `<a href="${url}" target="_blank" rel="noopener" style="color:#4A9EF7;word-break:break-all">${url} ↗</a>`;
+      detailHtml += `<a href="${url}" target="_blank" rel="noopener" style="color:var(--appt);word-break:break-all">${url} ↗</a>`;
       if (body && c.body !== url) detailHtml += `<div style="margin-top:6px">${body}</div>`;
     } else if (body) {
       detailHtml += body;
     } else {
       detailHtml += '<span style="color:var(--text-light)">No further detail — tap a capture button to add more.</span>';
     }
-    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px"><button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:#4A9EF7;cursor:pointer">Edit</button><button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
+    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px"><button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">Edit</button><button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
     detail.innerHTML = detailHtml;
     d.onclick = (e) => {
       if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
@@ -7661,7 +7800,7 @@ function renderWeek() {
     else if (i === 1) tag = '<span class="week-tag">Tomorrow</span>';
     let body = '';
     appts.forEach(a => {
-      body += `<div class="week-item" style="cursor:pointer" onclick="openApptPopup(${a.id})"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span><span style="margin-left:auto;color:#4A9EF7;opacity:0.7">›</span></div>`;
+      body += `<div class="week-item" style="cursor:pointer" onclick="openApptPopup(${a.id})"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span><span style="margin-left:auto;color:var(--appt);opacity:0.8">›</span></div>`;
     });
     tasks.forEach(t => {
       body += `<div class="week-item"><span class="priority-badge p${t.p}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">${t.p}</span><span class="week-task">${t.text}</span></div>`;
@@ -7809,6 +7948,8 @@ function openMonthView(y, m) {
 // the schedule grid, the calendar strip and un-acked reminder banners.
 // If you add a new persisted key to STATE_KEYS, add its render call here.
 function renderAll() {
+  applyTheme();            // theme is persisted state — repaint before anything draws
+  renderThemePicker();
   renderFocus();
   renderTasks();
   renderHabits();
