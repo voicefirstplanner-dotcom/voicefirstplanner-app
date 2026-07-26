@@ -2146,6 +2146,8 @@ html, body {
   <div class="nav" id="main-nav">
     <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('week',this)"><i class="ti ti-calendar-week"></i>Week</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('month',this)"><i class="ti ti-calendar-month"></i>Month</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('year',this)"><i class="ti ti-calendar-stats"></i>Year</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
@@ -2266,6 +2268,34 @@ html, body {
         <div class="card-label">The week ahead</div>
         <div style="font-size:12px;color:var(--text-mid);margin:2px 0 12px">Your next 7 days at a glance. Tap any day to open it.</div>
         <div id="week-list"></div>
+      </div>
+    </div>
+
+    <!-- MONTH TAB (Stage 3 — the calendar bet) -->
+    <div class="sec" id="sec-month">
+      <div class="card" style="padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="monthShift(-1)" aria-label="Previous month" class="mv-nav">‹</button>
+            <span id="mv-label" style="font-size:17px;color:var(--navy);font-weight:800;min-width:140px;text-align:center"></span>
+            <button onclick="monthShift(1)" aria-label="Next month" class="mv-nav">›</button>
+          </div>
+          <button onclick="monthToday()" style="background:var(--orange);color:var(--navy);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer">Today</button>
+        </div>
+        <div class="mv-dowrow" id="mv-dowrow"></div>
+        <div class="mv-grid" id="mv-grid"></div>
+      </div>
+    </div>
+
+    <!-- YEAR TAB (Stage 3) -->
+    <div class="sec" id="sec-year">
+      <div class="card" style="padding:14px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
+          <button onclick="yearShift(-1)" aria-label="Previous year" class="mv-nav">‹</button>
+          <span id="yv-label" style="font-size:17px;color:var(--navy);font-weight:800;min-width:70px;text-align:center"></span>
+          <button onclick="yearShift(1)" aria-label="Next year" class="mv-nav">›</button>
+        </div>
+        <div class="yv-grid" id="yv-grid"></div>
       </div>
     </div>
 
@@ -2528,6 +2558,51 @@ html, body {
     .ap-label{display:block;font-size:11px;font-weight:700;color:var(--text-mid);margin-bottom:3px;}
     .ap-field .task-inp{width:100%;box-sizing:border-box;}
     .ap-time{width:100%;box-sizing:border-box;border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--card);}
+    /* ---- Stage 3: Month + Year views (phone base; 768/1024 parity below) ---- */
+    .mv-nav{background:var(--navy-deep);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;color:var(--orange);cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .mv-dowrow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px;}
+    .mv-dow{font-size:10px;font-weight:700;color:var(--text-mid);text-align:center;padding:2px 0;}
+    .mv-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+    .mv-cell{min-height:62px;border:1px solid var(--border);border-radius:8px;padding:3px 3px 4px;background:var(--card);cursor:pointer;overflow:hidden;display:flex;flex-direction:column;align-items:stretch;min-width:0;}
+    .mv-cell.other{opacity:0.45;}
+    .mv-cell.today{border-color:var(--orange);border-width:1.5px;background:rgba(242,119,26,0.05);}
+    .mv-daynum{font-size:11px;font-weight:700;color:var(--text);margin-bottom:1px;}
+    .mv-cell.today .mv-daynum{color:var(--orange);}
+    .mv-pill{display:block;font-size:9px;font-weight:600;background:rgba(74,158,247,0.18);border-left:2px solid #4A9EF7;color:var(--text);border-radius:4px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-align:left;min-width:0;}
+    .mv-pill.allday{background:rgba(242,119,26,0.15);border-left-color:var(--orange);}
+    .mv-more{font-size:9px;font-weight:700;color:var(--text-mid);margin-top:2px;padding-left:3px;}
+    .yv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+    .yv-month{border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--card);}
+    .yv-name{font-size:12px;font-weight:800;color:var(--navy);margin-bottom:5px;cursor:pointer;}
+    .yv-days{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
+    .yv-dow{font-size:8px;font-weight:700;color:var(--text-mid);text-align:center;padding:1px 0;}
+    .yv-d{font-size:9px;text-align:center;padding:2px 0;border-radius:5px;cursor:pointer;color:var(--text);}
+    .yv-d.pad{cursor:default;}
+    .yv-d.has{background:var(--ice);color:var(--navy);font-weight:700;}
+    .yv-d.today{outline:1.5px solid var(--orange);color:var(--orange);font-weight:800;}
+    @media (min-width:768px){
+      .mv-cell{min-height:96px;padding:5px 5px 6px;}
+      .mv-daynum{font-size:12px;}
+      .mv-pill{font-size:11px;padding:2px 5px;border-radius:5px;}
+      .mv-more{font-size:10px;}
+      .mv-dow{font-size:11px;}
+      .mv-cell:hover{background:var(--ice);}
+      .mv-cell.today:hover{background:rgba(242,119,26,0.1);}
+      .mv-pill:hover{background:rgba(74,158,247,0.32);}
+      .mv-pill.allday:hover{background:rgba(242,119,26,0.28);}
+      .yv-grid{grid-template-columns:repeat(3,1fr);gap:12px;}
+      .yv-d{font-size:10px;padding:3px 0;}
+      .yv-dow{font-size:9px;}
+      .yv-name{font-size:13px;}
+      .yv-d:not(.pad):hover{background:var(--ice);}
+      .yv-name:hover{color:var(--orange);}
+      .mv-nav:hover{background:var(--navy-mid,#185FA5);}
+    }
+    @media (min-width:1024px){
+      .mv-cell{min-height:112px;}
+      .mv-pill{font-size:12px;}
+      .yv-grid{grid-template-columns:repeat(4,1fr);}
+    }
   </style>
   <div class="vt-overlay" id="voice-tut">
     <div class="vt-card">
@@ -2785,7 +2860,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed'];
+                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed','calLastView'];
 
 function serializeState() {
   const out = {};
@@ -3402,6 +3477,7 @@ let state = {
   selectedValues: new Set(['Family','Growth','Health']),
   inactiveValues: new Set(),
   apptHintDismissed: false,
+  calLastView: 'daily',
   iconIdx: 0,
   reminders: [],
 };
@@ -3585,7 +3661,7 @@ function launchApp() {
   checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
   topUpRecurringSeries(); // keep every recurring series covered ~60 days ahead
   renderAll();
-  showGroup('daily-planning', 'daily');
+  showGroup('daily-planning', ['daily','week','month','year'].includes(state.calLastView) ? state.calLastView : 'daily');
   try { addHelpChips(); } catch (e) {}
   loadEntitlement();
   handleCheckoutReturn();
@@ -3709,7 +3785,7 @@ function skipOnboarding() {
 // NAVIGATION
 // ============================================================
 // Maps each content tab to its parent group
-const TAB_GROUP = { daily:'daily-planning', week:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
+const TAB_GROUP = { daily:'daily-planning', week:'daily-planning', month:'daily-planning', year:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
                     goals:'life-planning', values:'life-planning', bucket:'life-planning', habits:'life-planning', reflect:'life-planning' };
 
 function showGroup(group, activeTab) {
@@ -3732,6 +3808,14 @@ function showTab(name, btn, skipGroupSync) {
   if (sec) sec.classList.add('active');
   if (btn) btn.classList.add('active');
   if (name === 'week') renderWeek();
+  if (name === 'month') renderMonth();
+  if (name === 'year') renderYear();
+  // One control, four options — remember the last-used calendar view so the
+  // app reopens where the user lives (persisted; survives reload).
+  if (['daily','week','month','year'].includes(name) && state.calLastView !== name) {
+    state.calLastView = name;
+    try { persistNow(); } catch (e) {}
+  }
   // keep the correct group open and its sub-tabs visible
   if (!skipGroupSync) {
     const group = TAB_GROUP[name] || 'daily-planning';
@@ -4864,6 +4948,7 @@ function deleteAppointment(id) {
   renderAppointments();
   renderScheduleGrid();
   renderCalStrip();
+  try { renderMonth(); renderYear(); } catch (e) {}
 }
 
 // ============================================================
@@ -4944,6 +5029,7 @@ function confirmRecurDelete(mode) {
   renderAppointments();
   renderScheduleGrid();
   renderCalStrip();
+  try { renderMonth(); renderYear(); } catch (e) {}
   try { persistNow(); } catch (e) {}
   showToast(mode === 'one'
     ? 'Occurrence deleted — the series continues'
@@ -5103,6 +5189,7 @@ function apRefresh() {
   renderAppointments();
   renderScheduleGrid();
   renderCalStrip();
+  try { renderMonth(); renderYear(); } catch (e) {}
   try { persistNow(); } catch (e) {}
 }
 
@@ -7591,6 +7678,114 @@ function openDayInDaily(k) {
   showTab('daily');
 }
 
+// ============================================================
+// MONTH + YEAR VIEWS (Stage 3 — the calendar bet). Google mould:
+// true month grid with weeks as rows (Monday-anchored, same as the
+// strip and weekKey logic), appointment pills, "+N more" overflow,
+// 12 mini-months for the year. Desktop/iPad-first; phone functional.
+// ============================================================
+let monthCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+let yearCursor = today.getFullYear();
+
+function monthShift(dir) {
+  monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + dir, 1);
+  renderMonth();
+}
+function monthToday() {
+  monthCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  renderMonth();
+}
+function yearShift(dir) {
+  yearCursor += dir;
+  renderYear();
+}
+
+// Appointments per dateKey for one month, time-sorted, all-day first —
+// computed once per render, not per cell.
+function apptsByDayForRange(fromKey, toKey) {
+  const map = {};
+  (state.appointments || []).forEach(a => {
+    if (!a.date || a.date < fromKey || a.date > toKey) return;
+    (map[a.date] = map[a.date] || []).push(a);
+  });
+  Object.values(map).forEach(list => list.sort((a, b) => {
+    if (!!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
+    return (a.timeStart || '').localeCompare(b.timeStart || '');
+  }));
+  return map;
+}
+
+function renderMonth() {
+  const grid = document.getElementById('mv-grid');
+  const dowrow = document.getElementById('mv-dowrow');
+  const lbl = document.getElementById('mv-label');
+  if (!grid) return;
+  lbl.textContent = monthCursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  dowrow.innerHTML = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<div class="mv-dow">${d}</div>`).join('');
+
+  const y = monthCursor.getFullYear(), m = monthCursor.getMonth();
+  const first = new Date(y, m, 1);
+  const lead = (first.getDay() + 6) % 7;                    // Mon=0, same anchor as the strip
+  const start = new Date(y, m, 1 - lead);                   // Monday opening the first row
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const rows = Math.ceil((lead + daysInMonth) / 7);         // correct across every month/year boundary
+  const todayK = dateKey(today);
+  const fromK = dateKey(start);
+  const endD = new Date(start); endD.setDate(start.getDate() + rows * 7 - 1);
+  const byDay = apptsByDayForRange(fromK, dateKey(endD));
+  const MAX_PILLS = 3;
+
+  let html = '';
+  const d = new Date(start);
+  for (let i = 0; i < rows * 7; i++) {
+    const k = dateKey(d);
+    const inMonth = d.getMonth() === m;
+    const appts = byDay[k] || [];
+    let pills = '';
+    appts.slice(0, MAX_PILLS).forEach(a => {
+      const t = a.allDay ? '' : (a.timeStart ? fmt12(a.timeStart) + ' ' : '');
+      pills += `<span class="mv-pill${a.allDay ? ' allday' : ''}" title="${a.title}" onclick="event.stopPropagation();openApptPopup(${a.id})">${t}${a.title}</span>`;
+    });
+    if (appts.length > MAX_PILLS) pills += `<span class="mv-more">+${appts.length - MAX_PILLS} more</span>`;
+    html += `<div class="mv-cell${inMonth ? '' : ' other'}${k === todayK ? ' today' : ''}" onclick="openDayInDaily('${k}')">` +
+            `<span class="mv-daynum">${d.getDate()}</span>${pills}</div>`;
+    d.setDate(d.getDate() + 1);
+  }
+  grid.innerHTML = html;
+}
+
+function renderYear() {
+  const grid = document.getElementById('yv-grid');
+  const lbl = document.getElementById('yv-label');
+  if (!grid) return;
+  lbl.textContent = yearCursor;
+  const todayK = dateKey(today);
+  const byDay = apptsByDayForRange(`${yearCursor}-01-01`, `${yearCursor}-12-31`);
+  const dows = ['M','T','W','T','F','S','S'].map(d => `<div class="yv-dow">${d}</div>`).join('');
+  let html = '';
+  for (let m = 0; m < 12; m++) {
+    const first = new Date(yearCursor, m, 1);
+    const name = first.toLocaleDateString('en-GB', { month: 'long' });
+    const lead = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(yearCursor, m + 1, 0).getDate();
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<div class="yv-d pad"></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const k = `${yearCursor}-${String(m + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const cls = 'yv-d' + (byDay[k] ? ' has' : '') + (k === todayK ? ' today' : '');
+      cells += `<div class="${cls}" onclick="openDayInDaily('${k}')">${day}</div>`;
+    }
+    html += `<div class="yv-month"><div class="yv-name" onclick="openMonthView(${yearCursor},${m})">${name}</div>` +
+            `<div class="yv-days">${dows}${cells}</div></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function openMonthView(y, m) {
+  monthCursor = new Date(y, m, 1);
+  showTab('month');
+}
+
 // Paints every screen that reads persisted state. Anything restored by
 // applyState() MUST be rendered from here, or it loads into memory and stays
 // invisible — the class of bug that hid the Daily Focus, the appointment list,
@@ -7608,6 +7803,8 @@ function renderAll() {
   renderValues();
   renderHappened();
   renderWeek();
+  renderMonth();           // Stage 3: month/year read persisted appointments — same render-at-login rule
+  renderYear();
   renderAppointments();    // was only reached via topUpRecurringSeries()'s `added > 0` branch
   renderScheduleGrid();    // same
   renderCalStrip();        // same, plus checkCarryForward()'s `if (moved)` branch
