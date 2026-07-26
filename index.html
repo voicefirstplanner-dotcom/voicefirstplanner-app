@@ -4359,9 +4359,35 @@ function endVoiceTutorial(completed) {
 
 // Inject a small "Voice tips" help chip into each tab, deep-linking to that field's
 // tutorial step. Safe to call repeatedly (guarded per section).
+// Jump to the Prioritised tasks card — from any calendar view (switches to
+// Daily first when needed, then scrolls).
+function jumpToTasks() {
+  const goScroll = () => {
+    const card = document.getElementById('tasks-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const dailySec = document.getElementById('sec-daily');
+  if (dailySec && dailySec.classList.contains('active')) { goScroll(); return; }
+  showTab('daily');
+  requestAnimationFrame(goScroll);
+}
 function addHelpChips() {
-  const map = { daily:'focus', projects:'project', notes:'note', shopping:'shopping',
+  const map = { daily:'focus', week:'focus', month:'focus', year:'focus',
+                projects:'project', notes:'note', shopping:'shopping',
                 goals:'goal', values:'values', bucket:'bucket', habits:'habit', reflect:'reflect' };
+  // All four calendar views get the balanced row: Tasks (left) · phone-only
+  // sheet tabs to the other views (middle) · Voice tips (right). On iPad and
+  // desktop the tabs stay hidden (the side menu covers switching) but Tasks +
+  // Voice tips remain. Daily keeps its shipped pair (Month + Year — Day and
+  // Week already live in the phone nav).
+  const CAL_TABS = {
+    daily: ['month','year'],
+    week:  ['daily','month','year'],
+    month: ['daily','week','year'],
+    year:  ['daily','week','month'],
+  };
+  const TAB_META = { daily:['ti-calendar','Daily'], week:['ti-calendar-week','Week'],
+                     month:['ti-calendar-month','Month'], year:['ti-calendar-stats','Year'] };
   Object.keys(map).forEach(name => {
     const sec = document.getElementById('sec-' + name);
     if (!sec || sec.dataset.helpChip) return;
@@ -4369,28 +4395,19 @@ function addHelpChips() {
     const key = map[name];
     const row = document.createElement('div');
     row.className = 'vt-help-row';
-    // Daily gets a "Tasks" jump chip on the left, opposite the Voice tips chip —
-    // one tap straight to the Prioritised tasks card without scrolling past the
-    // calendar, schedule and appointments. Same chip style, no layout reflow.
-    if (name === 'daily') {
+    if (CAL_TABS[name]) {
       row.style.justifyContent = 'space-between';
       const jump = document.createElement('button');
       jump.type = 'button';
       jump.className = 'vt-help-chip';
       jump.title = 'Jump to tasks';
       jump.innerHTML = '<i class="ti ti-checklist"></i> Tasks';
-      jump.onclick = () => {
-        const card = document.getElementById('tasks-card');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      };
+      jump.onclick = jumpToTasks;
       row.appendChild(jump);
-      // Change 1 (phone-only, CSS-gated): Month + Year sheet tabs between the
-      // Tasks jump and the Voice-tips chip. Same showTab targets as the
-      // desktop switcher, so last-used-view memory works identically.
       const tabs = document.createElement('div');
       tabs.className = 'mv-sheettabs';
-      tabs.innerHTML = '<button type="button" class="sheet-tab" onclick="showTab(\'month\')"><i class="ti ti-calendar-month"></i>Month</button>' +
-                       '<button type="button" class="sheet-tab" onclick="showTab(\'year\')"><i class="ti ti-calendar-stats"></i>Year</button>';
+      tabs.innerHTML = CAL_TABS[name].map(v =>
+        `<button type="button" class="sheet-tab" onclick="showTab('${v}')"><i class="ti ${TAB_META[v][0]}"></i>${TAB_META[v][1]}</button>`).join('');
       row.appendChild(tabs);
     }
     const btn = document.createElement('button');
@@ -7925,7 +7942,13 @@ function monthShift(dir) {
   renderMonth();
 }
 function monthToday() {
+  // Snap to the current month AND select today everywhere (viewed day, strip),
+  // so the button always visibly acts — even if the current month was already
+  // on screen.
   monthCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  viewingDate = dateKey(today);
+  calViewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  updateViewingDateLabel();
   renderMonth();
 }
 function yearShift(dir) {
