@@ -2471,14 +2471,19 @@ html, body {
 
     <!-- REFLECT TAB -->
     <div class="sec" id="sec-reflect">
+      <!-- Each reflection question lives in its own box (26 Jul) — the photo
+           shows between them, and each question gets its own moment. All ids
+           and handlers unchanged; this is a markup split only. -->
       <div class="card">
         <div class="card-label">Daily reflection</div>
-        <p style="font-size:12px;color:var(--navy-light);margin-bottom:14px;line-height:1.5">The cornerstone of intentional living — 5 minutes to review your day and set tomorrow's intention.</p>
-        <div class="reflect-q"><div class="reflect-label">What went well today? <button class="field-mic" onclick="dictateInto('r-well',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-well" placeholder="Speak or type your answer…"></textarea></div>
-        <div class="reflect-q"><div class="reflect-label">What could I improve tomorrow? <button class="field-mic" onclick="dictateInto('r-improve',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-improve" placeholder="Speak or type your answer…"></textarea></div>
-        <div class="reflect-q"><div class="reflect-label">What am I grateful for? <button class="field-mic" onclick="dictateInto('r-grateful',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-grateful" placeholder="Speak or type your answer…"></textarea></div>
-        <div class="reflect-q"><div class="reflect-label">My intention for tomorrow <button class="field-mic" onclick="dictateInto('r-intention',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-intention" placeholder="Speak or type your answer…"></textarea></div>
-        <button class="save-btn" id="reflect-save-btn" onclick="saveReflection()">Save today's reflection</button>
+        <p style="font-size:12px;color:var(--navy-light);line-height:1.5;margin-bottom:0">The cornerstone of intentional living — 5 minutes to review your day and set tomorrow's intention.</p>
+      </div>
+      <div class="card"><div class="reflect-q" style="margin-bottom:0"><div class="reflect-label">What went well today? <button class="field-mic" onclick="dictateInto('r-well',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-well" placeholder="Speak or type your answer…"></textarea></div></div>
+      <div class="card"><div class="reflect-q" style="margin-bottom:0"><div class="reflect-label">What could I improve tomorrow? <button class="field-mic" onclick="dictateInto('r-improve',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-improve" placeholder="Speak or type your answer…"></textarea></div></div>
+      <div class="card"><div class="reflect-q" style="margin-bottom:0"><div class="reflect-label">What am I grateful for? <button class="field-mic" onclick="dictateInto('r-grateful',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-grateful" placeholder="Speak or type your answer…"></textarea></div></div>
+      <div class="card"><div class="reflect-q" style="margin-bottom:0"><div class="reflect-label">My intention for tomorrow <button class="field-mic" onclick="dictateInto('r-intention',this)" title="Speak"><i class="ti ti-microphone"></i></button></div><textarea class="reflect-ta" rows="2" id="r-intention" placeholder="Speak or type your answer…"></textarea></div></div>
+      <div class="card">
+        <button class="save-btn" id="reflect-save-btn" onclick="saveReflection()" style="margin-top:0">Save today's reflection</button>
         <div class="saved-badge" id="reflect-saved">Reflection saved — well done for taking the time.</div>
         <button id="reflection-history-btn" onclick="toggleReflectionHistory()" style="width:100%;margin-top:10px;background:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-family:var(--font);font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-history"></i>View past reflections ↗</button>
         <div id="reflection-history" style="display:none;margin-top:8px"><div id="reflection-list"></div></div>
@@ -2654,6 +2659,11 @@ html, body {
     body.atmo-on #lp-atmo{opacity:1;}
     .topbar,.content,.nav,.nav-group{position:relative;z-index:1;}
     body.atmo-on .content .sec.active .card{background:color-mix(in srgb, var(--card) 94%, transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+    /* More of the photo between the boxes (26 Jul): double the card gap on
+       photo pages only — enough to see the image breathe, not enough to
+       look out of proportion. Non-photo tabs keep the standard 10px. */
+    body.atmo-on .content .sec.active .card{margin-bottom:20px;}
+    body.atmo-on .content .sec.active .ai-btn{margin-bottom:20px;}
     @media (min-width:768px){
       .mv-cell{min-height:96px;padding:5px 5px 6px;}
       .mv-daynum{font-size:12px;}
