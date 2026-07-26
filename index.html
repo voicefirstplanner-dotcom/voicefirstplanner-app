@@ -2253,6 +2253,13 @@ html, body {
         <input class="focus-input" id="focus-input" placeholder="What's the one thing that matters most today?" onblur="setFocus()" onkeydown="if(event.key==='Enter')setFocus()">
       </div>
 
+      <!-- P1: AI BRAIN-DUMP (Pro). Empty your head; the AI proposes tasks and
+           appointments; NOTHING enters the planner until it is approved on the
+           review sheet. Non-Pro users get the existing interest-capture modal. -->
+      <button class="ai-btn" style="margin:0 0 10px" onclick="openAiDump()">
+        <i class="ti ti-sparkles"></i>AI brain-dump — speak it, we'll sort it<span class="soon-badge" id="ai-dump-badge">Pro</span>
+      </button>
+
       <!-- APPOINTMENTS (time-specific) -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -2940,6 +2947,35 @@ html, body {
       <button id="ap-delete" onclick="apDelete()" style="flex:1;background:none;border:1px solid #e08a8a;border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:#c0392b;cursor:pointer">Delete</button>
     </div>
     <button class="modal-close-btn" onclick="closeApptPopup()">Cancel</button>
+  </div>
+</div>
+
+<!-- P1 — BRAIN-DUMP INPUT -->
+<div class="modal-overlay" id="ai-dump-modal" onclick="if(event.target===this)closeAiDump()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">AI brain-dump</div>
+    <div class="modal-sub">Say or type everything on your mind — tasks, appointments, who and when. The AI sorts it into a proposal you approve before anything is added.</div>
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
+      <textarea class="task-inp" id="ai-dump-text" rows="5" placeholder="e.g. Call the plumber tomorrow, gym with Sam at 6, pick up paint — oh and the dentist Thursday 2pm…" style="flex:1;resize:vertical"></textarea>
+      <button class="field-mic" onclick="dictateInto('ai-dump-text',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+    </div>
+    <button class="modal-cta" id="ai-dump-go" onclick="submitAiDump()">Structure it</button>
+    <button class="modal-close-btn" onclick="closeAiDump()">Cancel</button>
+  </div>
+</div>
+
+<!-- P1 — REVIEW-BEFORE-COMMIT SHEET (Option A, the trust boundary).
+     Full-screen and opaque; NOTHING writes to the planner except through the
+     "Add to planner" button below, on exactly the items still on this sheet. -->
+<div class="modal-overlay" id="ai-review-modal">
+  <div class="modal-sheet sheet-full" style="display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Review before it goes in</div>
+    <div class="modal-sub">Edit anything, remove what you don't want. Only what's below gets added — nothing is in your planner yet.</div>
+    <div id="ai-review-list" style="flex:1;overflow-y:auto;margin:4px 0 10px"></div>
+    <button class="modal-cta" id="ai-review-add" onclick="commitAiReview()">Add to planner</button>
+    <button class="modal-close-btn" onclick="cancelAiReview()">Cancel — add nothing</button>
   </div>
 </div>
 
@@ -5422,6 +5458,204 @@ function updateAtmosphere(tab) {
     img.src = url;
   };
   tryLoad(base + '.webp', () => tryLoad(base + '.jpg', () => { lpLoaded[tab] = 'failed'; }));
+}
+
+// ============================================================
+// P1 — PRO AI BRAIN-DUMP STRUCTURING (Stage 4).
+// Flow: brain-dump (voice or typed) → /api/ai-structure → proposal
+// → REVIEW SHEET (Option A) → user approves → items land in state.
+// ⛔ THE TRUST BOUNDARY: commitAiReview() is the ONLY function that
+// writes AI output into the planner, and it runs only from the
+// review sheet's "Add to planner" button. No other path may commit
+// AI output — not now, not as a later convenience shortcut.
+// ============================================================
+let aiProposal = null;   // { tasks:[{cid,...}], appointments:[{cid,...}] } while the sheet is open
+
+function aiClientIsPro() {
+  // The server is the real gate (entitlement + AI_TEST_USER_IDS). The client
+  // check only decides which surface opens. #ai-test in the URL lets a test
+  // account reach the dump modal before Pro checkout exists — the server
+  // still refuses anyone not entitled or test-listed.
+  if ((location.hash || '').includes('ai-test')) return true;
+  return state.entitlement?.plan === 'pro';
+}
+
+function openAiDump() {
+  if (!aiClientIsPro()) {
+    aiAction('Speak your whole brain-dump — tasks, appointments, people, times — and have it sorted into your planner for your approval.');
+    return;
+  }
+  document.getElementById('ai-dump-modal').classList.add('open');
+}
+function closeAiDump() { document.getElementById('ai-dump-modal').classList.remove('open'); }
+
+async function submitAiDump() {
+  const ta = document.getElementById('ai-dump-text');
+  const btn = document.getElementById('ai-dump-go');
+  const text = (ta.value || '').trim();
+  if (!text) { showToast('Say or type something first'); return; }
+  btn.disabled = true; btn.textContent = 'Structuring…';
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (sb) {
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+      } catch (e) {}
+    }
+    const resp = await fetch('/api/ai-structure', {
+      method: 'POST', headers,
+      body: JSON.stringify({ text, today: dateKey(today) })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      // Fail LOUD; the raw text stays in the box so nothing is lost.
+      showToast(data.error || 'Couldn\'t structure this — try again');
+      return;
+    }
+    closeAiDump();
+    openAiReview(data);
+  } catch (e) {
+    showToast('Couldn\'t structure this — try again');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Structure it';
+  }
+}
+
+// ---- Review sheet ----
+function openAiReview(proposal) {
+  let cid = 1;
+  aiProposal = {
+    tasks: (proposal.tasks || []).map(t => ({ cid: cid++, ...t })),
+    appointments: (proposal.appointments || []).map(a => ({ cid: cid++, ...a })),
+  };
+  renderAiReview();
+  document.getElementById('ai-review-modal').classList.add('open');
+}
+function cancelAiReview() {
+  // The explicit no-write path: close, discard, planner untouched.
+  aiProposal = null;
+  document.getElementById('ai-review-modal').classList.remove('open');
+  showToast('Nothing was added');
+}
+
+function aiReviewCount() {
+  return aiProposal ? aiProposal.tasks.length + aiProposal.appointments.length : 0;
+}
+
+function renderAiReview() {
+  const list = document.getElementById('ai-review-list');
+  const addBtn = document.getElementById('ai-review-add');
+  if (!aiProposal) { list.innerHTML = ''; return; }
+  const esc = sTxt => String(sTxt).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  let html = '';
+  aiProposal.tasks.forEach(t => {
+    html += `<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <button type="button" class="priority-badge p${t.p}" title="Tap to change priority" onclick="aiCyclePriority(${t.cid})" style="width:26px;height:26px;font-size:12px;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center">${t.p}</button>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--text-mid);text-transform:uppercase;flex:1">Task</span>
+        <button type="button" title="Remove" onclick="aiRemoveItem(${t.cid})" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 6px;opacity:0.7">×</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input class="task-inp" id="ai-rt-${t.cid}" value="${esc(t.text)}" oninput="aiEditField(${t.cid},'text',this.value)" style="flex:1">
+        <button class="field-mic" onclick="dictateInto('ai-rt-${t.cid}',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="ap-label" style="margin:0">Day</span>
+        <input type="date" class="ap-time" style="width:auto;flex:1" value="${esc(t.date || '')}" onchange="aiEditField(${t.cid},'date',this.value)">
+        <span style="font-size:10px;color:var(--text-mid)">blank = today</span>
+      </div>
+    </div>`;
+  });
+  aiProposal.appointments.forEach(a => {
+    html += `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--appt)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--appt-text);text-transform:uppercase;flex:1">Appointment${a.allDay ? ' · all-day' : ''}</span>
+        <button type="button" title="Remove" onclick="aiRemoveItem(${a.cid})" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 6px;opacity:0.7">×</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input class="task-inp" id="ai-ra-${a.cid}" value="${esc(a.title)}" oninput="aiEditField(${a.cid},'title',this.value)" style="flex:1">
+        <button class="field-mic" onclick="dictateInto('ai-ra-${a.cid}',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input type="date" class="ap-time" value="${esc(a.date)}" onchange="aiEditField(${a.cid},'date',this.value)" style="flex:1.4">
+        ${a.allDay ? '' : `<input type="time" class="ap-time" value="${esc(a.timeStart)}" onchange="aiEditField(${a.cid},'timeStart',this.value)" style="flex:1">
+        <input type="time" class="ap-time" value="${esc(a.timeEnd)}" onchange="aiEditField(${a.cid},'timeEnd',this.value)" style="flex:1">`}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="ap-label" style="margin:0">With</span>
+        <input class="task-inp" id="ai-rw-${a.cid}" value="${esc(a.with || '')}" oninput="aiEditField(${a.cid},'with',this.value)" style="flex:1">
+        <button class="field-mic" onclick="dictateInto('ai-rw-${a.cid}',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+      </div>
+    </div>`;
+  });
+  if (!html) html = '<div style="text-align:center;color:var(--text-mid);font-size:13px;padding:24px 0">Everything removed — cancel, or go back and dump again.</div>';
+  list.innerHTML = html;
+  const n = aiReviewCount();
+  addBtn.textContent = n ? `Add ${n} to planner` : 'Nothing to add';
+  addBtn.disabled = !n;
+}
+
+function aiFind(cid) {
+  if (!aiProposal) return null;
+  return aiProposal.tasks.find(t => t.cid === cid) || aiProposal.appointments.find(a => a.cid === cid) || null;
+}
+function aiEditField(cid, field, value) {
+  const item = aiFind(cid);
+  if (item) item[field] = value;
+}
+function aiCyclePriority(cid) {
+  const item = aiFind(cid);
+  if (!item) return;
+  item.p = item.p === 'A' ? 'B' : item.p === 'B' ? 'C' : 'A';
+  renderAiReview();
+}
+function aiRemoveItem(cid) {
+  if (!aiProposal) return;
+  aiProposal.tasks = aiProposal.tasks.filter(t => t.cid !== cid);
+  aiProposal.appointments = aiProposal.appointments.filter(a => a.cid !== cid);
+  renderAiReview();
+}
+
+// ⛔ The ONE commit path for AI output — runs only from the review sheet's
+// "Add to planner". Approved items land in the exact manual-add shapes;
+// nothing writes on cancel; edits made on the sheet are what commit.
+function commitAiReview() {
+  if (!aiProposal || !aiReviewCount()) return;
+  const todayK = dateKey(today);
+  let added = 0;
+  let firstDate = null;
+  aiProposal.tasks.forEach(t => {
+    const text = (t.text || '').trim();
+    if (!text) return;
+    const d = (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) ? t.date : todayK;
+    state.tasks.push({ id: Date.now() + added, text, p: ['A','B','C'].includes(t.p) ? t.p : 'B', done: false, date: d, origDate: d });
+    if (!firstDate) firstDate = d;
+    added++;
+  });
+  aiProposal.appointments.forEach(a => {
+    const title = (a.title || '').trim();
+    if (!title) return;
+    const d = (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) ? a.date : todayK;
+    state.appointments.push({
+      id: Date.now() + added, title, timeStart: a.allDay ? '' : (a.timeStart || ''), timeEnd: a.allDay ? '' : (a.timeEnd || ''),
+      date: d, location: (a.location || '').trim(), with: (a.with || '').trim(), notes: (a.notes || '').trim(),
+      allDay: !!a.allDay, done: false
+    });
+    if (!firstDate) firstDate = d;
+    added++;
+  });
+  aiProposal = null;
+  document.getElementById('ai-review-modal').classList.remove('open');
+  if (firstDate) {
+    viewingDate = firstDate;
+    calViewMonth = new Date(firstDate + 'T12:00:00'); calViewMonth.setDate(1);
+    updateViewingDateLabel();
+  }
+  renderTasks();
+  apRefresh();   // appointments + schedule + strip + month/year + persist
+  showTab('daily');
+  showToast(`Added ${added} item${added === 1 ? '' : 's'} to your planner`);
 }
 
 function dismissApptHint(e) {
