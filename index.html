@@ -3077,19 +3077,56 @@ async function loadState() {
 // ---- Save the planner (only when something actually changed) ----
 let lastSavedJSON = null;
 let saving = false;
+let savingSince = 0;   // watchdog: a save that hangs (e.g. laptop slept mid-save)
+                       // must never wedge `saving` true forever — that silently
+                       // no-ops EVERY later save until reload (the P1 Fix-3 drop).
 async function persistNow() {
-  if (!sb || !authUserId || isDemo || saving) return;
+  if (!sb || !authUserId || isDemo) return;
+  if (saving) {
+    if (Date.now() - savingSince < 15000) return;   // a real save is in flight
+    console.warn('persist watchdog: clearing a stuck save flag');
+    saving = false;                                  // stuck — clear and proceed
+  }
   const snapshot = serializeState();
   const json = JSON.stringify(snapshot);
   if (json === lastSavedJSON) return;          // nothing changed
-  saving = true;
-  const { error } = await sb.from('planner_state').upsert(
-    { user_id: authUserId, data: snapshot, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id' }
-  );
-  saving = false;
-  if (error) { console.warn('Supabase save error:', error.message); return; }
-  lastSavedJSON = json;
+  saving = true; savingSince = Date.now();
+  try {
+    const { error } = await sb.from('planner_state').upsert(
+      { user_id: authUserId, data: snapshot, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) { console.warn('Supabase save error:', error.message); return; }
+    lastSavedJSON = json;
+  } finally {
+    saving = false;    // whatever happens, the flag clears
+  }
+}
+
+// Critical-path save: performs the upsert itself and REPORTS the result.
+// Used where "saved" must be true before telling the user it is (the P1
+// commit). Returns { ok, error }.
+async function persistCritical() {
+  if (!sb || !authUserId || isDemo) return { ok: false, error: 'Not signed in' };
+  if (saving && Date.now() - savingSince < 15000) {
+    await new Promise(r => setTimeout(r, 1200));     // let an in-flight save finish
+  }
+  saving = true; savingSince = Date.now();
+  try {
+    const snapshot = serializeState();
+    const json = JSON.stringify(snapshot);
+    const { error } = await sb.from('planner_state').upsert(
+      { user_id: authUserId, data: snapshot, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) return { ok: false, error: error.message };
+    lastSavedJSON = json;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally {
+    saving = false;
+  }
 }
 
 // Autosave: poll every few seconds and save only on change. This catches
@@ -4052,7 +4089,7 @@ async function startRecording(onText, onStart, onStop, onError) {
       if (text) { onText(text); }
       else { showToast('Couldn\'t make out any words — try again'); if (onError) onError('notext'); }
     } catch (err) {
-      showToast('Voice service is unavailable right now — try again in a moment'); if (onError) onError('neterr');
+      showToast((err && err.userMessage) || 'Voice service is unavailable right now — try again in a moment'); if (onError) onError('neterr');
     }
   };
   try { mediaRecorder.start(); }
@@ -4097,7 +4134,13 @@ async function transcribeBlob(blob) {
     try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
     const err = new Error(msg); err.userMessage = msg; throw err;
   }
-  if (!resp.ok) throw new Error('transcribe http ' + resp.status);
+  if (!resp.ok) {
+    // Fix 1 (27 Jul): surface the server's own reason instead of a generic
+    // "unavailable" — the next failure names itself.
+    let msg = 'Voice service error (' + resp.status + ')';
+    try { const j = await resp.json(); if (j && j.error) msg = j.error + ' (' + resp.status + ')'; } catch (e) {}
+    const err = new Error(msg); err.userMessage = msg; throw err;
+  }
   const data = await resp.json();
   return ((data && data.text) || '').trim();
 }
@@ -4139,8 +4182,12 @@ function dictateInto(fieldId, btnEl) {
     (text) => {
       field.value = field.value ? (field.value.trim() + ' ' + text) : text;
       field.dispatchEvent(new Event('input'));
+      try { field.focus(); } catch (e) {}
     },
-    () => { if (btnEl) btnEl.classList.add('mic-on'); field.focus(); },
+    // Fix 1 (27 Jul): no focus at record start — on iOS, focusing a field
+    // (esp. inside a modal) raises the keyboard, which can suspend the
+    // MediaRecorder and produce empty audio → server 400 → "unavailable".
+    () => { if (btnEl) btnEl.classList.add('mic-on'); },
     () => { if (btnEl) btnEl.classList.remove('mic-on'); }
   );
 }
@@ -5471,6 +5518,12 @@ function updateAtmosphere(tab) {
 // ============================================================
 let aiProposal = null;   // { tasks:[{cid,...}], appointments:[{cid,...}] } while the sheet is open
 
+// The user's REAL current date, read at call time — never the page-load
+// `today` const. On a session left open across midnight (or days), "blank =
+// today" must mean the actual today. (App-wide read-date-once stays a known
+// limitation on record; the P1 paths do not share it.)
+function nowKey() { return dateKey(new Date()); }
+
 function aiClientIsPro() {
   // The server is the real gate (entitlement + AI_TEST_USER_IDS). The client
   // check only decides which surface opens. #ai-test in the URL lets a test
@@ -5505,7 +5558,7 @@ async function submitAiDump() {
     }
     const resp = await fetch('/api/ai-structure', {
       method: 'POST', headers,
-      body: JSON.stringify({ text, today: dateKey(today) })
+      body: JSON.stringify({ text, today: nowKey() })
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
@@ -5620,42 +5673,83 @@ function aiRemoveItem(cid) {
 // ⛔ The ONE commit path for AI output — runs only from the review sheet's
 // "Add to planner". Approved items land in the exact manual-add shapes;
 // nothing writes on cancel; edits made on the sheet are what commit.
-function commitAiReview() {
+//
+// FAIL-LOUD CONTRACT (Fix 3, 27 Jul): committed-count must equal approved-
+// count AND the save must be CONFIRMED before the sheet closes or success is
+// claimed. Items that can't commit (no text) stay on the sheet, named. If the
+// account save fails, everything is rolled back out of state and the sheet
+// stays open — "Added 0" reporting as success is the one behaviour the trust
+// boundary cannot allow.
+async function commitAiReview() {
   if (!aiProposal || !aiReviewCount()) return;
-  const todayK = dateKey(today);
-  let added = 0;
-  let firstDate = null;
-  aiProposal.tasks.forEach(t => {
-    const text = (t.text || '').trim();
-    if (!text) return;
-    const d = (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) ? t.date : todayK;
-    state.tasks.push({ id: Date.now() + added, text, p: ['A','B','C'].includes(t.p) ? t.p : 'B', done: false, date: d, origDate: d });
-    if (!firstDate) firstDate = d;
-    added++;
-  });
-  aiProposal.appointments.forEach(a => {
-    const title = (a.title || '').trim();
-    if (!title) return;
-    const d = (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) ? a.date : todayK;
-    state.appointments.push({
-      id: Date.now() + added, title, timeStart: a.allDay ? '' : (a.timeStart || ''), timeEnd: a.allDay ? '' : (a.timeEnd || ''),
-      date: d, location: (a.location || '').trim(), with: (a.with || '').trim(), notes: (a.notes || '').trim(),
-      allDay: !!a.allDay, done: false
+  const addBtn = document.getElementById('ai-review-add');
+  addBtn.disabled = true; const btnLabel = addBtn.textContent; addBtn.textContent = 'Adding…';
+  try {
+    const todayK = nowKey();   // the user's REAL today, not the page-load date
+    const approved = aiReviewCount();
+    const keepTasks = [], keepAppts = [], blocked = [];
+    aiProposal.tasks.forEach(t => {
+      ((t.text || '').trim()) ? keepTasks.push(t) : blocked.push(t);
     });
-    if (!firstDate) firstDate = d;
-    added++;
-  });
-  aiProposal = null;
-  document.getElementById('ai-review-modal').classList.remove('open');
-  if (firstDate) {
-    viewingDate = firstDate;
-    calViewMonth = new Date(firstDate + 'T12:00:00'); calViewMonth.setDate(1);
-    updateViewingDateLabel();
+    aiProposal.appointments.forEach(a => {
+      ((a.title || '').trim()) ? keepAppts.push(a) : blocked.push(a);
+    });
+
+    const newTaskIds = [], newApptIds = [];
+    let seq = 0, firstDate = null;
+    keepTasks.forEach(t => {
+      const d = (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) ? t.date : todayK;
+      const id = Date.now() + (seq++);
+      state.tasks.push({ id, text: t.text.trim(), p: ['A','B','C'].includes(t.p) ? t.p : 'B', done: false, date: d, origDate: d });
+      newTaskIds.push(id);
+      if (!firstDate) firstDate = d;
+    });
+    keepAppts.forEach(a => {
+      const d = (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) ? a.date : todayK;
+      const id = Date.now() + (seq++);
+      state.appointments.push({
+        id, title: a.title.trim(), timeStart: a.allDay ? '' : (a.timeStart || ''), timeEnd: a.allDay ? '' : (a.timeEnd || ''),
+        date: d, location: (a.location || '').trim(), with: (a.with || '').trim(), notes: (a.notes || '').trim(),
+        allDay: !!a.allDay, done: false
+      });
+      newApptIds.push(id);
+      if (!firstDate) firstDate = d;
+    });
+    const written = newTaskIds.length + newApptIds.length;
+
+    // Confirm the save BEFORE claiming anything.
+    const save = await persistCritical();
+    if (!save.ok) {
+      // Roll back: state must match reality — no phantom items that vanish on reload.
+      state.tasks = state.tasks.filter(t => !newTaskIds.includes(t.id));
+      state.appointments = state.appointments.filter(a => !newApptIds.includes(a.id));
+      showToast(`Nothing was added — couldn't save to your account (${save.error || 'connection problem'}). Check your connection and press Add again.`);
+      return;   // sheet stays open with everything still on it
+    }
+
+    if (written < approved) {
+      // Partial: the saved items leave the sheet; the blocked ones stay, named.
+      aiProposal.tasks = aiProposal.tasks.filter(t => blocked.includes(t));
+      aiProposal.appointments = aiProposal.appointments.filter(a => blocked.includes(a));
+      renderAiReview();
+      showToast(`${written} added and saved · ${approved - written} couldn't be added (no text) — still on the sheet`);
+    } else {
+      aiProposal = null;
+      document.getElementById('ai-review-modal').classList.remove('open');
+      showToast(`Added ${written} item${written === 1 ? '' : 's'} — saved to your planner`);
+    }
+
+    if (firstDate) {
+      viewingDate = firstDate;
+      calViewMonth = new Date(firstDate + 'T12:00:00'); calViewMonth.setDate(1);
+      updateViewingDateLabel();
+    }
+    renderTasks();
+    apRefresh();
+    if (!aiProposal) showTab('daily');
+  } finally {
+    addBtn.disabled = false; addBtn.textContent = btnLabel;
   }
-  renderTasks();
-  apRefresh();   // appointments + schedule + strip + month/year + persist
-  showTab('daily');
-  showToast(`Added ${added} item${added === 1 ? '' : 's'} to your planner`);
 }
 
 function dismissApptHint(e) {
