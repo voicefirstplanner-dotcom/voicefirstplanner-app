@@ -2099,7 +2099,7 @@ html, body {
       </button>
       <button class="auth-btn-apple" onclick="demoMode()" style="margin-top:8px;border-color:var(--orange);color:#0C447C">
         <i class="ti ti-player-play" style="font-size:16px;color:#F2771A"></i>
-        Try the demo — no account needed
+        Take a look around first — no account needed
       </button>
     </div>
     <div id="auth-signup" class="hidden">
@@ -3849,7 +3849,7 @@ function signInApple() {
 
 function demoMode() {
   isDemo = true;  // demo data lives only in this tab and is never saved
-  state.user = { name: 'Dave', email: 'demo@voicefirstdayplanner.com' };
+  state.user = { name: 'Guest', email: 'demo@voicefirstdayplanner.com' };
   launchApp();
 }
 
