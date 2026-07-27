@@ -110,10 +110,22 @@ async function checkAndRecord(actor) {
 }
 
 // ---- The structuring prompt -------------------------------------------------
+// Fix 2 (27 Jul): the model must know the WEEKDAY, not just the date — a dump
+// on "Sunday 26 July" said "dentist Tuesday at 2" and came back a Sunday.
+// Exported for the fixture harness.
+export function weekdayOf(dateKey) {
+  return new Date(dateKey + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+}
 function systemPrompt(today) {
+  const wd = weekdayOf(today);
   return [
     'You turn a person\'s spoken or typed brain dump into structured planner items.',
-    `Today is ${today}. Resolve relative dates ("tomorrow", "next Tuesday") against it.`,
+    `Today is ${wd}, ${today}. Resolve every relative date against that exact day:`,
+    `- "tomorrow" = the day after ${today}.`,
+    '- A bare weekday name ("Tuesday", "on Tuesday", "next Tuesday") = the FIRST such weekday STRICTLY AFTER today.',
+    '- "by <weekday>" = the first such weekday on or after today (a deadline lands ON that day).',
+    '- "this <weekday>" = the one inside the current Mon-Sun week if still ahead, otherwise the next one.',
+    '- Double-check the arithmetic: the produced date\'s weekday must match the word used.',
     'Rules:',
     '- Every actionable item becomes ONE task or ONE appointment. Do not invent items that are not in the text.',
     '- An APPOINTMENT is anything at a specific time or with a person/place attached (meetings, calls, bookings). Everything else is a TASK.',
