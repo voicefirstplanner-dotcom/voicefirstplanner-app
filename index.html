@@ -2979,6 +2979,19 @@ html, body {
   </div>
 </div>
 
+<!-- PRO UPGRADE (purchase path). Shown to non-Pro users in place of the
+     interest-capture modal once the path is open (PRO_LIVE / #pro-test). -->
+<div class="modal-overlay" id="pro-upgrade-modal" onclick="if(event.target===this)closeProUpgrade()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Go Pro</div>
+    <div class="modal-sub">Pro unlocks the AI brain-dump: say everything on your mind — tasks, people, times — and it comes back sorted for your approval. Nothing enters your planner until you say so. Every planning feature included.</div>
+    <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
+    <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $89/yr · save 43%</button>
+    <button class="modal-close-btn" onclick="closeProUpgrade()">Not now</button>
+  </div>
+</div>
+
 <!-- AI coming-soon / interest modal -->
 <div class="modal-overlay" id="ai-modal" onclick="if(event.target===this)closeAiModal()">
   <div class="modal-sheet">
@@ -5535,11 +5548,16 @@ function aiClientIsPro() {
 
 function openAiDump() {
   if (!aiClientIsPro()) {
-    aiAction('Speak your whole brain-dump — tasks, appointments, people, times — and have it sorted into your planner for your approval.');
+    if (proPathOpen()) {
+      document.getElementById('pro-upgrade-modal').classList.add('open');   // the real upgrade path
+    } else {
+      aiAction('Speak your whole brain-dump — tasks, appointments, people, times — and have it sorted into your planner for your approval.');   // "Pro — coming soon" interest capture (compliance)
+    }
     return;
   }
   document.getElementById('ai-dump-modal').classList.add('open');
 }
+function closeProUpgrade() { document.getElementById('pro-upgrade-modal').classList.remove('open'); }
 function closeAiDump() { document.getElementById('ai-dump-modal').classList.remove('open'); }
 
 async function submitAiDump() {
@@ -7630,11 +7648,27 @@ const STRIPE_PRICES = {
   monthly:  'price_1TeP8p1EGD58JnWmvhAXnF2T',
   annual:   'price_1TeP8o1EGD58JnWmHuObRMEy',
   lifetime: 'price_1TeP8n1EGD58JnWmyG1H9LV7',
+  // Pro (P1 AI). Dave: paste the two price IDs from the Stripe dashboard here
+  // at deploy (each price MUST carry metadata plan=pro — the webhook keys off it).
+  pro_monthly: 'price_1TxgJc1EGD58JnWmWPeoEUuY',
+  pro_annual:  'price_1TxgM71EGD58JnWmE0yUtzic',
 };
+
+// Kill-switch, same pattern as LIFETIME_LIVE: while false, real users still see
+// "Pro — coming soon" everywhere (compliance: AI stays coming-soon in all public
+// copy until a live Pro purchase → AI use is verified end to end). Testers reach
+// the real purchase path with #pro-test in the URL; startCheckout() enforces the
+// switch server-of-truth-style below, so no stray surface can sell Pro early.
+const PRO_LIVE = false;
+function proPathOpen() { return PRO_LIVE || (location.hash || '').includes('pro-test'); }
 
 async function startCheckout(priceId) {
   if (priceId === STRIPE_PRICES.lifetime && !LIFETIME_LIVE) {
     showToast('Lifetime is coming soon');
+    return;
+  }
+  if ((priceId === STRIPE_PRICES.pro_monthly || priceId === STRIPE_PRICES.pro_annual) && !proPathOpen()) {
+    showToast('Pro is coming soon');
     return;
   }
   if (!sb || isDemo || !authUserId) {
