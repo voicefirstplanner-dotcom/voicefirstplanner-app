@@ -2585,7 +2585,7 @@ html, body {
         <div class="card-label">Capture</div>
         <div class="capture-grid">
           <div class="cap-btn" onclick="capture('voice')"><i class="ti ti-microphone"></i><div class="cap-label">Voice memo</div></div>
-          <div class="cap-btn" onclick="capture('photo')"><i class="ti ti-camera"></i><div class="cap-label">Photo</div><span class="cap-soon">Coming soon</span></div>
+          <div class="cap-btn" onclick="capture('photo')"><i class="ti ti-camera"></i><div class="cap-label">Photo</div><span class="cap-soon" id="photo-quota" style="display:none"></span></div>
           <div class="cap-btn" onclick="capture('doc')"><i class="ti ti-file-text"></i><div class="cap-label">Document</div></div>
           <div class="cap-btn" onclick="capture('link')"><i class="ti ti-link"></i><div class="cap-label">Web link</div></div>
           <div class="cap-btn" onclick="capture('convo')"><i class="ti ti-message-circle"></i><div class="cap-label">Conversation</div></div>
@@ -2595,6 +2595,9 @@ html, body {
       <div class="card">
         <div class="card-label">Captured items</div>
         <div id="detail-captures"></div>
+        <!-- Photo capture: opens the camera on phone/iPad, the file picker on
+             desktop — the file input covers all platforms honestly. -->
+        <input type="file" id="photo-capture-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPicked(this)">
       </div>
       <div class="card">
         <div class="card-label">Linked tasks</div>
@@ -2947,6 +2950,14 @@ html, body {
       <button id="ap-delete" onclick="apDelete()" style="flex:1;background:none;border:1px solid #e08a8a;border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:#c0392b;cursor:pointer">Delete</button>
     </div>
     <button class="modal-close-btn" onclick="closeApptPopup()">Cancel</button>
+  </div>
+</div>
+
+<!-- PHOTO VIEWER — full-size view of a project photo capture -->
+<div class="modal-overlay" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
+  <div class="modal-sheet" style="max-width:min(96vw,900px);padding:10px">
+    <img id="photo-viewer-img" alt="Project photo" style="display:block;max-width:100%;max-height:78vh;margin:0 auto;border-radius:8px">
+    <button class="modal-close-btn" onclick="closePhotoViewer()">Close</button>
   </div>
 </div>
 
@@ -6922,10 +6933,10 @@ function closeDetail() {
 const CAP_ICONS = { voice: 'ti-microphone', photo: 'ti-camera', doc: 'ti-file-text', link: 'ti-link', convo: 'ti-message-circle', idea: 'ti-bulb' };
 const CAP_NAMES = { voice: 'Voice memo', photo: 'Photo', doc: 'Document', link: 'Web link', convo: 'Conversation', idea: 'Idea' };
 
-// Capture flow: real input via modal. Photo is an honest "mobile app" stub.
+// Capture flow: real input via modal. Photo opens the camera/file input (28 Jul).
 const CAP_CONFIG = {
-  voice: { title: 'Voice memo', sub: 'Type the note (full voice recording comes with the mobile app).', field1: 'Title (optional)', field2: 'What do you want to remember?', big: true },
-  doc:   { title: 'Document', sub: 'Note a document for this project so you can find it later (file upload comes with the mobile app).', field1: 'Document name or reference', field2: 'Where it is / notes (optional)', big: true },
+  voice: { title: 'Voice memo', sub: 'Type the note — or use the mic on any field to speak it.', field1: 'Title (optional)', field2: 'What do you want to remember?', big: true },
+  doc:   { title: 'Document', sub: 'Note a document for this project so you can find it later.', field1: 'Document name or reference', field2: 'Where it is / notes (optional)', big: true },
   link:  { title: 'Web link', sub: 'Paste the URL you want to save.', field1: 'https://…', field2: 'Why it matters (optional)', big: false },
   convo: { title: 'Conversation', sub: 'Capture who you spoke to and what was said.', field1: 'Who with?', field2: 'Key points', big: true },
   idea:  { title: 'Idea', sub: 'Capture the idea before it\'s gone.', field1: 'The idea', field2: 'Detail (optional)', big: true }
@@ -6935,7 +6946,7 @@ let captureType = null;
 function capture(type) {
   if (!currentProject) return;
   if (type === 'photo') {
-    showToast('📷 Photo capture comes with the VoiceFirstPlanner mobile app');
+    document.getElementById('photo-capture-input').click();
     return;
   }
   const cfg = CAP_CONFIG[type];
@@ -6951,6 +6962,157 @@ function capture(type) {
   i2.style.display = cfg.big ? 'block' : 'none';
   document.getElementById('capture-modal').classList.add('open');
   setTimeout(() => i1.focus(), 100);
+}
+
+// ============================================================
+// PHOTO CAPTURE (28 Jul) — camera on phone/iPad, file picker on
+// desktop, via the one file input. Client downscales to 1600px
+// longest edge / JPEG 0.8 before upload; private bucket
+// `project-captures`, path {user_id}/{project_id}/{ts}-{rand}.jpg,
+// signed URLs only. Demo mode: in-tab object URL, nothing uploads.
+// ============================================================
+const PHOTO_MAX_EDGE = 1600;
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;   // hard cap post-downscale
+const photoUrlCache = {};                  // storagePath -> { url, exp }
+const FREE_PHOTO_LIMIT = 3;
+
+// Uploaded photos across every project — mirrors the endpoint's object count
+// (each stored object is exactly one capture with a storagePath, and delete
+// removes both together). Demo photos don't count: they never upload.
+function photoCount() {
+  let n = 0;
+  (state.projects || []).forEach(p => (p.captures || []).forEach(c => {
+    if (c.type === 'photo' && c.storagePath) n++;
+  }));
+  return n;
+}
+
+// The remaining-allowance chip on the Photo tile — visible for free accounts
+// BEFORE the limit bites. Paid and demo see nothing.
+function updatePhotoQuota() {
+  const el = document.getElementById('photo-quota');
+  if (!el) return;
+  if (isDemo || isPremium()) { el.style.display = 'none'; return; }
+  const left = Math.max(0, FREE_PHOTO_LIMIT - photoCount());
+  el.textContent = left > 0 ? `${left} of ${FREE_PHOTO_LIMIT} photos left` : 'Upgrade for more';
+  el.style.display = '';
+}
+
+// Plain and unapologetic: photos come with Premium, here's what it costs,
+// here's the button (the existing Premium upgrade modal shows the prices).
+function showPhotoUpgrade() {
+  showToast(`Your ${FREE_PHOTO_LIMIT} free photos are used — photos are unlimited on Premium`);
+  showUpgrade();
+}
+
+async function downscalePhoto(file) {
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (e) {
+    bmp = await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error('Could not read that image'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  const w = bmp.width, h = bmp.height;
+  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(w, h));
+  const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  canvas.getContext('2d').drawImage(bmp, 0, 0, cw, ch);
+  if (bmp.close) try { bmp.close(); } catch (e) {}
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
+  if (!blob) throw new Error('Could not process that image');
+  return blob;
+}
+
+async function onPhotoPicked(inp) {
+  const file = inp.files && inp.files[0];
+  inp.value = '';                          // same photo can be picked again
+  if (!file || !currentProject) return;
+  const proj = currentProject;             // pin: the async work below must land in THIS project
+  showToast('Adding photo…');
+  let blob;
+  try { blob = await downscalePhoto(file); }
+  catch (e) { showToast(e.message || 'Could not read that image'); return; }
+  if (blob.size > PHOTO_MAX_BYTES) {
+    showToast('That photo is too large even after resizing — try a smaller one');
+    return;
+  }
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const entry = { type: 'photo', title: 'Photo', meta: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' · ' + time, body: '', icon: CAP_ICONS.photo };
+
+  if (isDemo) {
+    // Demo saves nothing: the photo lives in this tab only and dies on reload.
+    entry.demoUrl = URL.createObjectURL(blob);
+    proj.captures.unshift(entry);
+    if (currentProject === proj) renderDetailCaptures();
+    showToast('Photo added (demo — not saved)');
+    return;
+  }
+  if (!sb || !authUserId) { showToast('Sign in to add photos'); return; }
+  // Free tier: 3 photos in total (Amendment 1). This check is a courtesy —
+  // the endpoint is the authority and enforces the same rule server-side
+  // (uploads can no longer go direct to storage at all).
+  if (!isPremium() && photoCount() >= FREE_PHOTO_LIMIT) { showPhotoUpgrade(); return; }
+  let path;
+  try {
+    const b64 = await new Promise((resOk, rej) => {
+      const r = new FileReader();
+      r.onload = () => resOk(String(r.result).split(',')[1]);
+      r.onerror = () => rej(new Error('read failed'));
+      r.readAsDataURL(blob);
+    });
+    const headers = { 'Content-Type': 'application/json' };
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    const resp = await fetch('/api/project-photo-upload', {
+      method: 'POST', headers,
+      body: JSON.stringify({ imageB64: b64, contentType: 'image/jpeg', projectId: String(proj.id) })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 402) { showPhotoUpgrade(); return; }   // the endpoint's word is final
+    if (!resp.ok || !data.path) {
+      showToast(data.error || 'Photo didn\'t upload — try again');
+      return;                              // fail loud, nothing added
+    }
+    path = data.path;
+  } catch (e) {
+    showToast('Photo didn\'t upload — try again');
+    return;
+  }
+  entry.storagePath = path;
+  proj.captures.unshift(entry);
+  if (currentProject === proj) renderDetailCaptures();
+  try { persistNow(); } catch (e) {}
+  showToast('Photo saved to the project');
+}
+
+async function photoSignedUrl(storagePath) {
+  const hit = photoUrlCache[storagePath];
+  if (hit && hit.exp > Date.now()) return hit.url;
+  if (!sb) return null;
+  const { data, error } = await sb.storage.from('project-captures').createSignedUrl(storagePath, 3600);
+  if (error || !data?.signedUrl) return null;
+  photoUrlCache[storagePath] = { url: data.signedUrl, exp: Date.now() + 55 * 60 * 1000 };
+  return data.signedUrl;
+}
+
+async function openPhotoViewer(idx) {
+  const c = currentProject && currentProject.captures[idx];
+  if (!c || c.type !== 'photo') return;
+  const url = c.demoUrl || (c.storagePath ? await photoSignedUrl(c.storagePath) : null);
+  if (!url) { showToast('Couldn\'t load that photo — try again'); return; }
+  document.getElementById('photo-viewer-img').src = url;
+  document.getElementById('photo-viewer').classList.add('open');
+}
+function closePhotoViewer() {
+  document.getElementById('photo-viewer').classList.remove('open');
+  document.getElementById('photo-viewer-img').src = '';
 }
 
 function closeCapture() {
@@ -6977,6 +7139,7 @@ function saveCapture() {
 }
 
 function renderDetailCaptures() {
+  updatePhotoQuota();
   const el = document.getElementById('detail-captures');
   if (!currentProject || !currentProject.captures.length) {
     el.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:12px">No items yet — tap a capture button above.</div>';
@@ -6989,11 +7152,20 @@ function renderDetailCaptures() {
     d.style.flexWrap = 'wrap';
     const body = (c.body || '').trim();
     const isLink = c.type === 'link';
+    const isPhoto = c.type === 'photo';
     d.innerHTML = `
-      <div class="cap-icon"><i class="ti ${c.icon}"></i></div>
+      ${isPhoto
+        ? `<img class="cap-thumb" data-idx="${idx}" alt="Project photo" onclick="event.stopPropagation();openPhotoViewer(${idx})" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--ice)">`
+        : `<div class="cap-icon"><i class="ti ${c.icon}"></i></div>`}
       <div class="cap-info"><div class="cap-title">${c.title}</div><div class="cap-meta">${c.meta}</div></div>
       <i class="ti ti-chevron-down cap-chev" style="font-size:14px;color:var(--text-light);transition:transform 0.15s"></i>
       <div class="cap-detail" style="display:none;width:100%;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text);line-height:1.5"></div>`;
+    if (isPhoto) {
+      const img = d.querySelector('.cap-thumb');
+      const src = c.demoUrl || null;
+      if (src) img.src = src;
+      else if (c.storagePath) photoSignedUrl(c.storagePath).then(u => { if (u && img.isConnected) img.src = u; });
+    }
     const detail = d.querySelector('.cap-detail');
     let detailHtml = '';
     if (isLink && (c.title.startsWith('http') || c.body.startsWith('http'))) {
@@ -7005,7 +7177,7 @@ function renderDetailCaptures() {
     } else {
       detailHtml += '<span style="color:var(--text-light)">No further detail — tap a capture button to add more.</span>';
     }
-    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px"><button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">Edit</button><button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
+    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px">${isPhoto ? `<button onclick="openPhotoViewer(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">View</button>` : `<button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">Edit</button>`}<button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
     detail.innerHTML = detailHtml;
     d.onclick = (e) => {
       if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
@@ -7018,10 +7190,21 @@ function renderDetailCaptures() {
   });
 }
 
-function deleteCapture(idx) {
+async function deleteCapture(idx) {
   if (!currentProject) return;
+  const c = currentProject.captures[idx];
+  // Photo captures: the storage object goes first — if that fails, the item
+  // stays and the user is told, so no orphaned objects pile up in the bucket.
+  if (c && c.type === 'photo' && c.storagePath && !isDemo) {
+    if (!sb) { showToast('Couldn\'t delete the stored photo — try again'); return; }
+    const { error } = await sb.storage.from('project-captures').remove([c.storagePath]);
+    if (error) { showToast('Couldn\'t delete the stored photo — try again'); return; }
+    delete photoUrlCache[c.storagePath];
+  }
+  if (c && c.demoUrl) { try { URL.revokeObjectURL(c.demoUrl); } catch (e) {} }
   currentProject.captures.splice(idx, 1);
   renderDetailCaptures();
+  try { persistNow(); } catch (e) {}
   showToast('Item deleted');
 }
 
