@@ -37,6 +37,7 @@ const DL_BASE = (process.env.APP_URL || 'https://app.voicefirstdayplanner.com') 
 const WELCOME_SUBJECT = 'Welcome to Lifetime — your whole library\u2019s inside.';
 const ANNUAL_SUBJECT = 'Welcome to Premium Annual — your books are inside.';
 const MONTHLY_SUBJECT = 'You\u2019re on Premium — welcome aboard.';
+const PRO_SUBJECT     = 'You\u2019re on Pro — the AI is yours.';
 
 async function readRawBody(req) {
   const chunks = [];
@@ -409,6 +410,33 @@ function renderMonthlyHtml(firstName) {
 </body></html>`;
 }
 
+function renderProHtml(firstName) {
+  const name = esc(firstName || 'there');
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#F0F5FB;">
+<div style="display:none;max-height:0;overflow:hidden;">You're on Pro — the AI brain-dump is unlocked.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0F5FB;padding:24px 0;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#2C2C2A;">
+  <tr><td style="background:#0C447C;height:6px;line-height:6px;">&nbsp;</td></tr>
+  <tr><td style="padding:32px 32px 8px 32px;">
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Hi ${name},</p>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">You're on <strong>Pro</strong> — thank you. Every planning feature is unlocked, and so is the <strong>AI brain-dump</strong>: say everything on your mind, and it comes back sorted into tasks and appointments for your approval. Nothing enters your planner until you say so.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td style="border-radius:8px;background:#0C447C;">
+      <a href="https://app.voicefirstdayplanner.com" style="display:inline-block;padding:14px 28px;color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;">Open the app &rarr;</a>
+    </td></tr></table>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Look for the sparkle button under your Daily Focus. Your two starter books are in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a>, under Settings.</p>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Any questions, just reply — it comes to me.</p>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 4px;">Dave</p>
+    <p style="font-size:13px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;"><em>When you're organized, the stress goes out of your day.</em></p>
+  </td></tr>
+  <tr><td style="background:#E6F1FB;padding:14px 32px;font-size:12px;color:#6b6b6b;">VoiceFirstPlanner · You're receiving this because you started a Pro subscription.</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
 // Fire the right subscription welcome once, after the entitlement is synced.
 // Reads the CURRENT entitlement to branch annual vs monthly and to confirm the
 // subscription is actually active before welcoming (never welcome an incomplete
@@ -433,7 +461,18 @@ async function fireSubscriptionWelcome(session, userId) {
   if (!won) { console.log('Welcome already sent/claimed for', userId, '— skipping'); return; }
 
   try {
-    if (held.source === 'annual') {
+    if (held.plan === 'pro') {
+      // Pro (monthly or annual): the Pro welcome. No book links — what Pro
+      // adds to the Library is an open Management decision; until it is made
+      // the email promises nothing beyond what is live.
+      await sendEmail({
+        to,
+        subject: PRO_SUBJECT,
+        html: renderProHtml(firstName),
+        idemKey: `pro-welcome-${userId}`,
+      });
+      console.log('Pro welcome sent to', to, 'user=', userId);
+    } else if (held.source === 'annual') {
       const token = mintToken(userId);
       await sendEmail({
         to,
