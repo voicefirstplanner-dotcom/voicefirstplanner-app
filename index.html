@@ -4179,7 +4179,13 @@ function toggleVoice() {
     () => {
       const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Got it — writing that down…';
       const h = document.getElementById('voice-hint'); if (h) h.textContent = 'One moment…';
-    }
+    },
+    // Stuck-button fix (27 Jul): every failure path (accidental tap with no
+    // speech · no words made out · service error) must hand the button back —
+    // the toast explains what happened, and "Tap to speak your plan" returns
+    // so the user just moves on. Without this the CTA wedged on
+    // "Got it — writing that down…" with no way out.
+    () => resetVoiceButton()
   );
 }
 
