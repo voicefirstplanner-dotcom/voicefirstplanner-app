@@ -126,6 +126,7 @@ function systemPrompt(today) {
     '- "by <weekday>" = the first such weekday on or after today (a deadline lands ON that day).',
     '- "this <weekday>" = the one inside the current Mon-Sun week if still ahead, otherwise the next one.',
     '- Double-check the arithmetic: the produced date\'s weekday must match the word used.',
+    '- For EVERY item, also set dayRef to the exact relative day expression from the text ("tomorrow", "Tuesday", "by Friday", "next Monday") or null when an explicit date was given or no day was mentioned. Copy the words; do not resolve them in dayRef.',
     'Rules:',
     '- Every actionable item becomes ONE task or ONE appointment. Do not invent items that are not in the text.',
     '- An APPOINTMENT is anything at a specific time or with a person/place attached (meetings, calls, bookings). Everything else is a TASK.',
@@ -152,8 +153,9 @@ const RESPONSE_SCHEMA = {
             text: { type: 'string' },
             p: { type: 'string', enum: ['A', 'B', 'C'] },
             date: { type: ['string', 'null'] },
+            dayRef: { type: ['string', 'null'] },
           },
-          required: ['text', 'p', 'date'],
+          required: ['text', 'p', 'date', 'dayRef'],
         },
       },
       appointments: {
@@ -169,8 +171,9 @@ const RESPONSE_SCHEMA = {
             location: { type: 'string' },
             notes: { type: 'string' },
             allDay: { type: 'boolean' },
+            dayRef: { type: ['string', 'null'] },
           },
-          required: ['title', 'date', 'timeStart', 'timeEnd', 'with', 'location', 'notes', 'allDay'],
+          required: ['title', 'date', 'timeStart', 'timeEnd', 'with', 'location', 'notes', 'allDay', 'dayRef'],
         },
       },
     },
@@ -181,7 +184,55 @@ const RESPONSE_SCHEMA = {
 // ---- Validation: NOTHING malformed ever reaches the UI ----------------------
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+// Model-emitted junk for "no value" must never render in a field (the literal
+// "null" that reached the With input, 27 Jul).
+const NULLISH_RE = /^(null|undefined|none|n\/a|nil|-)$/i;
+const clean = (v, max) => {
+  if (typeof v !== 'string') return '';
+  const t = v.replace(/\s+/g, ' ').trim().slice(0, max);
+  return NULLISH_RE.test(t) ? '' : t;
+};
+
+// ---- Deterministic relative-day resolution (Fix, 27 Jul) --------------------
+// The model EXTRACTS the expression (dayRef); the server does the arithmetic.
+// "by Friday" → the first Friday ON OR AFTER today. Bare/on/next <weekday> →
+// the first such weekday STRICTLY AFTER today. "this <weekday>" → within the
+// current Mon–Sun week if still ahead, else the next one. Instruction-following
+// is no longer load-bearing for dates. Exported for the fixture harness.
+const WEEKDAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+function addDays(dateKeyStr, n) {
+  const d = new Date(dateKeyStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+export function resolveDayRef(dayRef, today) {
+  if (typeof dayRef !== 'string' || !DATE_RE.test(today)) return null;
+  const t = dayRef.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!t || NULLISH_RE.test(t)) return null;
+  if (t === 'today' || t === 'tonight' || t === 'this evening' || t === 'this afternoon' || t === 'this morning') return today;
+  if (t === 'tomorrow' || t.startsWith('tomorrow ')) return addDays(today, 1);
+  if (t === 'day after tomorrow' || t === 'the day after tomorrow') return addDays(today, 2);
+  const m = t.match(/^(?:(by|on|next|this)\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if (!m) return null;
+  const mode = m[1] || '';
+  const target = WEEKDAYS.indexOf(m[2]);
+  const todayDow = new Date(today + 'T12:00:00Z').getUTCDay();
+  let diff = (target - todayDow + 7) % 7;
+  if (mode === 'by') {
+    // deadline lands ON that day; "by Monday" said on a Monday = today
+    return addDays(today, diff);
+  }
+  if (mode === 'this') {
+    // inside the current Mon–Sun week if still ahead, else the next one
+    if (diff === 0) return addDays(today, 7);
+    const mondayAnchoredToday = (todayDow + 6) % 7;            // Mon=0
+    const mondayAnchoredTarget = (target + 6) % 7;
+    return (mondayAnchoredTarget > mondayAnchoredToday) ? addDays(today, diff) : addDays(today, diff === 0 ? 7 : diff);
+  }
+  // bare / "on" / "next": first such weekday strictly after today
+  if (diff === 0) diff = 7;
+  return addDays(today, diff);
+}
 
 // Exported for the test harness. Returns { tasks, appointments } or null when
 // the payload is unusable. Individually broken items are dropped, not "fixed".
@@ -195,7 +246,9 @@ export function validateProposal(raw, today) {
     const text = clean(t.text, MAX_TEXT);
     if (!text) continue;
     const p = ['A', 'B', 'C'].includes(t.p) ? t.p : 'B';
-    const date = (typeof t.date === 'string' && DATE_RE.test(t.date)) ? t.date : null;
+    let date = (typeof t.date === 'string' && DATE_RE.test(t.date)) ? t.date : null;
+    const snapped = resolveDayRef(t.dayRef, today);
+    if (snapped) date = snapped;   // deterministic arithmetic beats the model's
     tasks.push({ text, p, date });
   }
 
@@ -204,7 +257,9 @@ export function validateProposal(raw, today) {
     if (!a || typeof a !== 'object') continue;
     const title = clean(a.title, MAX_TEXT);
     if (!title) continue;
-    const date = (typeof a.date === 'string' && DATE_RE.test(a.date)) ? a.date : today;
+    let date = (typeof a.date === 'string' && DATE_RE.test(a.date)) ? a.date : today;
+    const snapped = resolveDayRef(a.dayRef, today);
+    if (snapped) date = snapped;
     const allDay = a.allDay === true;
     let timeStart = (typeof a.timeStart === 'string' && TIME_RE.test(a.timeStart)) ? a.timeStart : '';
     let timeEnd   = (typeof a.timeEnd   === 'string' && TIME_RE.test(a.timeEnd))   ? a.timeEnd   : '';
