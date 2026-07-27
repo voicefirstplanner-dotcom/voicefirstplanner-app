@@ -73,6 +73,7 @@ async function checkAndRecord(actor, kind) {
       .from('transcribe_usage')
       .select('id', { count: 'exact', head: true })
       .eq('actor', actor)
+      .neq('kind', 'ai')   // P1 (27 Jul): AI structuring logs into this table as kind='ai' — voice ceilings must not count it
       .gte('created_at', hourAgo);
     if (e1) throw e1;
 
@@ -86,6 +87,7 @@ async function checkAndRecord(actor, kind) {
         .from('transcribe_usage')
         .select('id', { count: 'exact', head: true })
         .eq('actor', actor)
+        .neq('kind', 'ai')   // same decoupling on the daily window
         .gte('created_at', dayAgo);
       if (e2) throw e2;
       if ((dayCount || 0) >= USER_PER_DAY) {
