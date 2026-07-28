@@ -2957,6 +2957,7 @@ html, body {
 <div class="modal-overlay" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
   <div class="modal-sheet" style="max-width:min(96vw,900px);padding:10px">
     <img id="photo-viewer-img" alt="Project photo" style="display:block;max-width:100%;max-height:78vh;margin:0 auto;border-radius:8px">
+    <button class="modal-cta" id="photo-viewer-dl" style="margin-top:10px" onclick="downloadPhoto(viewerIdx, this)">Download</button>
     <button class="modal-close-btn" onclick="closePhotoViewer()">Close</button>
   </div>
 </div>
@@ -7102,11 +7103,93 @@ async function photoSignedUrl(storagePath) {
   return data.signedUrl;
 }
 
+// ============================================================
+// PHOTO DOWNLOAD & SHARE (28 Jul). A photo taken through the
+// camera input never reaches the camera roll — for those shots
+// the app holds the person's ONLY copy, so there must be a
+// supported way out. Share (native sheet: Save to Photos,
+// AirDrop, Mail…) where the browser can share files; Download
+// everywhere else. The saved file is the ORIGINAL stored image —
+// no re-encode, no resize. No tier gate: the paywall is on
+// storing (server-side); a person's own photo is theirs to take.
+// ============================================================
+let viewerIdx = null;   // capture index the viewer is showing
+
+// navigator.share alone is not enough — some browsers expose it but reject
+// files. Test with a real (tiny) File.
+function canShareFiles() {
+  try {
+    if (!navigator.canShare || !navigator.share) return false;
+    const probe = new File([new Blob(['x'])], 'probe.jpg', { type: 'image/jpeg' });
+    return navigator.canShare({ files: [probe] });
+  } catch (e) { return false; }
+}
+
+// A filename a person can find again in Downloads: project name + capture
+// timestamp, sanitised. Never a raw storage key.
+function photoFilename(capture) {
+  const proj = (currentProject && currentProject.name) || 'Project';
+  const stamp = (capture && capture.meta) || new Date().toLocaleDateString('en-GB');
+  const safe = (proj + '-' + stamp).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return (safe || 'VFP-photo') + '.jpg';
+}
+
+// The one action, wired to both the viewer button and the capture row.
+// Cancelling the share sheet is a normal outcome — silent, no toast, no
+// stuck button.
+async function downloadPhoto(idx, btnEl) {
+  const c = currentProject && currentProject.captures[idx];
+  if (!c || c.type !== 'photo') return;
+  const filename = photoFilename(c);
+  const label = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; }
+  try {
+    if (canShareFiles()) {
+      // Share path: fetch the image (demo object URL, or the cached viewing
+      // signed URL) into a File and hand it to the native sheet.
+      const src = c.demoUrl || (c.storagePath ? await photoSignedUrl(c.storagePath) : null);
+      if (!src) { showToast('Couldn\'t load that photo — try again'); return; }
+      const blob = await (await fetch(src)).blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      try {
+        await navigator.share({ files: [file] });
+      } catch (err) {
+        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;   // user cancelled — normal
+        showToast('Couldn\'t share that photo — try again');
+      }
+      return;
+    }
+    // Download path.
+    if (c.demoUrl) {
+      // Demo: the object URL is same-origin, so the download attribute works —
+      // no account, no network call to storage.
+      const a = document.createElement('a');
+      a.href = c.demoUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      return;
+    }
+    if (!c.storagePath || !sb) { showToast('Couldn\'t load that photo — try again'); return; }
+    // Cross-origin bucket: the HTML download attribute is ignored, so the
+    // supported route is a signed URL minted WITH the download disposition —
+    // created per press, never cached, never reused as the viewer src.
+    const { data, error } = await sb.storage.from('project-captures')
+      .createSignedUrl(c.storagePath, 60, { download: filename });
+    if (error || !data?.signedUrl) { showToast('Couldn\'t prepare the download — try again'); return; }
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    document.body.appendChild(a); a.click(); a.remove();
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = label; }
+  }
+}
+
 async function openPhotoViewer(idx) {
   const c = currentProject && currentProject.captures[idx];
   if (!c || c.type !== 'photo') return;
   const url = c.demoUrl || (c.storagePath ? await photoSignedUrl(c.storagePath) : null);
   if (!url) { showToast('Couldn\'t load that photo — try again'); return; }
+  viewerIdx = idx;
+  document.getElementById('photo-viewer-dl').textContent = canShareFiles() ? 'Share' : 'Download';
   document.getElementById('photo-viewer-img').src = url;
   document.getElementById('photo-viewer').classList.add('open');
 }
@@ -7177,7 +7260,7 @@ function renderDetailCaptures() {
     } else {
       detailHtml += '<span style="color:var(--text-light)">No further detail — tap a capture button to add more.</span>';
     }
-    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px">${isPhoto ? `<button onclick="openPhotoViewer(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">View</button>` : `<button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">Edit</button>`}<button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
+    detailHtml += `<div style="margin-top:10px;display:flex;gap:8px">${isPhoto ? `<button onclick="openPhotoViewer(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">View</button><button onclick="downloadPhoto(${idx}, this)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">${canShareFiles() ? 'Share' : 'Download'}</button>` : `<button onclick="editCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--appt);cursor:pointer">Edit</button>`}<button onclick="deleteCapture(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--text-mid);cursor:pointer">Delete</button></div>`;
     detail.innerHTML = detailHtml;
     d.onclick = (e) => {
       if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
