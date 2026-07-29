@@ -3045,7 +3045,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme'];
+                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme'];
 
 function serializeState() {
   const out = {};
@@ -3674,6 +3674,7 @@ let state = {
   ],
   projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
   recurEnds: {},   // seriesId -> last date the series may ever cover (L14: an ended series stays ended)
+  recurRules: {},  // seriesId -> series rule record (Stage 1, 30 Jul). Parallel to the rows — nothing reads it for display.
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
   shoppingLists: [
     { id: 'list_default', name: 'Shopping', items: [
@@ -3882,6 +3883,7 @@ function launchApp() {
   document.getElementById('set-name').textContent = state.user?.name || 'User';
   document.getElementById('set-email').textContent = state.user?.email || '';
   checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
+  backfillRecurRules();  // Stage 1: build missing series rules from stored rows — additive only
   topUpRecurringSeries(); // keep every recurring series covered ~60 days ahead
   renderAll();
   showGroup('daily-planning', ['daily','week','month','year'].includes(state.calLastView) ? state.calLastView : 'daily');
@@ -4804,6 +4806,20 @@ function processVoice(text) {
         state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', with: '', notes: '', allDay: false, done: false, recurring: true, seriesId, recurType: recurrence.type });
       });
 
+      // Series rule record (Stage 1) — the rule behind the rows, for later export.
+      // Additive: nothing that renders reads this. Rows above stay byte-identical.
+      state.recurRules = state.recurRules || {};
+      state.recurRules[seriesId] = {
+        seriesId,
+        type: recurrence.type,
+        startDate: dates[0],
+        timeStart, timeEnd,
+        title: apptTitle,
+        location: '', with: '', notes: '', allDay: false,
+        until: null,
+        exdates: [],
+      };
+
       const firstKey = dates[0];
       viewingDate = firstKey;
       calViewMonth = new Date(firstKey + 'T12:00:00'); calViewMonth.setDate(1);
@@ -5101,6 +5117,44 @@ function inferRecurType(list) {
   return null;
 }
 
+// Stage 1 backfill (30 Jul): existing series have rows but no rule. Build the
+// rule once, on load, from what is stored. STRICTLY ADDITIVE — this function
+// never deletes, edits or reorders an appointment row. If it cannot produce a
+// rule for a series (inferRecurType returns null), it leaves that series
+// untouched and ruleless; a ruleless series simply drops out of the export later.
+// exdates are left empty on backfill: a historical gap may be a deliberate
+// delete or an artefact, and guessing wrong would resurrect removed appointments.
+function backfillRecurRules() {
+  state.recurRules = state.recurRules || {};
+  const series = {};
+  (state.appointments || []).forEach(a => {
+    if (a.recurring && a.seriesId) (series[a.seriesId] = series[a.seriesId] || []).push(a);
+  });
+  let built = 0, skipped = 0;
+  Object.keys(series).forEach(sid => {
+    if (state.recurRules[sid]) return;   // already has a rule — idempotent
+    const list = series[sid].slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+    const last = list[list.length - 1];
+    const type = last.recurType || inferRecurType(list);
+    if (!type) { skipped++; return; }    // cannot be sure — write no rule (correct and safe)
+    const endAt = (state.recurEnds || {})[sid];
+    state.recurRules[sid] = {
+      seriesId: last.seriesId,
+      type,
+      startDate: list[0].date,
+      timeStart: last.timeStart, timeEnd: last.timeEnd,
+      title: last.title,
+      location: last.location || '', with: last.with || '', notes: last.notes || '',
+      allDay: !!last.allDay,
+      until: endAt || null,
+      exdates: [],
+    };
+    built++;
+  });
+  if (built || skipped) console.log(`recurRules backfill: ${built} built, ${skipped} skipped (type unknown)`);
+  return { built, skipped };
+}
+
 function topUpRecurringSeries() {
   const series = {};
   (state.appointments || []).forEach(a => {
@@ -5266,6 +5320,7 @@ function confirmRecurDelete(mode) {
   if (!ctx) return;
   const { seriesId, date, id } = ctx;
   state.recurEnds = state.recurEnds || {};
+  const rule = (state.recurRules || {})[seriesId];   // may be absent (backfill skipped) — rows behave as now either way
   let removed = 0;
   const before = (state.appointments || []).length;
 
@@ -5273,6 +5328,10 @@ function confirmRecurDelete(mode) {
     // Must not end the series and must not resurrect it. Top-up only ever
     // appends after the last stored date, so a gap in the middle stays a gap.
     state.appointments = state.appointments.filter(x => x.id !== id);
+    if (rule) {
+      rule.exdates = rule.exdates || [];
+      if (!rule.exdates.includes(date)) rule.exdates.push(date);
+    }
   } else if (mode === 'future') {
     // Leave completed past occurrences intact (L4). Mark the series ended the
     // day before, so top-up can never regenerate what we just removed (L14).
@@ -5280,6 +5339,7 @@ function confirmRecurDelete(mode) {
       x => !(x.recurring && x.seriesId === seriesId && x.date >= date)
     );
     state.recurEnds[seriesId] = prevDateKey(date);
+    if (rule) rule.until = prevDateKey(date);
   } else if (mode === 'all') {
     state.appointments = state.appointments.filter(
       x => !(x.recurring && x.seriesId === seriesId)
@@ -5287,6 +5347,7 @@ function confirmRecurDelete(mode) {
     // No members remain, so top-up skips it anyway — but mark it ended so a
     // stale occurrence restored from an older device can never revive it.
     state.recurEnds[seriesId] = '0000-00-00';
+    if (rule) rule.until = '0000-00-00';   // rule record stays in place, marked ended (same sentinel)
   }
   removed = before - state.appointments.length;
 
@@ -5418,6 +5479,7 @@ function apApplySave(scope) {
   const a = (state.appointments || []).find(x => x.id === apCtx.id);
   if (!a) { closeApptPopup(); return; }
   const targets = scope === 'series' ? seriesMembers(a.seriesId) : [a];
+  const origDate = a.date;   // before the move lands (rule maintenance below)
   targets.forEach(t => {
     t.title = f.title;
     t.with = f.with;
@@ -5428,6 +5490,40 @@ function apApplySave(scope) {
     t.timeEnd = f.timeEnd;
   });
   a.date = f.date;   // Move: date lands on this occurrence only, every scope
+
+  // ---- Series rule maintenance (Stage 1). Rows above are untouched by this block. ----
+  const rule = (a.recurring && a.seriesId) ? (state.recurRules || {})[a.seriesId] : null;
+  if (rule) {
+    if (scope === 'series') {
+      // Whole-series edit: the template itself changed, so the rule follows it.
+      rule.title = a.title;
+      rule.with = a.with;
+      rule.location = a.location;
+      rule.notes = a.notes;
+      rule.allDay = a.allDay;
+      rule.timeStart = a.timeStart;
+      rule.timeEnd = a.timeEnd;
+    }
+    // Diff this occurrence against the template — pinned set only
+    // (title · date · timeStart · timeEnd · allDay · location · with · notes).
+    // `done` is deliberately excluded: completed occurrences stay full members (L4).
+    const differs =
+      a.date !== origDate ||
+      a.title !== rule.title ||
+      (a.timeStart || '') !== (rule.timeStart || '') ||
+      (a.timeEnd || '') !== (rule.timeEnd || '') ||
+      !!a.allDay !== !!rule.allDay ||
+      (a.location || '') !== (rule.location || '') ||
+      (a.with || '') !== (rule.with || '') ||
+      (a.notes || '') !== (rule.notes || '');
+    if (differs) {
+      rule.exdates = rule.exdates || [];
+      if (!rule.exdates.includes(origDate)) rule.exdates.push(origDate);
+      // A moved occurrence must survive export on its own: keep seriesId (the app
+      // still groups it), flag it detached — Stage 3 emits it as a standalone VEVENT.
+      if (a.date !== origDate) a.detached = true;
+    }
+  }
   closeApptPopup();
   viewingDate = f.date;
   calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
