@@ -2828,6 +2828,16 @@ html, body {
     <div class="modal-handle"></div>
     <div class="modal-title">Reminders</div>
     <div class="modal-sub">Set a reminder for anything — say it or type it, pick a time, and we'll ping you.</div>
+    <!-- Offset presets — shown only when opened from an appointment (Stage 2) -->
+    <div id="rem-offset-row" style="display:none;margin-bottom:8px">
+      <div id="rem-offset-for" style="font-size:12px;font-weight:700;color:var(--navy,#0C447C);margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="modal-cta" id="rem-p15" style="flex:1;min-width:96px;margin:0;padding:8px;font-size:12px" onclick="remPreset(15)">15 min before</button>
+        <button class="modal-cta" id="rem-p60" style="flex:1;min-width:96px;margin:0;padding:8px;font-size:12px" onclick="remPreset(60)">1 hour before</button>
+        <button class="modal-cta" id="rem-pmorn" style="flex:1;min-width:96px;margin:0;padding:8px;font-size:12px" onclick="remPreset('morning')">Morning of (8am)</button>
+        <button style="flex:1;min-width:96px;margin:0;padding:8px;font-size:12px;background:none;border:1px solid var(--border,#B5D4F4);border-radius:8px;font-family:var(--font);font-weight:600;color:var(--navy,#0C447C);cursor:pointer" onclick="remPreset('custom')">Custom…</button>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;align-items:flex-start">
       <input type="text" id="rem-text" placeholder="Remind me to…" style="flex:1;padding:10px 12px;border:1px solid var(--line,#dfe6ee);border-radius:10px;font-size:14px;font-family:inherit">
       <button class="field-mic" onclick="dictateInto('rem-text',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
@@ -2946,6 +2956,7 @@ html, body {
     </div>
     <button class="modal-cta" id="ap-save" onclick="apSave()">Save</button>
     <div style="display:flex;gap:6px;margin-top:6px">
+      <button id="ap-remind" onclick="apRemind()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer"><i class="ti ti-bell"></i> Remind</button>
       <button id="ap-rebook" onclick="apRebook()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer">Rebook</button>
       <button id="ap-delete" onclick="apDelete()" style="flex:1;background:none;border:1px solid #e08a8a;border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:#c0392b;cursor:pointer">Delete</button>
     </div>
@@ -5264,6 +5275,7 @@ function addAppointment() {
 
 function deleteAppointment(id) {
   state.appointments = state.appointments.filter(a => a.id !== id);
+  cleanupItemReminders('appt', id);   // unfired reminders go with the item; fired stay as history
   renderAppointments();
   renderScheduleGrid();
   renderCalStrip();
@@ -5332,6 +5344,7 @@ function confirmRecurDelete(mode) {
       rule.exdates = rule.exdates || [];
       if (!rule.exdates.includes(date)) rule.exdates.push(date);
     }
+    syncSeriesReminders(seriesId);   // reminder stays; re-aim if it pointed at the removed day
   } else if (mode === 'future') {
     // Leave completed past occurrences intact (L4). Mark the series ended the
     // day before, so top-up can never regenerate what we just removed (L14).
@@ -5340,6 +5353,7 @@ function confirmRecurDelete(mode) {
     );
     state.recurEnds[seriesId] = prevDateKey(date);
     if (rule) rule.until = prevDateKey(date);
+    cleanupSeriesReminders(seriesId);   // series reminder goes with the future occurrences
   } else if (mode === 'all') {
     state.appointments = state.appointments.filter(
       x => !(x.recurring && x.seriesId === seriesId)
@@ -5348,6 +5362,7 @@ function confirmRecurDelete(mode) {
     // stale occurrence restored from an older device can never revive it.
     state.recurEnds[seriesId] = '0000-00-00';
     if (rule) rule.until = '0000-00-00';   // rule record stays in place, marked ended (same sentinel)
+    cleanupSeriesReminders(seriesId);
   }
   removed = before - state.appointments.length;
 
@@ -5393,6 +5408,7 @@ function openApptPopup(id) {
   document.getElementById('ap-end').value = a.timeEnd || '';
   document.getElementById('ap-series-choice').style.display = 'none';
   document.getElementById('ap-save').style.display = '';
+  document.getElementById('ap-remind').style.display = '';
   document.getElementById('ap-rebook').style.display = '';
   document.getElementById('ap-delete').style.display = '';
   apAllDayToggle();
@@ -5414,6 +5430,7 @@ function openApptPopupNew(prefill) {
   document.getElementById('ap-end').value = prefill.timeEnd || '';
   document.getElementById('ap-series-choice').style.display = 'none';
   document.getElementById('ap-save').style.display = '';
+  document.getElementById('ap-remind').style.display = 'none';
   document.getElementById('ap-rebook').style.display = 'none';
   document.getElementById('ap-delete').style.display = 'none';
   apAllDayToggle();
@@ -5524,6 +5541,11 @@ function apApplySave(scope) {
       if (a.date !== origDate) a.detached = true;
     }
   }
+  // Stage 2: reminders follow their item. A lone appointment's reminders move
+  // with the user's stored offset; a series reminder re-aims at the next
+  // live occurrence (covers time changes and the moved-occurrence case).
+  if (a.recurring && a.seriesId) syncSeriesReminders(a.seriesId);
+  else syncApptReminders(a);
   closeApptPopup();
   viewingDate = f.date;
   calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
@@ -5937,6 +5959,7 @@ function renderAppointments() {
           ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}
         </div>
       </div>
+      <button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('appt',${a.id})" style="flex-shrink:0"><i class="ti ti-bell"></i></button>
       <div style="font-size:16px;color:var(--appt);opacity:0.8;flex-shrink:0">›</div>`;
     el.appendChild(d);
   });
@@ -6426,9 +6449,9 @@ function deleteFromEdit() {
       return;
     }
   }
-  if (editCtx.kind === 'task') { state.tasks = state.tasks.filter(x => x.id !== editCtx.id); renderTasks(); renderCalStrip(); }
-  else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); renderNotes(); }
-  else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
+  if (editCtx.kind === 'task') { state.tasks = state.tasks.filter(x => x.id !== editCtx.id); cleanupItemReminders('task', editCtx.id); renderTasks(); renderCalStrip(); }
+  else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); cleanupItemReminders('note', editCtx.id); renderNotes(); }
+  else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); cleanupItemReminders('appt', editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
   else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
   else if (editCtx.kind === 'shopping') { var _l = activeShopList(); _l.items = _l.items.filter(function(x){ return x.id !== editCtx.id; }); renderShopping(); }
   else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
@@ -7539,7 +7562,7 @@ function renderNotes() {
   state.notes.forEach(n => {
     const card = document.createElement('div');
     card.className = 'note-card';
-    let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
+    let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Set reminder" onclick="remindForItem('note',${n.id})"><i class="ti ti-bell"></i></button><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
     if (n.body) inner += `<div class="note-body">${n.body}</div>`;
     if (n.checklist && n.checklist.length) {
       inner += `<div class="cl-list">` + n.checklist.map((c, i) => `
@@ -8309,6 +8332,9 @@ function openReminders() {
 }
 function closeReminders() {
   document.getElementById('reminders-modal').classList.remove('open');
+  remCtx = null;
+  const row = document.getElementById('rem-offset-row');
+  if (row) row.style.display = 'none';
 }
 
 function escapeRem(s) {
@@ -8346,22 +8372,182 @@ function addReminderFromForm() {
   if (!dVal || !tVal) { showToast('Pick a date and time'); return; }
   const when = new Date(dVal + 'T' + tVal);
   if (isNaN(when.getTime())) { showToast('That date/time looks off'); return; }
-  const r = addReminder(text, when, null);
+  // Stage 2: opened from an item → the reminder carries a link back to it.
+  // For an appointment/series, store the chosen offset (minutes before start)
+  // so a later move preserves the user's choice instead of recomputing.
+  let link = null, offset = null;
+  if (remCtx) {
+    if (remCtx.type === 'series') {
+      link = { type: 'series', seriesId: remCtx.seriesId };
+      const t0 = seriesReminderTarget(remCtx.seriesId, 0);
+      if (t0) offset = Math.round((apptStartMs(t0) - when.getTime()) / 60000);
+    } else if (remCtx.type === 'appt') {
+      link = { type: 'appt', id: remCtx.id };
+      const a0 = (state.appointments || []).find(x => x.id === remCtx.id);
+      if (a0) offset = Math.round((apptStartMs(a0) - when.getTime()) / 60000);
+    } else {
+      link = { type: remCtx.type, id: remCtx.id };
+    }
+  }
+  const r = addReminder(text, when, link);
   if (!r) return;
+  if (offset != null) { r.offset = offset; try { persistNow(); } catch (e) {} }
   document.getElementById('rem-text').value = '';
   renderReminders();
   showToast('Reminder set for ' + remWhenLabel(r.whenMs));
 }
 
 // Open the reminders panel pre-filled for a specific item.
+// Stage 2 (30 Jul): appointments get offset presets and a link back to the
+// item; a recurring occurrence attaches to its SERIES (one reminder, not one
+// per occurrence). Notes and tasks get the panel with text pre-filled + link.
+let remCtx = null;   // { type, id, seriesId, title, date, timeStart, allDay } while the panel is open for an item
+
 function remindForItem(type, id) {
   let text = '';
-  if (type === 'task') { const it = state.tasks.find(x => x.id === id); if (it) text = it.text; }
-  else if (type === 'appt') { const it = state.appointments.find(x => x.id === id); if (it) text = it.title; }
-  else if (type === 'note') { const it = (state.notes || []).find(x => x.id === id); if (it) text = it.title || it.body; }
+  remCtx = null;
+  if (type === 'task') {
+    const it = state.tasks.find(x => x.id === id);
+    if (it) { text = it.text; remCtx = { type: 'task', id }; }
+  } else if (type === 'appt') {
+    const it = state.appointments.find(x => x.id === id);
+    if (it) {
+      text = it.title;
+      // A series occurrence → the reminder belongs to the series (Management call).
+      const isSeries = !!(it.recurring && it.seriesId && !it.detached && seriesMembers(it.seriesId).filter(m => !m.detached).length > 1);
+      remCtx = { type: isSeries ? 'series' : 'appt', id, seriesId: it.seriesId || null,
+                 title: it.title, date: it.date, timeStart: it.timeStart || '', allDay: !!it.allDay };
+    }
+  } else if (type === 'note') {
+    const it = (state.notes || []).find(x => x.id === id);
+    if (it) { text = it.title || it.body; remCtx = { type: 'note', id }; }
+  }
   openReminders();
   const el = document.getElementById('rem-text');
   if (el) el.value = text;
+  remSyncOffsetRow();
+}
+
+// Show the preset row only for an appointment/series; hide the two
+// time-based presets when the item has no start time (all-day).
+function remSyncOffsetRow() {
+  const row = document.getElementById('rem-offset-row');
+  if (!row) return;
+  const isAppt = remCtx && (remCtx.type === 'appt' || remCtx.type === 'series');
+  row.style.display = isAppt ? 'block' : 'none';
+  if (!isAppt) return;
+  const hasTime = !!(remCtx.timeStart && !remCtx.allDay);
+  document.getElementById('rem-p15').style.display = hasTime ? '' : 'none';
+  document.getElementById('rem-p60').style.display = hasTime ? '' : 'none';
+  const label = remCtx.type === 'series' ? 'Reminder for this series — repeats with it:' : 'Reminder for this appointment:';
+  document.getElementById('rem-offset-for').textContent = label + ' "' + remCtx.title + '"';
+}
+
+// The absolute start of an occurrence (all-day anchors at 8am).
+function apptStartMs(a) {
+  return new Date(a.date + 'T' + ((a.allDay || !a.timeStart) ? '08:00' : a.timeStart)).getTime();
+}
+// offset: minutes-before (number) or 'morning' (8am on the day).
+function whenMsFromOffset(a, offset) {
+  if (offset === 'morning') return new Date(a.date + 'T08:00').getTime();
+  return apptStartMs(a) - offset * 60000;
+}
+
+// The occurrence a series reminder should fire for: the earliest live
+// (non-detached) occurrence whose reminder time is still ahead of now.
+function seriesReminderTarget(seriesId, offset) {
+  const list = seriesMembers(seriesId).filter(m => !m.detached);
+  for (let i = 0; i < list.length; i++) {
+    if (whenMsFromOffset(list[i], offset) > Date.now()) return list[i];
+  }
+  return null;
+}
+
+// Preset tapped in the panel. 'custom' falls through to the existing
+// fields, pre-filled from the appointment's own date/start.
+function remPreset(offset) {
+  if (!remCtx) return;
+  if (offset === 'custom') {
+    document.getElementById('rem-offset-row').style.display = 'none';
+    const dEl = document.getElementById('rem-date');
+    const tEl = document.getElementById('rem-time');
+    if (dEl) dEl.value = remCtx.date;
+    if (tEl && remCtx.timeStart) tEl.value = remCtx.timeStart;
+    return;
+  }
+  let target, link;
+  if (remCtx.type === 'series') {
+    target = seriesReminderTarget(remCtx.seriesId, offset);
+    if (!target) { showToast('No upcoming occurrence to remind about'); return; }
+    link = { type: 'series', seriesId: remCtx.seriesId };
+  } else {
+    target = (state.appointments || []).find(x => x.id === remCtx.id);
+    if (!target) return;
+    link = { type: 'appt', id: remCtx.id };
+  }
+  const when = new Date(whenMsFromOffset(target, offset));
+  if (when.getTime() <= Date.now()) { showToast('That time has already passed — pick Custom'); return; }
+  const r = addReminder(remCtx.title, when, link);
+  if (!r) return;
+  r.offset = offset;
+  try { persistNow(); } catch (e) {}
+  renderReminders();
+  closeReminders();
+  showToast('Reminder set for ' + remWhenLabel(r.whenMs));
+}
+
+// ---- Reminder ↔ item maintenance (Stage 2). ----
+// Delete the item → its unfired reminders go with it. Fired ones stay as history.
+function removeRemindersFor(matchFn) {
+  if (!state.reminders || !state.reminders.length) return 0;
+  const before = state.reminders.length;
+  state.reminders = state.reminders.filter(r => r.fired || !r.link || !matchFn(r.link));
+  return before - state.reminders.length;
+}
+function cleanupItemReminders(type, id) {
+  return removeRemindersFor(l => l.type === type && l.id === id);
+}
+function cleanupSeriesReminders(seriesId) {
+  return removeRemindersFor(l => l.type === 'series' && l.seriesId === seriesId);
+}
+// Move the item → unfired reminders move with it, keeping the user's offset.
+function syncApptReminders(a) {
+  (state.reminders || []).forEach(r => {
+    if (!r.fired && r.link && r.link.type === 'appt' && r.link.id === a.id && r.offset != null) {
+      r.whenMs = whenMsFromOffset(a, r.offset);
+      r.text = a.title;
+    }
+  });
+}
+// Re-aim every unfired series reminder at its next live occurrence.
+function syncSeriesReminders(seriesId) {
+  (state.reminders || []).forEach(r => {
+    if (!r.fired && r.link && r.link.type === 'series' && r.link.seriesId === seriesId && r.offset != null) {
+      const target = seriesReminderTarget(seriesId, r.offset);
+      if (target) { r.whenMs = whenMsFromOffset(target, r.offset); r.text = target.title; }
+    }
+  });
+}
+// A fired series reminder regenerates for the next occurrence — this is what
+// "attaches to the series" means in practice. Silent, and it respects the free
+// cap (the one that just fired is no longer active, so the count is unchanged;
+// if the cap is somehow full, we skip quietly rather than nag mid-fire).
+function regenSeriesReminder(r) {
+  if (!r.link || r.link.type !== 'series' || r.offset == null) return;
+  const target = seriesReminderTarget(r.link.seriesId, r.offset);
+  if (!target) return;
+  if (!isPremium() && (state.reminders || []).filter(x => !x.fired).length >= 3) return;
+  state.reminders.push({ id: Date.now() + Math.floor(Math.random() * 1000), text: target.title,
+    whenMs: whenMsFromOffset(target, r.offset), link: { type: 'series', seriesId: r.link.seriesId },
+    offset: r.offset, fired: false });
+}
+
+// Bell in the appointment popup — hand off to the panel for this appointment.
+function apRemind() {
+  if (!apCtx || apCtx.mode !== 'edit') return;
+  const id = apCtx.id;
+  closeApptPopup();
+  remindForItem('appt', id);
 }
 
 function renderReminders() {
@@ -8460,6 +8646,7 @@ function checkDueReminders() {
       // reopening doesn't spam a pile of old reminders at once.
       if (now - r.whenMs > 2 * 60 * 60 * 1000) { r.fired = true; r.acked = true; }
       else { fireReminder(r); }
+      regenSeriesReminder(r);   // series reminders repeat with the series
       changed = true;
     }
   });
