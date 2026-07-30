@@ -8385,8 +8385,38 @@ function icsEventFromRow(a, stamp) {
   return L;
 }
 const ICS_BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+// The last valid occurrence of a rule on or before its `until` — walked with
+// the same weekday/daily semantics collectRecurDates uses (daily = every day,
+// weekdays = Mon-Fri, weekly = the start date's weekday). Returns a date key,
+// or null when the series was ended before its first occurrence.
+// Why it exists (Stage 3 fix, 30 Jul): a floating end-of-day UNTIL is spec-
+// correct but Google resolves it against UTC, which east of UTC (NZ = +12)
+// admitted one extra day. Anchoring UNTIL to the last occurrence's own start
+// instant is still inclusive per spec (Apple unchanged) and leaves no next
+// occurrence within reach of any ±12h misreading (Google fixed).
+function lastRuleOccurrence(rule) {
+  if (!rule.until) return null;
+  const start = new Date(rule.startDate + 'T12:00:00');
+  const d = new Date(rule.until + 'T12:00:00');
+  if (isNaN(d.getTime()) || isNaN(start.getTime())) return null;
+  for (let i = 0; i < 8; i++) {
+    const ok = rule.type === 'daily' ? true
+      : rule.type === 'weekdays' ? (d.getDay() >= 1 && d.getDay() <= 5)
+      : d.getDay() === start.getDay();                     // weekly: the start date's weekday
+    if (ok) break;
+    d.setDate(d.getDate() - 1);
+  }
+  if (d.getTime() < start.getTime()) return null;          // ended before it ever occurred
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 // One VEVENT for a whole series, from its Stage 1 rule — never from the rows.
+// Returns null when the series should not be exported at all.
 function icsEventFromRule(rule, stamp) {
+  let lastOcc = null;
+  if (rule.until) {
+    lastOcc = lastRuleOccurrence(rule);
+    if (!lastOcc) return null;                             // ended before its first occurrence — omit, like the sentinel
+  }
   const L = ['BEGIN:VEVENT',
     'UID:vfp-series-' + rule.seriesId + '@voicefirstplanner.com',
     'DTSTAMP:' + stamp];
@@ -8397,14 +8427,15 @@ function icsEventFromRule(rule, stamp) {
   if (rule.allDay) {
     L.push('DTSTART;VALUE=DATE:' + icsDate(rule.startDate));
     L.push('DTEND;VALUE=DATE:' + icsNextDay(rule.startDate));
-    if (rule.until) rr += ';UNTIL=' + icsDate(rule.until);
+    if (lastOcc) rr += ';UNTIL=' + icsDate(lastOcc);       // date value matching DTSTART — no time, no Z
     L.push('RRULE:' + rr);
     (rule.exdates || []).forEach(dk => L.push('EXDATE;VALUE=DATE:' + icsDate(dk)));
   } else {
     L.push('DTSTART:' + icsDT(rule.startDate, rule.timeStart));
     if (rule.timeEnd && rule.timeEnd > (rule.timeStart || '')) L.push('DTEND:' + icsDT(rule.startDate, rule.timeEnd));
-    // UNTIL must match DTSTART's value type — floating local, end of that day.
-    if (rule.until) rr += ';UNTIL=' + icsDate(rule.until) + 'T235959';
+    // UNTIL = the LAST VALID OCCURRENCE'S OWN START — inclusive per spec,
+    // and a ±12h client misreading cannot reach the next occurrence.
+    if (lastOcc) rr += ';UNTIL=' + icsDT(lastOcc, rule.timeStart);
     L.push('RRULE:' + rr);
     (rule.exdates || []).forEach(dk => L.push('EXDATE:' + icsDT(dk, rule.timeStart)));
   }
@@ -8442,7 +8473,9 @@ function buildICS() {
     const rule = rules[sid];
     if (!rule || !rule.startDate) return;
     if (rule.until === '0000-00-00') { counts.endedSeriesSkipped++; return; }   // series deleted with 'all'
-    lines = lines.concat(icsEventFromRule(rule, stamp)); counts.series++;
+    const ev = icsEventFromRule(rule, stamp);
+    if (!ev) { counts.endedSeriesSkipped++; return; }      // ended before its first occurrence
+    lines = lines.concat(ev); counts.series++;
   });
   lines.push('END:VCALENDAR');
   const ics = lines.map(icsFold).join('\r\n') + '\r\n';      // CRLF, per spec
