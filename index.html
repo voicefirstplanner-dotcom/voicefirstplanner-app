@@ -2771,6 +2771,7 @@ html, body {
       <div class="settings-section">
         <div class="settings-section-title">Appearance</div>
         <div id="theme-picker" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 2px"></div>
+        <div class="settings-row"><span class="settings-row-label">Reminder sound</span><input type="checkbox" id="set-rem-sound" onchange="toggleReminderSound(this.checked)" style="width:20px;height:20px;accent-color:var(--orange)"></div>
       </div>
       <div class="settings-section" id="library-section">
         <div class="settings-section-title" id="library-title">Your Library</div>
@@ -2796,6 +2797,7 @@ html, body {
   </div>
 
   <div class="rem-alert" id="reminder-alert"></div>
+  <div class="rem-alert" id="missed-alert"></div>
 
   <!-- Life Planning atmosphere (Change 3): full-bleed photo layer behind the
        content when a Life Planning section is open. Lazy-loaded — the daily
@@ -3056,7 +3058,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme'];
+                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound'];
 
 function serializeState() {
   const out = {};
@@ -3713,6 +3715,7 @@ let state = {
   apptHintDismissed: false,
   calLastView: 'daily',
   theme: 'classic',
+  reminderSound: true,   // the synthesised reminder bell (Stage 2 addendum) — off leaves notifications intact
   iconIdx: 0,
   reminders: [],
 };
@@ -3894,6 +3897,7 @@ function launchApp() {
   document.getElementById('set-name').textContent = state.user?.name || 'User';
   document.getElementById('set-email').textContent = state.user?.email || '';
   checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
+  sweepMissedReminders(); // Stage 2 addendum: report anything that fell due while the app was closed
   backfillRecurRules();  // Stage 1: build missing series rules from stored rows — additive only
   topUpRecurringSeries(); // keep every recurring series covered ~60 days ahead
   renderAll();
@@ -8012,7 +8016,7 @@ function registerAiInterest() {
 // ============================================================
 // SETTINGS
 // ============================================================
-function openSettings() { document.getElementById('settings-overlay').classList.add('open'); renderLibrary(); }
+function openSettings() { document.getElementById('settings-overlay').classList.add('open'); const sr = document.getElementById('set-rem-sound'); if (sr) sr.checked = state.reminderSound !== false; renderLibrary(); }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
 
 // ============================================================
@@ -8306,6 +8310,90 @@ async function submitFeedback() {
 // ============================================================
 let reminderTimer = null;
 
+// ---- Reminder bell (Stage 2 addendum) — synthesised with WebAudio, no asset. ----
+// Browsers refuse audio with no prior user gesture, so the context is created
+// and resumed on the FIRST gesture of the session and held. If it never
+// unlocks (e.g. a reminder fires before any interaction), we fail silently.
+let vfpAudioCtx = null;
+function unlockAudioOnGesture() {
+  try {
+    if (!vfpAudioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      vfpAudioCtx = new AC();
+    }
+    if (vfpAudioCtx.state === 'suspended') vfpAudioCtx.resume().catch(function(){});
+  } catch (e) {}
+}
+try {
+  ['pointerdown', 'touchstart', 'keydown'].forEach(function(ev) {
+    document.addEventListener(ev, unlockAudioOnGesture, { capture: true, passive: true });
+  });
+} catch (e) {}
+
+// A short, soft two-note bell (E5 then G#5, ~600ms total). Warm, not shrill —
+// it is a planner, not an alarm clock. Never throws.
+function playReminderBell() {
+  if (state.reminderSound === false) return;   // Settings toggle — off means silent, notification unaffected
+  try {
+    if (!vfpAudioCtx || vfpAudioCtx.state !== 'running') {
+      if (vfpAudioCtx && vfpAudioCtx.state === 'suspended') vfpAudioCtx.resume().catch(function(){});
+      if (!vfpAudioCtx || vfpAudioCtx.state !== 'running') return;   // no gesture yet — fail silently
+    }
+    const ctx = vfpAudioCtx, t0 = ctx.currentTime;
+    [[659.25, 0], [830.61, 0.18]].forEach(function(nf) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = nf[0];
+      g.gain.setValueAtTime(0.0001, t0 + nf[1]);
+      g.gain.exponentialRampToValueAtTime(0.22, t0 + nf[1] + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + nf[1] + 0.42);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0 + nf[1]); o.stop(t0 + nf[1] + 0.45);
+    });
+  } catch (e) {}
+}
+
+function toggleReminderSound(on) {
+  state.reminderSound = !!on;
+  try { persistNow(); } catch (e) {}
+}
+
+// ---- Missed reminders: shown once, never lost (Stage 2 addendum). ----
+// Runs on app open, after state loads and BEFORE the engine starts ticking.
+// Anything past-due and unfired was missed while the app was closed: no bell,
+// no system notification — a grouped in-app notice, marked so it shows once.
+function sweepMissedReminders() {
+  const now = Date.now();
+  const missed = (state.reminders || []).filter(function(r) { return !r.fired && r.whenMs <= now; });
+  if (!missed.length) return;
+  missed.forEach(function(r) {
+    r.fired = true;
+    r.acked = true;              // keeps it out of the live-reminder banner
+    regenSeriesReminder(r);      // a missed series reminder still re-arms for the next occurrence
+  });
+  try { persistNow(); } catch (e) {}
+  showMissedNotice(missed);
+}
+
+function showMissedNotice(missed) {
+  const el = document.getElementById('missed-alert');
+  if (!el) return;
+  const items = missed.slice().sort(function(a, b) { return a.whenMs - b.whenMs; }).map(function(r) {
+    return '<div class="rem-alert-item"><div class="rem-alert-text">' + escapeRem(r.text) +
+           ' <span style="opacity:0.7;font-size:12px">— was due ' + remWhenLabel(r.whenMs) + '</span></div></div>';
+  }).join('');
+  el.innerHTML = '<div class="rem-alert-card">' +
+    '<div class="rem-alert-title"><i class="ti ti-bell-off"></i> While you were away — missed reminder' + (missed.length > 1 ? 's' : '') + '</div>' +
+    items +
+    '<div style="text-align:right;margin-top:8px"><button class="rem-alert-btn primary" onclick="dismissMissedNotice()">Got it</button></div>' +
+    '</div>';
+  el.classList.add('show');
+}
+function dismissMissedNotice() {
+  const el = document.getElementById('missed-alert');
+  if (el) { el.classList.remove('show'); el.innerHTML = ''; }
+}
+
 function startReminderEngine() {
   if (reminderTimer) return;
   checkDueReminders();
@@ -8593,6 +8681,7 @@ function deleteReminder(id) {
 
 function fireReminder(r) {
   r.fired = true;
+  playReminderBell();   // our own bell — plays whether or not the OS sounds the notification
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('VoiceFirstPlanner', { body: r.text, tag: 'vfp-rem-' + r.id });
