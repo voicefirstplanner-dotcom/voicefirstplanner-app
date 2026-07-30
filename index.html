@@ -2778,6 +2778,11 @@ html, body {
         <div id="library-rows"><div class="settings-row"><span class="settings-row-label" style="color:var(--text-light)">Loading…</span></div></div>
       </div>
       <div class="settings-section">
+        <div class="settings-section-title">Export your calendar</div>
+        <div style="font-size:12px;color:var(--text-mid);padding:6px 2px 8px">Download your appointments as a standard calendar file (.ics) you can open in Google Calendar, Apple Calendar or Outlook. Your data is yours.</div>
+        <div class="settings-row"><span class="settings-row-label">Calendar file (.ics)</span><span class="settings-row-action" onclick="downloadICS()">Download</span></div>
+      </div>
+      <div class="settings-section">
         <div class="settings-section-title">App</div>
         <div class="settings-row"><span class="settings-row-label">VoiceFirstPlanner</span><span class="settings-row-value">v1.0.0</span></div>
         <div class="settings-row"><span class="settings-row-label">Send feedback</span><span class="settings-row-action" onclick="closeSettings();openFeedback()">Open</span></div>
@@ -8309,6 +8314,156 @@ async function submitFeedback() {
 // background where the browser allows it.
 // ============================================================
 let reminderTimer = null;
+
+// ============================================================================
+// Stage 3 (30 Jul): iCAL EXPORT. Client-side, download only, appointments only.
+// Recurring series export as ONE VEVENT from the Stage 1 rule, never the rows.
+// TIMEZONE DECISION (per brief §4): FLOATING LOCAL TIMES — no Z, no TZID.
+// "6:30pm" exports as 18:30 wall-clock everywhere; a UTC conversion is the
+// classic way calendar exports break and it is deliberately not done here.
+// ============================================================================
+
+// RFC 5545 text escaping: backslash first, then semicolon, comma, newline.
+function icsEscape(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n');
+}
+// Fold any line longer than 75 OCTETS (UTF-8 bytes), continuation indented
+// with one space, per RFC 5545 §3.1. Byte-aware, never splits a code point.
+function icsFold(line) {
+  const enc = new TextEncoder();
+  if (enc.encode(line).length <= 75) return line;
+  const out = [];
+  let cur = '';
+  let budget = 75;                 // first line 75, continuations 74 (leading space)
+  for (const ch of line) {
+    const chBytes = enc.encode(ch).length;
+    if (enc.encode(cur).length + chBytes > budget) {
+      out.push(cur); cur = ' ' + ch; budget = 75;
+    } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out.join('\r\n');
+}
+// Floating local date-time: YYYYMMDDTHHMMSS — no Z, no TZID.
+function icsDT(dateKeyStr, hhmm) {
+  return dateKeyStr.replace(/-/g, '') + 'T' + (hhmm || '00:00').replace(':', '') + '00';
+}
+function icsDate(dateKeyStr) { return dateKeyStr.replace(/-/g, ''); }
+function icsNextDay(dateKeyStr) {
+  const d = new Date(dateKeyStr + 'T12:00:00'); d.setDate(d.getDate() + 1);
+  return icsDate(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+}
+// DTSTAMP is required by the spec and is defined as UTC — this is metadata
+// about when the file was produced, not an event time, so Z is correct here.
+function icsStamp() {
+  return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+function icsDescription(a) {
+  let d = a.notes || '';
+  if (a.with) d += (d ? '\n' : '') + 'With: ' + a.with;
+  return d;
+}
+// One VEVENT for a concrete appointment row (single, detached, or ruleless-series member).
+function icsEventFromRow(a, stamp) {
+  const L = ['BEGIN:VEVENT',
+    'UID:vfp-appt-' + a.id + '@voicefirstplanner.com',
+    'DTSTAMP:' + stamp];
+  if (a.allDay) {
+    L.push('DTSTART;VALUE=DATE:' + icsDate(a.date));
+    L.push('DTEND;VALUE=DATE:' + icsNextDay(a.date));      // exclusive end = next day → shows on ONE day
+  } else {
+    L.push('DTSTART:' + icsDT(a.date, a.timeStart));
+    if (a.timeEnd && a.timeEnd > (a.timeStart || '')) L.push('DTEND:' + icsDT(a.date, a.timeEnd));
+  }
+  L.push('SUMMARY:' + icsEscape(a.title || 'Appointment'));
+  if (a.location) L.push('LOCATION:' + icsEscape(a.location));
+  const desc = icsDescription(a);
+  if (desc) L.push('DESCRIPTION:' + icsEscape(desc));
+  L.push('END:VEVENT');
+  return L;
+}
+const ICS_BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+// One VEVENT for a whole series, from its Stage 1 rule — never from the rows.
+function icsEventFromRule(rule, stamp) {
+  const L = ['BEGIN:VEVENT',
+    'UID:vfp-series-' + rule.seriesId + '@voicefirstplanner.com',
+    'DTSTAMP:' + stamp];
+  let rr;
+  if (rule.type === 'daily') rr = 'FREQ=DAILY';
+  else if (rule.type === 'weekdays') rr = 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+  else rr = 'FREQ=WEEKLY;BYDAY=' + ICS_BYDAY[new Date(rule.startDate + 'T12:00:00').getDay()];
+  if (rule.allDay) {
+    L.push('DTSTART;VALUE=DATE:' + icsDate(rule.startDate));
+    L.push('DTEND;VALUE=DATE:' + icsNextDay(rule.startDate));
+    if (rule.until) rr += ';UNTIL=' + icsDate(rule.until);
+    L.push('RRULE:' + rr);
+    (rule.exdates || []).forEach(dk => L.push('EXDATE;VALUE=DATE:' + icsDate(dk)));
+  } else {
+    L.push('DTSTART:' + icsDT(rule.startDate, rule.timeStart));
+    if (rule.timeEnd && rule.timeEnd > (rule.timeStart || '')) L.push('DTEND:' + icsDT(rule.startDate, rule.timeEnd));
+    // UNTIL must match DTSTART's value type — floating local, end of that day.
+    if (rule.until) rr += ';UNTIL=' + icsDate(rule.until) + 'T235959';
+    L.push('RRULE:' + rr);
+    (rule.exdates || []).forEach(dk => L.push('EXDATE:' + icsDT(dk, rule.timeStart)));
+  }
+  L.push('SUMMARY:' + icsEscape(rule.title || 'Appointment'));
+  if (rule.location) L.push('LOCATION:' + icsEscape(rule.location));
+  const desc = icsDescription(rule);
+  if (desc) L.push('DESCRIPTION:' + icsEscape(desc));
+  L.push('END:VEVENT');
+  return L;
+}
+// The whole calendar. Returns { ics, counts } — counts feed the report/console.
+function buildICS() {
+  const stamp = icsStamp();
+  const rules = state.recurRules || {};
+  let lines = ['BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//VoiceFirstPlanner//VoiceFirstPlanner 1.0//EN',
+    'CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:VoiceFirstPlanner'];
+  const counts = { singles: 0, series: 0, detached: 0, rulelessSeries: 0, rulelessRows: 0, endedSeriesSkipped: 0 };
+  const rulelessSeen = {};
+  (state.appointments || []).forEach(a => {
+    if (!a || !a.date) return;
+    if (!a.recurring || !a.seriesId) {                       // plain single
+      lines = lines.concat(icsEventFromRow(a, stamp)); counts.singles++;
+    } else if (a.detached) {                                 // moved occurrence → its own standalone VEVENT
+      lines = lines.concat(icsEventFromRow(a, stamp)); counts.detached++;
+    } else if (!rules[a.seriesId]) {                         // ruleless series → honest individual events
+      lines = lines.concat(icsEventFromRow(a, stamp));
+      counts.rulelessRows++;
+      if (!rulelessSeen[a.seriesId]) { rulelessSeen[a.seriesId] = true; counts.rulelessSeries++; }
+    }                                                        // ruled rows: covered by the series VEVENT below
+  });
+  Object.keys(rules).forEach(sid => {
+    const rule = rules[sid];
+    if (!rule || !rule.startDate) return;
+    if (rule.until === '0000-00-00') { counts.endedSeriesSkipped++; return; }   // series deleted with 'all'
+    lines = lines.concat(icsEventFromRule(rule, stamp)); counts.series++;
+  });
+  lines.push('END:VCALENDAR');
+  const ics = lines.map(icsFold).join('\r\n') + '\r\n';      // CRLF, per spec
+  return { ics, counts };
+}
+function downloadICS() {
+  try {
+    const { ics, counts } = buildICS();
+    console.log('iCal export:', JSON.stringify(counts));
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const aEl = document.createElement('a');
+    aEl.href = url; aEl.download = 'voicefirstplanner.ics';
+    document.body.appendChild(aEl); aEl.click();
+    setTimeout(() => { document.body.removeChild(aEl); URL.revokeObjectURL(url); }, 1500);
+    showToast('Calendar file downloaded');
+  } catch (e) {
+    console.error('iCal export failed', e);
+    showToast('Export failed — please try again');
+  }
+}
 
 // ---- Reminder bell (Stage 2 addendum) — synthesised with WebAudio, no asset. ----
 // Browsers refuse audio with no prior user gesture, so the context is created
