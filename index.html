@@ -8379,8 +8379,8 @@ function showMissedNotice(missed) {
   const el = document.getElementById('missed-alert');
   if (!el) return;
   const items = missed.slice().sort(function(a, b) { return a.whenMs - b.whenMs; }).map(function(r) {
-    return '<div class="rem-alert-item"><div class="rem-alert-text">' + escapeRem(r.text) +
-           ' <span style="opacity:0.7;font-size:12px">— was due ' + remWhenLabel(r.whenMs) + '</span></div></div>';
+    return '<div class="rem-alert-item"><div class="rem-alert-text">' + remRowInfo(r).line1 +
+           ' <span style="opacity:0.7;font-size:12px">— missed · was due ' + remWhenLabel(r.whenMs) + '</span></div></div>';
   }).join('');
   el.innerHTML = '<div class="rem-alert-card">' +
     '<div class="rem-alert-title"><i class="ti ti-bell-off"></i> While you were away — missed reminder' + (missed.length > 1 ? 's' : '') + '</div>' +
@@ -8437,6 +8437,65 @@ function remWhenLabel(ms) {
   if (dateKey(d) === todayK) return 'today at ' + time;
   if (dateKey(d) === dateKey(tom)) return 'tomorrow at ' + time;
   return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' at ' + time;
+}
+
+// ---- Reminder row wording (Stage 2 fix, 30 Jul). Display only — the record
+// is untouched. Every row says two things: the EVENT with the event's own
+// time, and the NUDGE labelled as a nudge, so three reminders on one 12:30
+// lunch can never read as three lunches at three wrong times. ----
+function remClock(ms) {
+  const d = new Date(ms);
+  return fmt12(String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
+}
+function remDayLabel(ms) {
+  const d = new Date(ms);
+  const todayK = dateKey(new Date());
+  const tom = new Date(); tom.setDate(tom.getDate() + 1);
+  if (dateKey(d) === todayK) return 'today';
+  if (dateKey(d) === dateKey(tom)) return 'tomorrow';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+// The nudge label: known presets get words; a custom offset gets the
+// reminder's own clock time ("390 minutes before" means nothing to a reader).
+function remOffsetLabel(r) {
+  if (r.offset === 15) return '15 min before';
+  if (r.offset === 60) return '1 hour before';
+  if (r.offset === 'morning') return 'morning of';
+  return remWhenLabel(r.whenMs);
+}
+// Both lines for a reminder. Fails soft everywhere: a fired reminder's
+// appointment may be long deleted — stored text stands in, nothing throws,
+// nothing renders "undefined".
+function remRowInfo(r) {
+  let line1 = escapeRem(r.text || 'Reminder');
+  let prefix = 'reminder';
+  let a = null;
+  try {
+    if (r.link && r.link.type === 'appt') {
+      a = (state.appointments || []).find(x => x.id === r.link.id) || null;
+    } else if (r.link && r.link.type === 'series') {
+      prefix = 'series reminder';
+      const members = seriesMembers(r.link.seriesId).filter(m => !m.detached);
+      if (r.offset === 'morning') {
+        const dk = dateKey(new Date(r.whenMs));
+        a = members.find(m => m.date === dk) || null;
+      } else if (typeof r.offset === 'number') {
+        const startMs = r.whenMs + r.offset * 60000;
+        a = members.find(m => apptStartMs(m) === startMs) || null;
+      }
+      if (!a) a = members.find(m => apptStartMs(m) >= r.whenMs) || null;   // fail soft: nearest at/after
+    }
+  } catch (e) { a = null; }
+  if (a) {
+    const eventLabel = a.allDay
+      ? remDayLabel(new Date(a.date + 'T12:00').getTime()) + ' · all day'
+      : remWhenLabel(apptStartMs(a));
+    line1 = escapeRem(a.title) + ' · ' + eventLabel;
+  }
+  const line2 = r.fired
+    ? prefix + ' · was due ' + remWhenLabel(r.whenMs)
+    : prefix + ' · ' + ((r.link && r.offset != null) ? remOffsetLabel(r) : remWhenLabel(r.whenMs));
+  return { line1, line2 };
 }
 
 // Core: store a reminder.
@@ -8650,10 +8709,10 @@ function renderReminders() {
   el.innerHTML = list.map(r => {
     const overdue = r.whenMs <= now;
     const color = overdue ? 'var(--orange,#F2771A)' : 'var(--text-light)';
-    const when = (overdue ? 'was ' : '') + remWhenLabel(r.whenMs);
+    const info = remRowInfo(r);   // line 1 = the event with its own time; line 2 = the nudge, labelled
     return `<div class="task-row" style="align-items:center">
       <i class="ti ti-bell" style="color:${color};font-size:16px;margin-right:8px"></i>
-      <div class="task-text" style="flex:1">${escapeRem(r.text)}<div style="font-size:11px;color:${color}">${when}</div></div>
+      <div class="task-text" style="flex:1">${info.line1}<div style="font-size:11px;color:${color}">${info.line2}</div></div>
       <button class="row-edit" title="Snooze 10 min" onclick="snoozeReminder(${r.id})"><i class="ti ti-clock"></i></button>
       <button class="row-edit" title="Delete" onclick="deleteReminder(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`;
@@ -8684,7 +8743,7 @@ function fireReminder(r) {
   playReminderBell();   // our own bell — plays whether or not the OS sounds the notification
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('VoiceFirstPlanner', { body: r.text, tag: 'vfp-rem-' + r.id });
+      new Notification('VoiceFirstPlanner', { body: remRowInfo(r).line1.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"'), tag: 'vfp-rem-' + r.id });
     }
   } catch (e) {}
   renderReminderAlert();
