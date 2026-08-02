@@ -2423,13 +2423,19 @@ body.pv #note-body-inp {
    voice-first identity stays visible on the paper page */
 body.pv #pv-book .cl-add-btn { opacity: 0.4; background: transparent; color: var(--navy, #0C447C); border: 1px solid #C9D6E4; }
 
-/* task rows keep their standard box look — the blend: familiar rows on the page.
-   the add row is simply the next empty line: write, lift, done */
-body.pv #tasks-card #task-date { display: none; }
-body.pv #tasks-card .add-btn { display: none; }
-body.pv #tasks-card.pv-has-ink .add-btn { display: inline-block; }
-body.pv #tasks-card .task-pri-sel { border: none; background: transparent; font-weight: 700; color: var(--navy, #0C447C); width: 36px; }
+/* task rows keep their standard box look, and the add row is the standard
+   task box again — same grammar as the notes page: the box writes, the lines
+   below hold. Write-and-lift and Enter still commit as bonuses. */
+body.pv #tasks-card .task-add-row {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(4,44,83,0.08); padding: 8px 10px;
+}
 body.pv #tasks-card .task-add-row + div { display: none; }   /* the hint line — Classic keeps it */
+/* ruled lines under the tasks: the section reads as a page that continues */
+body.pv #tasks-card::after {
+  content: ''; display: block; height: 140px; margin-top: 10px;
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
+}
 
 /* --- shopping: standard rows; the input is still a write-on line --- */
 body.pv #shopping-card .save-btn { display: none; }
