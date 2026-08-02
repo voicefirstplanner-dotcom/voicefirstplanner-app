@@ -2172,7 +2172,11 @@ html, body {
 }
 
 body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
-/* the header slims: wordmark on one line, tighter spacing */
+/* the header slims: wordmark on one line, tighter spacing — and the day's
+   quote moves to the book's foot (Classic keeps its header quote untouched).
+   The strip stays in the DOM as the toast's anchor; only its face rests. */
+body.pv .quote-strip { background: transparent; border: none; padding: 0; margin: 0; min-height: 0; }
+body.pv .quote-strip .quote-text, body.pv .quote-strip .quote-auth { display: none; }
 body.pv .wordmark { flex-direction: row; align-items: baseline; gap: 7px; }
 body.pv .topbar { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 8px; }
 body.pv .topbar .voice-btn { margin-top: 4px !important; }
@@ -2200,6 +2204,15 @@ body.pv #pv-book {
   padding: 14px 10px 30px 14px;
 }
 body.pv .pv-shell { display: flex; align-items: flex-start; }
+/* the quote's new home: a footer in the appointment-band blue, blending in
+   at the foot of the book */
+body.pv #pv-footer {
+  display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap;
+  background: #D9E6F2; color: var(--navy, #0C447C);
+  border-radius: 0 0 6px 6px; margin: 0 0 4px; padding: 9px 18px;
+}
+body.pv #pv-footer-quote { font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; line-height: 1.45; }
+body.pv #pv-footer-auth { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 body.pv .pv-chrome-left { position: sticky; top: 0; align-self: flex-start; z-index: 3; height: calc(100vh - 185px); min-height: 420px; display: flex; }
 body.pv .pv-pages { border-radius: 0; }
 
@@ -2946,6 +2959,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
       </div>
     </div>
     </div><!-- /pv-shell -->
+    <div id="pv-footer"><span id="pv-footer-quote"></span><span id="pv-footer-auth"></span></div>
   </div>
 
   <!-- PROJECT DETAIL OVERLAY -->
@@ -6117,10 +6131,20 @@ function pvRestoreAll() {
   });
 }
 
+// The footer carries the day's quote in Planner view — read straight from the
+// header strip's own elements, which setQuote() fills daily, so there is one
+// quote source and zero duplication. Classic never shows the footer.
+function pvSyncFooterQuote() {
+  const q = document.getElementById('quote-text'), a = document.getElementById('quote-auth');
+  const fq = document.getElementById('pv-footer-quote'), fa = document.getElementById('pv-footer-auth');
+  if (q && fq) fq.textContent = q.textContent;
+  if (a && fa) fa.textContent = a.textContent;
+}
 function pvEnter() {
   if (document.body.classList.contains('pv')) return;
   pvMoveAll();
   document.body.classList.add('pv');
+  pvSyncFooterQuote();
   // The page invites the pencil: the capture area's placeholder speaks planner
   // while this view is on, and Classic's own wording is restored on exit.
   const nb = document.getElementById('note-body-inp');
@@ -6160,6 +6184,7 @@ function pvAfterShowTab(name) {
 function pvSyncDay() {
   if (!pvDailyActive()) return;
   pvRenderMonthTabs();   // the day rail is retired (2 Aug) — pvRenderRail() stays for an easy return
+  pvSyncFooterQuote();   // the footer mirrors the header's own daily quote (3 Aug)
   const d = new Date(viewingDate + 'T12:00:00');
   const numEl = document.getElementById('pv-day-num');
   if (numEl) numEl.textContent = d.getDate();
