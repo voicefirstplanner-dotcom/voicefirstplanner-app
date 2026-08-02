@@ -6236,6 +6236,8 @@ function pvFlip(side) {
 // nothing, so dictation can continue into a half-written line. Because the
 // hidden task-date field already follows the viewed day, a task written on a
 // turned page lands on THAT day — exactly as paper would have it.
+let pvLastDown = null;
+document.addEventListener('pointerdown', (e) => { pvLastDown = e.target; }, true);
 function pvFocusOut(e) {
   if (!document.body.classList.contains('pv')) return;
   const t = e.target, id = t && t.id;
@@ -6257,9 +6259,9 @@ function pvFocusOut(e) {
     return;
   }
   if (!id || !['note-body-inp', 'task-inp', 'shopping-input'].includes(id)) return;
-  const to = e.relatedTarget;
+  const to = e.relatedTarget || pvLastDown;   // iPad taps focus nothing: follow the finger
   const card = t.closest && t.closest('.card');
-  if (to && card && card.contains(to)) return;   // still working in this section
+  if (to && card && card.contains(to)) return;   // still working in this section (mic, buttons, checklist)
   try {
     if (!String(t.value || '').trim()) return;
     if (id === 'note-body-inp') saveNote();
@@ -6274,11 +6276,14 @@ document.addEventListener('focusout', pvFocusOut);
 // through shiftViewDay(), the same path the ‹ › arrows use. Only on the daily
 // spread; a swipe that starts on a field, a button or the tab chrome is left
 // alone, and mostly-vertical drags stay scrolls.
-let pvSwX = null, pvSwY = null, pvSwOK = false;
+let pvSwX = null, pvSwY = null, pvSwOK = false, pvSwallowClick = false;
 document.addEventListener('touchstart', (e) => {
   if (!pvDailyActive()) { pvSwOK = false; return; }
   const t = e.target;
-  pvSwOK = !(t && t.closest && t.closest('input, textarea, select, button, .pv-chrome, #pv-flip'));
+  // the empty writing area is most of the notes page — a horizontal swipe on
+  // it (while it carries no ink) is a page turn, not writing
+  const emptyWritingArea = t && t.id === 'note-body-inp' && !String(t.value || '').trim();
+  pvSwOK = emptyWritingArea || !(t && t.closest && t.closest('input, textarea, select, button, .pv-chrome, #pv-flip'));
   const p = e.touches && e.touches[0];
   if (p) { pvSwX = p.clientX; pvSwY = p.clientY; }
 }, { passive: true });
@@ -6288,8 +6293,15 @@ document.addEventListener('touchend', (e) => {
   if (!p) { pvSwX = null; return; }
   const dx = p.clientX - pvSwX, dy = p.clientY - pvSwY;
   pvSwX = null;
-  if (Math.abs(dx) > 70 && Math.abs(dx) > 2.2 * Math.abs(dy)) shiftViewDay(dx < 0 ? 1 : -1);
+  if (Math.abs(dx) > 55 && Math.abs(dx) > 1.6 * Math.abs(dy)) {
+    pvSwallowClick = true;                 // the tap that ends a swipe must not tick a task
+    setTimeout(() => { pvSwallowClick = false; }, 400);
+    shiftViewDay(dx < 0 ? 1 : -1);
+  }
 }, { passive: true });
+document.addEventListener('click', (e) => {
+  if (pvSwallowClick) { e.stopPropagation(); e.preventDefault(); pvSwallowClick = false; }
+}, true);
 
 // ---- A visible way to commit (2 Aug): the moment a line carries ink, that
 // line's own Add / Save button appears at its end; empty the line and it folds
@@ -6302,10 +6314,12 @@ function pvInkSync() {
     if (f && card) card.classList.toggle('pv-has-ink', !!String(f.value || '').trim());
   });
 }
+// capture phase: dictation dispatches a NON-bubbling input event, which a
+// bubbling listener never hears — capture hears every input, spoken or typed
 document.addEventListener('input', (e) => {
   if (!document.body.classList.contains('pv')) return;
   if (e.target && PV_INK[e.target.id]) pvInkSync();
-});
+}, true);
 document.addEventListener('click', (e) => {
   if (!document.body.classList.contains('pv')) return;
   const card = e.target && e.target.closest && e.target.closest('#tasks-card, #notes-capture-card, #shopping-card');
