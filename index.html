@@ -2183,10 +2183,12 @@ body.pv #pv-slot-ai-top .ai-btn { margin: 6px auto 0 !important; max-width: 460p
    the page goes lightly translucent so the image reads through, and the
    cards frost for legibility, mirroring Classic's own atmo treatment */
 body.pv.pv-mode-daily #lp-atmo { display: none !important; }
-body.pv.atmo-on.pv-mode-wide .pv-pages { background: color-mix(in srgb, #FDFDF9 78%, transparent); }
-body.pv.atmo-on.pv-mode-wide #pv-wide .sec.active .card {
-  background: color-mix(in srgb, var(--card) 92%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+/* the photo shows clean — no wash — and every box on a wide spread is
+   solidly defined so it reads clearly against the image */
+body.pv.atmo-on.pv-mode-wide .pv-pages { background: transparent; border-color: transparent; box-shadow: none; }
+body.pv.pv-mode-wide #pv-wide .sec.active .card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(4,44,83,0.18); padding: 14px; margin-bottom: 12px;
 }
 
 body.pv #app { display: flex !important; flex-direction: column; max-width: 1500px; grid-template-columns: none; height: 100%; }
@@ -2272,11 +2274,12 @@ body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
 /* ---- Right page: quote, DAILY NOTES on ruled paper, shopping at the foot ---- */
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
-body.pv .pv-ruled-page {
-  background:
-    linear-gradient(to right, transparent 0 26px, #D8A08A 26px 27px, transparent 27px),
-    repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
-  padding-left: 36px; min-height: 300px; flex: 1;
+body.pv .pv-ruled-page { min-height: 300px; flex: 1; display: flex; flex-direction: column; }
+/* the paper lines fill only the EMPTY remainder of the page — written content
+   rules itself line by line, so ink and ruling can never clash */
+body.pv .pv-lines-fill {
+  flex: 1; min-height: 84px;
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
 }
 body.pv .pv-write-hint {
   font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -2389,8 +2392,9 @@ body.pv #pv-book { --pv-line: 28px; }
 
 /* --- quick capture becomes the top lines of the notes page --- */
 body.pv #notes-capture-card div:has(> #note-title-inp) { display: none; }
+body.pv #notes-capture-card .field-mic { display: none; }
 body.pv #notes-capture-card div:has(> #note-body-inp) { align-items: flex-start; }
-body.pv #notes-capture-card div:has(> #note-body-inp) .field-mic { margin-top: 2px; }
+body.pv #notes-capture-card div:has(> #note-body-inp) .field-mic { display: inline-flex; margin-top: 2px; }
 /* the writable hour line: write an appointment straight onto the schedule */
 body.pv .pv-hour-inp {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -2407,6 +2411,7 @@ body.pv #notes-capture-card .save-btn { display: none; }
 body.pv #note-body-inp {
   min-height: calc(var(--pv-line) * 4) !important; line-height: var(--pv-line); padding: 0 2px;
   font-size: 15px; resize: none; border: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px) !important;
 }
 
 /* --- every mic stays (voice-first), but paper-quiet --- */
@@ -2425,7 +2430,7 @@ body.pv #shopping-card .save-btn { display: none; }
 body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); border: none !important; border-bottom: 1px solid #C9D6E4 !important; border-radius: 0 !important; background: transparent !important; }
 
 /* --- the day's notes, resting on the lines --- */
-body.pv #pv-slot-notes .note-card { border-bottom: none; padding: 0 2px 4px; }
+body.pv #pv-slot-notes .note-card { border-bottom: 1px solid #C9D6E4; padding: 4px 2px 8px; }
 body.pv #pv-slot-notes .note-title { font-size: 14.5px; line-height: var(--pv-line); }
 body.pv #pv-slot-notes .note-body { line-height: var(--pv-line); font-size: 14px; }
 body.pv #pv-slot-notes .row-edit { opacity: 0.25; }
@@ -2896,6 +2901,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
           <div class="pv-write-hint">Speak, type or write on the lines</div>
           <div id="pv-slot-capture"></div>
           <div id="pv-slot-notes"></div>
+          <div class="pv-lines-fill"></div>
         </div>
         <div class="pv-band">Shopping List</div>
         <div id="pv-slot-shop"></div>
