@@ -2275,12 +2275,13 @@ body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
 body.pv .pv-ruled-page { min-height: 300px; flex: 1; display: flex; flex-direction: column; }
-/* the paper lines fill only the EMPTY remainder of the page — written content
-   rules itself line by line, so ink and ruling can never clash */
-body.pv .pv-lines-fill {
-  flex: 1; min-height: 84px;
-  background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
-}
+/* the writing area IS the rest of the page: below the day's saved notes, every
+   remaining ruled line belongs to one big writable field — tap or Scribble
+   anywhere on the empty lines and you are writing. Ink and ruling share one
+   rhythm because the lines are painted on the field itself. */
+body.pv #pv-slot-capture { flex: 1; display: flex; flex-direction: column; min-height: 140px; }
+body.pv #pv-slot-capture .card { flex: 1; display: flex; flex-direction: column; padding-bottom: 0; }
+body.pv #notes-capture-card div:has(> #note-body-inp) { flex: 1; }
 body.pv .pv-write-hint {
   font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--navy, #0C447C); line-height: var(--pv-line, 28px); padding: 0 2px;
@@ -2409,7 +2410,7 @@ body.pv #notes-capture-card #note-cl-adder,
 body.pv #notes-capture-card #note-cl-toggle,
 body.pv #notes-capture-card .save-btn { display: none; }
 body.pv #note-body-inp {
-  min-height: calc(var(--pv-line) * 4) !important; line-height: var(--pv-line); padding: 0 2px;
+  min-height: calc(var(--pv-line) * 4) !important; height: 100%; line-height: var(--pv-line); padding: 0 2px;
   font-size: 15px; resize: none; border: none;
   background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px) !important;
 }
@@ -2595,6 +2596,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         </div>
         <div id="overload-notice" style="display:none;background:color-mix(in srgb, var(--appt) 12%, transparent);border-left:3px solid var(--appt);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
         <div id="task-list"></div>
+        <div id="task-clear-row" style="display:none;justify-content:flex-end;margin-top:8px"><button onclick="clearTickedTasks()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear ticked</button></div>
         <div class="task-add-row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
           <input class="task-inp" id="task-inp" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:120px">
           <select class="task-pri-sel" id="task-pri">
@@ -2899,9 +2901,8 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <div id="pv-day-meta"></div>
         <div class="pv-ruled-page">
           <div class="pv-write-hint">Speak, type or write on the lines</div>
-          <div id="pv-slot-capture"></div>
           <div id="pv-slot-notes"></div>
-          <div class="pv-lines-fill"></div>
+          <div id="pv-slot-capture"></div>
         </div>
         <div class="pv-band">Shopping List</div>
         <div id="pv-slot-shop"></div>
@@ -7173,6 +7174,8 @@ function renderTasks() {
   const el = document.getElementById('task-list');
   el.innerHTML = '';
   const tasksForDay = state.tasks.filter(t => (t.date || dateKey(today)) === viewingDate);
+  const clearRow = document.getElementById('task-clear-row');
+  if (clearRow) clearRow.style.display = tasksForDay.some(t => t.done) ? 'flex' : 'none';
   if (tasksForDay.length === 0) {
     el.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">No tasks for this day yet.<br><span style="font-size:12px;opacity:0.7">Add one below or speak to the microphone.</span></div>`;
     return;
@@ -8302,7 +8305,6 @@ function renderNotes() {
     card.innerHTML = inner;
     el.appendChild(card);
   });
-  if (pvDay && !pvShown) el.innerHTML = '<div class="pv-notes-empty">No notes on this page yet &mdash; write one above, or speak it.</div>';
 }
 
 // ============================================================
@@ -8436,6 +8438,20 @@ function deleteShoppingItem(id) {
   var l = activeShopList();
   l.items = l.items.filter(function(x){ return x.id !== id; });
   renderShopping();
+}
+
+// Clear every ticked task on the viewed day — the task list's counterpart to
+// the shopping list's Clear ticked (2 Aug). Unfired reminders leave with their
+// tasks, exactly as single-task delete does.
+function clearTickedTasks() {
+  const doomed = state.tasks.filter(t => t.done && (t.date || dateKey(today)) === viewingDate);
+  if (!doomed.length) return;
+  doomed.forEach(t => cleanupItemReminders('task', t.id));
+  state.tasks = state.tasks.filter(t => !(t.done && (t.date || dateKey(today)) === viewingDate));
+  renderTasks();
+  renderCalStrip();
+  try { persistNow(); } catch (e) {}
+  showToast(doomed.length === 1 ? 'Cleared 1 ticked task' : `Cleared ${doomed.length} ticked tasks`);
 }
 
 function clearTickedShopping() {
