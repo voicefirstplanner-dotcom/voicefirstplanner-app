@@ -2271,7 +2271,11 @@ body.pv #pv-slot-focus .card {
 }
 
 /* ---- Left page body: tasks column | focus + schedule column ---- */
-body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+body.pv .pv-left { display: flex; flex-direction: column; }
+body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: stretch; flex: 1; }
+body.pv .pv-colA { display: flex; flex-direction: column; }
+body.pv #pv-slot-tasks { flex: 1; display: flex; flex-direction: column; }
+body.pv #pv-slot-tasks > .card { flex: 1; display: flex; flex-direction: column; }
 body.pv .pv-day-head { padding-bottom: 6px; }
 body.pv #pv-slot-cal { border-bottom: 2px solid var(--navy, #0C447C); padding-bottom: 8px; margin-bottom: 2px; }
 body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
@@ -2315,7 +2319,10 @@ body.pv .pv-chrome {
   display: flex; align-items: stretch;
   height: calc(100vh - 185px); min-height: 420px;
 }
-body.pv #pv-rail {
+body.pv #pv-rail { display: none; }   /* retired 2 Aug: the month calendar's day taps and the
+  swipe both turn the page — the rail duplicated them and crowded the section tabs.
+  One line brings it back if ever wanted. */
+body.pv #pv-rail-off {
   width: 27px; display: flex; flex-direction: column; align-items: stretch; gap: 1px;
   overflow-y: auto; scrollbar-width: none; padding: 2px 0;
 }
@@ -2433,8 +2440,8 @@ body.pv #tasks-card .task-add-row {
 body.pv #tasks-card .task-add-row + div { display: none; }   /* the hint line — Classic keeps it */
 /* ruled lines under the tasks: the section reads as a page that continues */
 body.pv #tasks-card::after {
-  content: ''; display: block; height: 140px; margin-top: 10px;
-  background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
+  content: ''; display: block; flex: 1; min-height: 84px; margin-top: 10px;
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
 }
 
 /* --- shopping: standard rows; the input is still a write-on line --- */
@@ -6152,8 +6159,7 @@ function pvAfterShowTab(name) {
 // Today — turns the page for free.
 function pvSyncDay() {
   if (!pvDailyActive()) return;
-  pvRenderRail();
-  pvRenderMonthTabs();
+  pvRenderMonthTabs();   // the day rail is retired (2 Aug) — pvRenderRail() stays for an easy return
   const d = new Date(viewingDate + 'T12:00:00');
   const numEl = document.getElementById('pv-day-num');
   if (numEl) numEl.textContent = d.getDate();
