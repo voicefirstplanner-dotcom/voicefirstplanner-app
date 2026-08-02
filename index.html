@@ -2172,6 +2172,11 @@ html, body {
 }
 
 body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
+/* the header slims: wordmark on one line, tighter spacing */
+body.pv .wordmark { flex-direction: row; align-items: baseline; gap: 7px; }
+body.pv .topbar { padding-top: 8px; padding-bottom: 8px; }
+body.pv .topbar .voice-btn { margin-top: 4px !important; }
+body.pv .voice-hint { margin-top: 2px; }
 body.pv #lp-atmo { display: none !important; }
 /* the header slims down: the day's quote lives on the notes page in this view */
 body.pv .quote-strip { background: transparent; border: none; padding: 0; margin: 0; min-height: 0; }
@@ -2186,6 +2191,8 @@ body.pv #pv-book {
   padding: 14px 10px 30px 14px;
 }
 body.pv .pv-shell { display: flex; align-items: flex-start; }
+body.pv .pv-chrome-left { position: sticky; top: 0; align-self: flex-start; z-index: 3; height: calc(100vh - 185px); min-height: 420px; display: flex; }
+body.pv .pv-pages { border-radius: 0; }
 
 body.pv #pv-book, body.pv #pv-book input, body.pv #pv-book textarea, body.pv #pv-book select, body.pv #pv-book button {
   font-family: 'Hanken Grotesk', var(--font);
@@ -2207,7 +2214,6 @@ body.pv .pv-page { padding: 18px 20px 24px; min-width: 0; }
 body.pv .pv-left { border-right: 1px solid #E2E9EF; }
 
 /* ---- The day header: big day number, weekday, month ---- */
-body.pv .pv-toprow { display: grid; grid-template-columns: 1fr minmax(0, 264px); gap: 14px; align-items: start; padding-bottom: 8px; border-bottom: 2px solid var(--navy, #0C447C); }
 body.pv #pv-day-num { font-family: 'Fraunces', serif; font-size: 50px; font-weight: 700; color: var(--navy, #0C447C); line-height: 0.95; }
 body.pv #pv-day-name { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 500; color: var(--navy, #0C447C); margin-top: 2px; }
 body.pv #pv-day-date { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--navy, #0C447C); margin-top: 2px; text-transform: uppercase; }
@@ -2256,7 +2262,9 @@ body.pv #task-list > div, body.pv #shopping-list > div {
 }
 
 /* ---- Left page body: tasks column | focus + schedule column ---- */
-body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; margin-top: 10px; }
+body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+body.pv .pv-day-head { padding-bottom: 6px; }
+body.pv #pv-slot-cal { border-bottom: 2px solid var(--navy, #0C447C); padding-bottom: 8px; margin-bottom: 2px; }
 body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
 body.pv #pv-slot-tasks {
   background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
@@ -2270,13 +2278,17 @@ body.pv #pv-quote-text { display: block; font-family: 'Fraunces', serif; font-st
 body.pv #pv-quote-author { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--navy, #0C447C); margin-top: 3px; text-transform: uppercase; }
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
-body.pv .pv-ruled {
+body.pv .pv-ruled-page {
   background:
     linear-gradient(to right, transparent 0 26px, #D8A08A 26px 27px, transparent 27px),
     repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
-  padding-left: 36px; min-height: 280px;
+  padding-left: 36px; min-height: 300px; flex: 1;
 }
-body.pv #pv-slot-capture { padding-left: 36px; background: linear-gradient(to right, transparent 0 26px, #D8A08A 26px 27px, transparent 27px); }
+body.pv .pv-write-hint {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--navy, #0C447C); line-height: var(--pv-line, 28px); padding: 0 2px;
+}
+body.pv .pv-page.pv-right { display: flex; flex-direction: column; }
 body.pv #pv-slot-notes .note-card {
   background: transparent; border: none; box-shadow: none; border-radius: 0;
   border-bottom: 1px solid #C9D6E4; padding: 8px 2px 10px; margin: 0;
@@ -2315,25 +2327,26 @@ body.pv .pv-rail-day {
 body.pv .pv-rail-day.on { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 700; }
 body.pv .pv-rail-day.tdy:not(.on) { background: #C9DCEE; }
 
-body.pv #pv-mtabs { width: 25px; display: flex; flex-direction: column; gap: 3px; padding: 2px 0 2px 3px; }
+body.pv #pv-mtabs { width: 27px; display: flex; flex-direction: column; gap: 3px; padding: 2px 3px 2px 0; }
 body.pv .pv-mtab {
-  flex: 1 1 auto; min-height: 0; writing-mode: vertical-rl; transform: rotate(180deg);
-  border: 1px solid #C7D3DE; border-left: none; border-radius: 0 6px 6px 0;
+  flex: 1 1 auto; min-height: 0; writing-mode: vertical-rl;
+  border: 1px solid #C7D3DE; border-right: none; border-radius: 6px 0 0 6px;
   background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
-  font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 2px 3px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 3px; box-shadow: -2px 2px 8px rgba(4,44,83,0.12);
 }
 body.pv .pv-mtab.on { background: var(--navy, #0C447C); color: #fff; border-color: var(--navy, #0C447C); }
 
 body.pv #pv-stabs { width: 32px; display: flex; flex-direction: column; gap: 4px; padding: 2px 0 2px 3px; }
 body.pv .pv-stab {
-  flex: 1 1 auto; min-height: 0; writing-mode: vertical-rl; transform: rotate(180deg);
+  flex: 1 1 auto; min-height: 0; writing-mode: vertical-rl;
   border: 1px solid #C7D3DE; border-left: none; border-radius: 0 8px 8px 0;
   background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
   font-family: 'Fraunces', serif; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
   padding: 3px 5px; box-shadow: 2px 2px 8px rgba(4,44,83,0.14);
 }
-body.pv .pv-stab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+body.pv .pv-stab-group { background: var(--navy, #0C447C); color: #fff; border-color: var(--navy, #0C447C); }
+body.pv .pv-stab.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 
 /* ---- Wide spreads (Week / Month / Year / Projects / Life sections) ---- */
 body.pv .pv-wide-host { display: none; grid-column: 1 / -1; padding: 20px 24px 26px; min-width: 0; }
@@ -2394,11 +2407,8 @@ body.pv #note-body-inp {
 }
 
 /* --- every mic stays (voice-first), but paper-quiet --- */
-body.pv #pv-book .field-mic {
-  width: 26px; height: 26px; opacity: 0.45;
-  background: transparent; border: 1px solid #C9D6E4; color: var(--navy, #0C447C);
-}
-body.pv #pv-book .field-mic:active { opacity: 1; }
+/* the mics keep the app's standard look — navy square, orange mic — so the
+   voice-first identity stays visible on the paper page */
 body.pv #pv-book .cl-add-btn { opacity: 0.4; background: transparent; color: var(--navy, #0C447C); border: 1px solid #C9D6E4; }
 
 /* --- task rows: a priority letter, text on the line, a small check --- */
@@ -2424,7 +2434,7 @@ body.pv #shopping-list > div {
 }
 body.pv #shopping-list .row-edit { opacity: 0.25; }
 body.pv #shopping-card .save-btn { display: none; }
-body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); }
+body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); border: none !important; border-bottom: 1px solid #C9D6E4 !important; border-radius: 0 !important; background: transparent !important; }
 body.pv #shopping-footer { border-top: none !important; }
 
 /* --- the day's notes, resting on the lines --- */
@@ -2871,18 +2881,17 @@ body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
        ============================================================ -->
   <div id="pv-book">
     <div class="pv-shell">
+    <div class="pv-chrome pv-chrome-left"><div id="pv-mtabs"></div></div>
     <div class="pv-pages">
       <div class="pv-page pv-left">
-        <div class="pv-toprow">
-          <div class="pv-day-head">
-            <div id="pv-day-num"></div>
-            <div id="pv-day-name"></div>
-            <div id="pv-day-date"></div>
-          </div>
-          <div id="pv-slot-cal"></div>
-        </div>
         <div class="pv-cols">
           <div class="pv-colA">
+            <div class="pv-day-head">
+              <div id="pv-day-num"></div>
+              <div id="pv-day-name"></div>
+              <div id="pv-day-date"></div>
+            </div>
+            <div id="pv-slot-cal"></div>
             <div class="pv-band">Prioritised Daily Task List</div>
             <div id="pv-slot-tasks"></div>
             <div id="pv-slot-ai"></div>
@@ -2898,23 +2907,25 @@ body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
         <div class="pv-quote"><span id="pv-quote-text"></span><span id="pv-quote-author"></span></div>
         <div class="pv-band pv-band-notes"><span>Daily Notes</span><span class="pv-band-sub" id="pv-notes-date"></span></div>
         <div id="pv-day-meta"></div>
-        <div id="pv-slot-capture"></div>
-        <div id="pv-slot-notes" class="pv-ruled"></div>
+        <div class="pv-ruled-page">
+          <div class="pv-write-hint">Speak, type or write on the lines</div>
+          <div id="pv-slot-capture"></div>
+          <div id="pv-slot-notes"></div>
+        </div>
         <div class="pv-band">Shopping List</div>
         <div id="pv-slot-shop"></div>
       </div>
       <div class="pv-wide-host"><div id="pv-wide"></div></div>
     </div>
-    <div class="pv-chrome">
+    <div class="pv-chrome pv-chrome-right">
       <div id="pv-rail"></div>
-      <div id="pv-mtabs"></div>
       <div id="pv-stabs">
-        <button class="pv-stab" data-tab="daily" onclick="showTab('daily')">Daily</button>
+        <button class="pv-stab pv-stab-group" data-tab="daily" onclick="showTab('daily')">Daily Planning</button>
         <button class="pv-stab" data-tab="week" onclick="showTab('week')">Week</button>
         <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
         <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
         <button class="pv-stab" data-tab="projects" onclick="showTab('projects')">Projects</button>
-        <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
+        <button class="pv-stab pv-stab-group" data-tab="goals" onclick="showTab('goals')">Life Planning</button>
         <button class="pv-stab" data-tab="values" onclick="showTab('values')">Values</button>
         <button class="pv-stab" data-tab="bucket" onclick="showTab('bucket')">Bucket</button>
         <button class="pv-stab" data-tab="habits" onclick="showTab('habits')">Habits</button>
@@ -6101,6 +6112,10 @@ function pvEnter() {
   if (document.body.classList.contains('pv')) return;
   pvMoveAll();
   document.body.classList.add('pv');
+  // The page invites the pencil: the capture area's placeholder speaks planner
+  // while this view is on, and Classic's own wording is restored on exit.
+  const nb = document.getElementById('note-body-inp');
+  if (nb) { if (!nb.dataset.pvPh) nb.dataset.pvPh = nb.placeholder; nb.placeholder = 'Speak, type or write on the lines\u2026'; }
   // Land on the spread that matches where the user was.
   const cur = document.querySelector('.sec.active');
   const curName = cur ? cur.id.replace('sec-', '') : 'daily';
@@ -6112,6 +6127,8 @@ function pvExit() {
   document.body.classList.remove('pv', 'pv-mode-daily', 'pv-mode-wide');
   const book = document.getElementById('pv-book'); if (book) book.classList.remove('show-right');
   pvRestoreAll();
+  const nb = document.getElementById('note-body-inp');
+  if (nb && nb.dataset.pvPh) nb.placeholder = nb.dataset.pvPh;
   renderNotes();   // drop the day filter — Classic shows every note again
 }
 
