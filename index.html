@@ -2409,6 +2409,9 @@ body.pv #notes-capture-card #note-cl-draft,
 body.pv #notes-capture-card #note-cl-adder,
 body.pv #notes-capture-card #note-cl-toggle,
 body.pv #notes-capture-card .save-btn { display: none; }
+body.pv #notes-capture-card.pv-has-ink .save-btn {
+  display: block; width: auto; align-self: flex-end; margin: 6px 0 10px; padding: 8px 18px;
+}
 body.pv #note-body-inp {
   min-height: calc(var(--pv-line) * 4) !important; height: 100%; line-height: var(--pv-line); padding: 0 2px;
   font-size: 15px; resize: none; border: none;
@@ -2422,12 +2425,15 @@ body.pv #pv-book .cl-add-btn { opacity: 0.4; background: transparent; color: var
 
 /* task rows keep their standard box look — the blend: familiar rows on the page.
    the add row is simply the next empty line: write, lift, done */
-body.pv #tasks-card #task-date, body.pv #tasks-card .add-btn { display: none; }
+body.pv #tasks-card #task-date { display: none; }
+body.pv #tasks-card .add-btn { display: none; }
+body.pv #tasks-card.pv-has-ink .add-btn { display: inline-block; }
 body.pv #tasks-card .task-pri-sel { border: none; background: transparent; font-weight: 700; color: var(--navy, #0C447C); width: 36px; }
 body.pv #tasks-card .task-add-row + div { display: none; }   /* the hint line — Classic keeps it */
 
 /* --- shopping: standard rows; the input is still a write-on line --- */
 body.pv #shopping-card .save-btn { display: none; }
+body.pv #shopping-card.pv-has-ink .save-btn { display: inline-block; }
 body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); border: none !important; border-bottom: 1px solid #C9D6E4 !important; border-radius: 0 !important; background: transparent !important; }
 
 /* --- the day's notes, resting on the lines --- */
@@ -6260,8 +6266,51 @@ function pvFocusOut(e) {
     else if (id === 'task-inp') addTask();
     else addShoppingItem();
   } catch (err) {}
+  setTimeout(pvInkSync, 0);
 }
 document.addEventListener('focusout', pvFocusOut);
+
+// Swiping turns the page — left for the next day, right for the day before,
+// through shiftViewDay(), the same path the ‹ › arrows use. Only on the daily
+// spread; a swipe that starts on a field, a button or the tab chrome is left
+// alone, and mostly-vertical drags stay scrolls.
+let pvSwX = null, pvSwY = null, pvSwOK = false;
+document.addEventListener('touchstart', (e) => {
+  if (!pvDailyActive()) { pvSwOK = false; return; }
+  const t = e.target;
+  pvSwOK = !(t && t.closest && t.closest('input, textarea, select, button, .pv-chrome, #pv-flip'));
+  const p = e.touches && e.touches[0];
+  if (p) { pvSwX = p.clientX; pvSwY = p.clientY; }
+}, { passive: true });
+document.addEventListener('touchend', (e) => {
+  if (!pvSwOK || pvSwX === null || !pvDailyActive()) { pvSwX = null; return; }
+  const p = e.changedTouches && e.changedTouches[0];
+  if (!p) { pvSwX = null; return; }
+  const dx = p.clientX - pvSwX, dy = p.clientY - pvSwY;
+  pvSwX = null;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > 2.2 * Math.abs(dy)) shiftViewDay(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+// ---- A visible way to commit (2 Aug): the moment a line carries ink, that
+// line's own Add / Save button appears at its end; empty the line and it folds
+// away again. Lift-to-save and Enter still work — this is the button for
+// anyone who looks for one. The buttons ARE the Classic buttons, unhidden.
+const PV_INK = { 'task-inp': 'tasks-card', 'note-body-inp': 'notes-capture-card', 'shopping-input': 'shopping-card' };
+function pvInkSync() {
+  Object.keys(PV_INK).forEach(id => {
+    const f = document.getElementById(id), card = document.getElementById(PV_INK[id]);
+    if (f && card) card.classList.toggle('pv-has-ink', !!String(f.value || '').trim());
+  });
+}
+document.addEventListener('input', (e) => {
+  if (!document.body.classList.contains('pv')) return;
+  if (e.target && PV_INK[e.target.id]) pvInkSync();
+});
+document.addEventListener('click', (e) => {
+  if (!document.body.classList.contains('pv')) return;
+  const card = e.target && e.target.closest && e.target.closest('#tasks-card, #notes-capture-card, #shopping-card');
+  if (card) setTimeout(pvInkSync, 0);   // after any in-card commit clears its field
+});
 
 // ---- The switch itself: persisted beside the theme, applied like one ----
 const VIEW_MODES = [
