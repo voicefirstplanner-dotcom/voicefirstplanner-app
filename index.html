@@ -2155,13 +2155,13 @@ html, body {
      ============================================================ -->
 <style id="pv-css">
 /* ============================================================
-   PLANNER VIEW (2 Aug) — the two-page-per-day paper spread,
-   styled on the classic ring-planner vocabulary: banded section
-   headers, a prioritised task column beside the appointment
-   schedule, and a fully lined notes page. Every rule is scoped
-   under body.pv / #pv-book / #view-picker-row so the Classic
-   view is provably untouched: with the switch off, none of this
-   applies anywhere.
+   PLANNER VIEW (2 Aug) — the two-page-per-day paper spread on
+   the classic ring-planner vocabulary. Landscape/desktop shows
+   the open book (two portrait pages side by side); portrait
+   shows one page at a time with a page flip. All chrome sits on
+   the right edge: day tabs, then month tabs, then section tabs.
+   Every rule is scoped under body.pv / #pv-book / #view-picker-row
+   so the Classic view is provably untouched.
    ============================================================ */
 #pv-book { display: none; }
 #view-picker-row { display: none; }
@@ -2171,19 +2171,25 @@ html, body {
 
 body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
 body.pv #lp-atmo { display: none !important; }
-body.pv #app { display: flex !important; flex-direction: column; max-width: 1460px; grid-template-columns: none; }
-body.pv #pv-book { display: block; position: relative; padding: 18px 46px 30px 44px; }
+body.pv #app { display: flex !important; flex-direction: column; max-width: 1500px; grid-template-columns: none; height: 100%; }
+/* html/body are overflow:hidden by design — in Classic only .content scrolls,
+   so in Planner view the book itself is the scroll container */
+body.pv #pv-book {
+  display: block; position: relative; flex: 1; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 16px 118px 30px 14px;
+}
 
 body.pv #pv-book, body.pv #pv-book input, body.pv #pv-book textarea, body.pv #pv-book select, body.pv #pv-book button {
   font-family: 'Hanken Grotesk', var(--font);
 }
 
-/* ---- The open book: near-white planner paper ---- */
+/* ---- The open book: two portrait pages of planner paper ---- */
 body.pv .pv-pages {
   position: relative; display: grid; grid-template-columns: 1fr 1fr;
   background: #FDFDF9; border: 1px solid #C7D3DE; border-radius: 4px;
   box-shadow: 0 18px 50px rgba(4,44,83,0.35);
-  min-height: calc(100vh - 210px);
+  min-height: calc(100vh - 200px);
 }
 body.pv .pv-pages::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 34px; transform: translateX(-50%);
@@ -2191,13 +2197,18 @@ body.pv .pv-pages::before {
   pointer-events: none; z-index: 1;
 }
 body.pv .pv-page { padding: 20px 22px 24px; min-width: 0; }
-body.pv .pv-left  { border-right: 1px solid #E2E9EF; }
-body.pv .pv-right { padding-right: 46px; }  /* room for the day tabs */
+body.pv .pv-left { border-right: 1px solid #E2E9EF; }
 
-/* ---- The day header: Sunday / AUGUST 2, 2026 ---- */
-body.pv .pv-day-head { padding: 2px 0 0; }
-body.pv #pv-day-name { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 500; color: var(--navy, #0C447C); line-height: 1.05; }
-body.pv #pv-day-date { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--navy, #0C447C); margin-top: 2px; }
+/* ---- The day header: big day number, weekday, month ---- */
+body.pv .pv-toprow { display: grid; grid-template-columns: 1fr minmax(0, 280px); gap: 16px; align-items: start; padding-bottom: 10px; border-bottom: 2px solid var(--navy, #0C447C); }
+body.pv #pv-day-num { font-family: 'Fraunces', serif; font-size: 52px; font-weight: 700; color: var(--navy, #0C447C); line-height: 0.95; }
+body.pv #pv-day-name { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; color: var(--navy, #0C447C); margin-top: 2px; }
+body.pv #pv-day-date { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--navy, #0C447C); margin-top: 2px; text-transform: uppercase; }
+/* the live month calendar, compacted to planner scale */
+body.pv #pv-slot-cal .card { padding: 0 2px; }
+body.pv #pv-slot-cal .card-label { display: none; }
+body.pv #cal-strip-card > div:last-child { display: none; }   /* the dot legend — Classic keeps it */
+body.pv #cal-strip > div { width: 24px !important; height: 24px !important; font-size: 10px !important; }
 
 /* ---- Banded section headers, the planner's signature ---- */
 body.pv .pv-band {
@@ -2206,7 +2217,6 @@ body.pv .pv-band {
   font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   padding: 5px 10px; margin: 14px 0 6px; border-radius: 2px;
 }
-body.pv .pv-band:first-child { margin-top: 0; }
 body.pv .pv-band .pv-band-sub { font-weight: 600; letter-spacing: 0.06em; }
 
 /* ---- Cards shed their boxes: content sits straight on the page ---- */
@@ -2214,40 +2224,40 @@ body.pv #pv-book .card {
   background: transparent; border: none; box-shadow: none; border-radius: 0;
   padding: 2px 2px 8px; margin: 0;
 }
-/* the bands above the slots carry the headings — the cards' own labels rest */
 body.pv #pv-slot-tasks .card-label, body.pv #pv-slot-sched .card-label,
 body.pv #pv-slot-shop .card-label, body.pv #pv-slot-capture .card-label,
 body.pv #pv-slot-focus .card-label { display: none; }
-body.pv #schedule-date { display: none; }         /* the page header already names the day */
-body.pv #shopping-card > p { display: none; }     /* the explainer paragraph — Classic keeps it */
+body.pv #schedule-date { display: none; }
+body.pv #shopping-card > p { display: none; }
 
 body.pv #pv-book .task-inp, body.pv #pv-book .quick-cap-ta, body.pv #pv-book .cl-add-inp, body.pv #pv-book #shopping-input {
   background: transparent; border: none; border-bottom: 1px solid #C9D6E4; border-radius: 0;
   min-height: 38px; font-size: 15px;
 }
-body.pv #pv-book #note-body-inp { min-height: 140px; }   /* room for Scribble to write */
+body.pv #pv-book #note-body-inp { min-height: 140px; }
 body.pv #pv-book .focus-input, body.pv #pv-book .focus-set { background: transparent; }
+body.pv #pv-slot-focus { border-bottom: 1px solid #C9D6E4; margin-bottom: 4px; }
 
-/* ---- Left page: header + mini calendar, then task column | schedule column ---- */
-body.pv .pv-toprow { display: grid; grid-template-columns: 1fr minmax(0, 290px); gap: 18px; align-items: start; padding-bottom: 10px; border-bottom: 2px solid var(--navy, #0C447C); }
-body.pv #pv-slot-cal .card { padding: 0 2px; }
+/* ---- Left page body: tasks column | focus + schedule column ---- */
 body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; margin-top: 12px; }
 body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
-/* faint writing lines under the task and shopping areas */
-body.pv #pv-slot-tasks, body.pv #pv-slot-shop {
+body.pv #pv-slot-tasks {
   background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
-  min-height: 84px;
+  min-height: 168px;
 }
 body.pv #pv-slot-ai .ai-btn { margin: 16px 0 0; }
 
-/* ---- Right page: DAILY NOTES on ruled paper with a margin rule ---- */
+/* ---- Right page: quote, DAILY NOTES on ruled paper, shopping at the foot ---- */
+body.pv .pv-quote { padding: 2px 2px 12px; text-align: right; }
+body.pv #pv-quote-text { display: block; font-family: 'Fraunces', serif; font-style: italic; font-size: 13.5px; color: #33475C; line-height: 1.45; }
+body.pv #pv-quote-author { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--navy, #0C447C); margin-top: 3px; text-transform: uppercase; }
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
 body.pv .pv-ruled {
   background:
     linear-gradient(to right, transparent 0 26px, #D8A08A 26px 27px, transparent 27px),
     repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
-  padding-left: 36px; min-height: 320px;
+  padding-left: 36px; min-height: 300px;
 }
 body.pv #pv-slot-capture { padding-left: 36px; background: linear-gradient(to right, transparent 0 26px, #D8A08A 26px 27px, transparent 27px); }
 body.pv #pv-slot-notes .note-card {
@@ -2255,21 +2265,17 @@ body.pv #pv-slot-notes .note-card {
   border-bottom: 1px solid #C9D6E4; padding: 8px 2px 10px; margin: 0;
 }
 body.pv .pv-notes-empty { font-size: 13px; color: #7C93A8; padding: 16px 2px; font-style: italic; }
-
-/* ---- Month tabs down the left edge — Jan to Dec, thumb to a month ---- */
-body.pv #pv-mtabs { position: absolute; top: 40px; bottom: 40px; left: 4px; display: flex; flex-direction: column; gap: 3px; z-index: 3; }
-body.pv .pv-mtab {
-  flex: 1 1 auto; writing-mode: vertical-rl; transform: rotate(180deg);
-  border: 1px solid #C7D3DE; border-right: none; border-radius: 0 6px 6px 0;
-  background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 4px 5px; box-shadow: -2px 2px 6px rgba(4,44,83,0.12);
+body.pv #pv-slot-shop {
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
+  min-height: 84px;
 }
-body.pv .pv-mtab.on { background: var(--navy, #0C447C); color: #fff; border-color: var(--navy, #0C447C); }
 
-/* ---- Day tabs down the right page edge ---- */
+/* ============================================================
+   THE RIGHT-EDGE CHROME — three stacks, innermost to outermost:
+   day tabs (1..31), month tabs (Jan..Dec), section tabs.
+   ============================================================ */
 body.pv #pv-rail {
-  position: absolute; top: 14px; bottom: 14px; right: 6px; width: 30px; z-index: 2;
+  position: absolute; top: 16px; bottom: 16px; right: 78px; width: 28px; z-index: 2;
   display: flex; flex-direction: column; align-items: stretch; gap: 1px; overflow-y: auto; scrollbar-width: none;
 }
 body.pv #pv-rail::-webkit-scrollbar { display: none; }
@@ -2285,47 +2291,49 @@ body.pv .pv-rail-day {
 body.pv .pv-rail-day.on { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 700; }
 body.pv .pv-rail-day.tdy:not(.on) { background: #C9DCEE; }
 
-/* ---- Edge tabs: the section tabs past the page block ---- */
-body.pv .pv-edge-tabs { position: absolute; top: 56px; right: 4px; display: flex; flex-direction: column; gap: 10px; z-index: 3; }
-body.pv .pv-etab {
-  writing-mode: vertical-rl; padding: 14px 7px; border: 1px solid #C7D3DE; border-left: none;
-  border-radius: 0 8px 8px 0; background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
-  font-family: 'Fraunces', serif; font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
-  box-shadow: 2px 2px 8px rgba(4,44,83,0.18);
+body.pv #pv-mtabs { position: absolute; top: 16px; bottom: 16px; right: 46px; width: 26px; display: flex; flex-direction: column; gap: 3px; z-index: 2; }
+body.pv .pv-mtab {
+  flex: 1 1 auto; writing-mode: vertical-rl; transform: rotate(180deg);
+  border: 1px solid #C7D3DE; border-right: none; border-radius: 6px 0 0 6px;
+  background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 3px 4px;
 }
-body.pv .pv-etab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+body.pv .pv-mtab.on { background: var(--navy, #0C447C); color: #fff; border-color: var(--navy, #0C447C); }
 
-/* ---- Wide spread (Projects / Life) ---- */
-body.pv .pv-wide-host { display: none; grid-column: 1 / -1; padding: 22px 60px 26px 26px; min-width: 0; }
-body.pv #pv-life-tabs { display: none; gap: 8px; flex-wrap: wrap; padding: 0 0 12px; border-bottom: 2px solid var(--navy, #0C447C); margin-bottom: 6px; }
-body.pv .pv-ltab {
-  border: 1px solid #C7D3DE; border-radius: 8px 8px 0 0; background: #EAF1F7; color: var(--navy, #0C447C);
-  padding: 6px 14px; cursor: pointer; font-family: 'Fraunces', serif; font-size: 12px; font-weight: 700;
+body.pv #pv-stabs { position: absolute; top: 16px; bottom: 16px; right: 6px; width: 34px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+body.pv .pv-stab {
+  flex: 1 1 auto; writing-mode: vertical-rl; transform: rotate(180deg);
+  border: 1px solid #C7D3DE; border-right: none; border-radius: 8px 0 0 8px;
+  background: #EAF1F7; color: var(--navy, #0C447C); cursor: pointer;
+  font-family: 'Fraunces', serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 4px 6px; box-shadow: -2px 2px 8px rgba(4,44,83,0.14);
 }
-body.pv .pv-ltab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+body.pv .pv-stab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+
+/* ---- Wide spreads (Week / Month / Year / Projects / Life sections) ---- */
+body.pv .pv-wide-host { display: none; grid-column: 1 / -1; padding: 22px 26px 26px; min-width: 0; }
+body.pv.pv-mode-wide .pv-left, body.pv.pv-mode-wide .pv-right,
+body.pv.pv-mode-wide #pv-rail, body.pv.pv-mode-wide #pv-mtabs { display: none; }
+body.pv.pv-mode-wide .pv-wide-host { display: block; }
 @media (min-width: 1024px) {
-  body.pv #pv-wide .sec.active { column-count: 2; column-gap: 56px; }
+  body.pv #pv-wide #sec-goals.active, body.pv #pv-wide #sec-values.active,
+  body.pv #pv-wide #sec-bucket.active, body.pv #pv-wide #sec-habits.active,
+  body.pv #pv-wide #sec-reflect.active { column-count: 2; column-gap: 56px; }
   body.pv #pv-wide .sec.active > * { break-inside: avoid; }
 }
 
-/* mode switching */
-body.pv.pv-mode-projects .pv-left, body.pv.pv-mode-projects .pv-right, body.pv.pv-mode-projects #pv-rail,
-body.pv.pv-mode-life .pv-left, body.pv.pv-mode-life .pv-right, body.pv.pv-mode-life #pv-rail { display: none; }
-body.pv.pv-mode-projects .pv-wide-host, body.pv.pv-mode-life .pv-wide-host { display: block; }
-body.pv.pv-mode-life #pv-life-tabs { display: flex; }
-
-/* ---- Page-flip: below the full-spread width, one page at a time ---- */
+/* ---- Portrait: one page at a time, flipped like a notebook ---- */
 body.pv #pv-flip { display: none; }
 @media (min-width: 740px) and (max-width: 1023.98px) {
   body.pv .pv-pages { grid-template-columns: 1fr; }
   body.pv .pv-pages::before { display: none; }
-  body.pv .pv-left { border-right: none; padding-right: 46px; }
+  body.pv .pv-left { border-right: none; }
   body.pv .pv-cols { grid-template-columns: 1fr; }
   body.pv.pv-mode-daily .pv-right { display: none; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-right { display: block; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-left { display: none; }
   body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 12px 0 0; }
-  body.pv #pv-wide .sec.active { column-count: 1; }
   body.pv .pv-flip-btn {
     border: 1px solid #C7D3DE; border-radius: 8px; background: #FDFDF9; color: var(--navy, #0C447C);
     padding: 8px 18px; cursor: pointer; font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700;
@@ -2764,13 +2772,10 @@ body.pv #pv-flip { display: none; }
     <div class="pv-pages">
       <div class="pv-page pv-left">
         <div class="pv-toprow">
-          <div>
-            <div class="pv-day-head">
-              <div id="pv-day-name"></div>
-              <div id="pv-day-date"></div>
-            </div>
-            <div class="pv-band">Today's Focus</div>
-            <div id="pv-slot-focus"></div>
+          <div class="pv-day-head">
+            <div id="pv-day-num"></div>
+            <div id="pv-day-name"></div>
+            <div id="pv-day-date"></div>
           </div>
           <div id="pv-slot-cal"></div>
         </div>
@@ -2778,39 +2783,39 @@ body.pv #pv-flip { display: none; }
           <div class="pv-colA">
             <div class="pv-band">Prioritised Daily Task List</div>
             <div id="pv-slot-tasks"></div>
-            <div class="pv-band">Shopping List</div>
-            <div id="pv-slot-shop"></div>
             <div id="pv-slot-ai"></div>
           </div>
           <div class="pv-colB">
             <div class="pv-band">Appointment Schedule</div>
+            <div id="pv-slot-focus"></div>
             <div id="pv-slot-sched"></div>
           </div>
         </div>
       </div>
       <div class="pv-page pv-right">
+        <div class="pv-quote"><span id="pv-quote-text"></span><span id="pv-quote-author"></span></div>
         <div class="pv-band pv-band-notes"><span>Daily Notes</span><span class="pv-band-sub" id="pv-notes-date"></span></div>
         <div id="pv-day-meta"></div>
         <div id="pv-slot-capture"></div>
         <div id="pv-slot-notes" class="pv-ruled"></div>
+        <div class="pv-band">Shopping List</div>
+        <div id="pv-slot-shop"></div>
       </div>
-      <div class="pv-wide-host">
-        <div id="pv-life-tabs">
-          <button class="pv-ltab" data-life="goals" onclick="showTab('goals')">Goals</button>
-          <button class="pv-ltab" data-life="values" onclick="showTab('values')">Values</button>
-          <button class="pv-ltab" data-life="bucket" onclick="showTab('bucket')">Bucket List</button>
-          <button class="pv-ltab" data-life="habits" onclick="showTab('habits')">Habits</button>
-          <button class="pv-ltab" data-life="reflect" onclick="showTab('reflect')">Reflect</button>
-        </div>
-        <div id="pv-wide"></div>
-      </div>
+      <div class="pv-wide-host"><div id="pv-wide"></div></div>
       <div id="pv-rail"></div>
       <div id="pv-mtabs"></div>
-    </div>
-    <div class="pv-edge-tabs">
-      <button class="pv-etab" data-mode="daily" onclick="pvGoMode('daily')">Daily Planning</button>
-      <button class="pv-etab" data-mode="projects" onclick="pvGoMode('projects')">Projects</button>
-      <button class="pv-etab" data-mode="life" onclick="pvGoMode('life')">Life Planning</button>
+      <div id="pv-stabs">
+        <button class="pv-stab" data-tab="daily" onclick="showTab('daily')">Daily</button>
+        <button class="pv-stab" data-tab="week" onclick="showTab('week')">Week</button>
+        <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
+        <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
+        <button class="pv-stab" data-tab="projects" onclick="showTab('projects')">Projects</button>
+        <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
+        <button class="pv-stab" data-tab="values" onclick="showTab('values')">Values</button>
+        <button class="pv-stab" data-tab="bucket" onclick="showTab('bucket')">Bucket</button>
+        <button class="pv-stab" data-tab="habits" onclick="showTab('habits')">Habits</button>
+        <button class="pv-stab" data-tab="reflect" onclick="showTab('reflect')">Reflect</button>
+      </div>
     </div>
     <div id="pv-flip">
       <button class="pv-flip-btn on" id="pv-flip-l" onclick="pvFlip('L')">&#8249; Planner page</button>
@@ -4301,10 +4306,11 @@ function showGroup(group, activeTab) {
 }
 
 function showTab(name, btn, skipGroupSync) {
-  // Planner view (2 Aug): the spread IS the day — week/month/year live in the
-  // month calendar on the page, and notes/shopping are already on the spread.
-  // Any request for those tabs lands on the daily spread. Classic is untouched.
-  if (document.body.classList.contains('pv') && ['week','month','year','notes','shopping'].includes(name)) name = 'daily';
+  // Planner view (2 Aug): notes and shopping ARE the daily spread's right
+  // page, so requests for them land there. Every other tab — week, month,
+  // year, projects and the five Life sections — has its own right-edge tab
+  // and opens as a wide spread inside the book. Classic is untouched.
+  if (document.body.classList.contains('pv') && ['notes','shopping'].includes(name)) name = 'daily';
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const sec = document.getElementById('sec-' + name);
@@ -5942,11 +5948,29 @@ const PV_MOVES = [
   ['shopping-card',     'pv-slot-shop'],
   ['notes-capture-card','pv-slot-capture'],
   ['notes-list',        'pv-slot-notes'],
-  // whole sections that ride the wide spread (Projects / Life edge tabs)
+  // whole sections that ride the wide spreads (the right-edge section tabs)
+  ['sec-week', 'pv-wide'], ['sec-month', 'pv-wide'], ['sec-year', 'pv-wide'],
   ['sec-projects', 'pv-wide'], ['sec-goals', 'pv-wide'], ['sec-values', 'pv-wide'],
   ['sec-bucket', 'pv-wide'], ['sec-habits', 'pv-wide'], ['sec-reflect', 'pv-wide'],
 ];
-let pvLastLife = 'goals';   // transient: which Life tab the spread last showed
+// A short shelf of planning quotes for the notes page — one per day, rotating
+// by day of year, the way a paper planner prints one at the top of each page.
+const PV_QUOTES = [
+  ['Plans are nothing; planning is everything.', 'Dwight D. Eisenhower'],
+  ['What gets measured gets managed.', 'Peter Drucker'],
+  ['Well begun is half done.', 'Aristotle'],
+  ['The secret of getting ahead is getting started.', 'Mark Twain'],
+  ['It is not enough to be busy. The question is: what are we busy about?', 'Henry David Thoreau'],
+  ['Lost time is never found again.', 'Benjamin Franklin'],
+  ['A goal without a plan is just a wish.', 'Antoine de Saint-Exupery'],
+  ['Never put off till tomorrow what may be done today.', 'Thomas Jefferson'],
+  ['We are what we repeatedly do.', 'Will Durant'],
+  ['The future depends on what you do today.', 'Mahatma Gandhi'],
+  ['Action is the foundational key to all success.', 'Pablo Picasso'],
+  ['How we spend our days is, of course, how we spend our lives.', 'Annie Dillard'],
+  ['You may delay, but time will not.', 'Benjamin Franklin'],
+  ['Small deeds done are better than great deeds planned.', 'Peter Marshall'],
+];
 
 // Offered only where the spread honestly fits (no phone; no letterbox windows).
 function pvAllowed() {
@@ -5993,34 +6017,25 @@ function pvEnter() {
   // Land on the spread that matches where the user was.
   const cur = document.querySelector('.sec.active');
   const curName = cur ? cur.id.replace('sec-', '') : 'daily';
-  if (['goals','values','bucket','habits','reflect'].includes(curName)) { pvLastLife = curName; showTab(curName); }
-  else if (curName === 'projects') showTab('projects');
-  else showTab('daily');
+  const wide = ['week','month','year','projects','goals','values','bucket','habits','reflect'];
+  showTab(wide.includes(curName) ? curName : 'daily');
 }
 function pvExit() {
   if (!document.body.classList.contains('pv')) return;
-  document.body.classList.remove('pv', 'pv-mode-daily', 'pv-mode-projects', 'pv-mode-life');
+  document.body.classList.remove('pv', 'pv-mode-daily', 'pv-mode-wide');
   const book = document.getElementById('pv-book'); if (book) book.classList.remove('show-right');
   pvRestoreAll();
   renderNotes();   // drop the day filter — Classic shows every note again
 }
 
-// Edge tabs → the three spreads.
-function pvGoMode(mode) {
-  if (mode === 'daily') showTab('daily');
-  else if (mode === 'projects') showTab('projects');
-  else showTab(pvLastLife || 'goals');
-}
 // Called from showTab whenever the Planner view is on — keeps the book's
-// chrome (edge tabs, life tabs, mode classes, rail, notes page) in step.
+// chrome (section tabs, mode classes, rail, notes page) in step. Two modes:
+// the daily two-page spread, and a wide spread for every other section tab.
 function pvAfterShowTab(name) {
-  let mode = 'daily';
-  if (name === 'projects') mode = 'projects';
-  else if (['goals','values','bucket','habits','reflect'].includes(name)) { mode = 'life'; pvLastLife = name; }
-  document.body.classList.remove('pv-mode-daily', 'pv-mode-projects', 'pv-mode-life');
+  const mode = name === 'daily' ? 'daily' : 'wide';
+  document.body.classList.remove('pv-mode-daily', 'pv-mode-wide');
   document.body.classList.add('pv-mode-' + mode);
-  document.querySelectorAll('.pv-etab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  document.querySelectorAll('.pv-ltab').forEach(b => b.classList.toggle('active', b.dataset.life === name));
+  document.querySelectorAll('.pv-stab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   if (mode === 'daily') pvSyncDay();
 }
 
@@ -6033,10 +6048,12 @@ function pvSyncDay() {
   pvRenderRail();
   pvRenderMonthTabs();
   const d = new Date(viewingDate + 'T12:00:00');
+  const numEl = document.getElementById('pv-day-num');
+  if (numEl) numEl.textContent = d.getDate();
   const nameEl = document.getElementById('pv-day-name');
   if (nameEl) nameEl.textContent = d.toLocaleDateString('en-GB', { weekday: 'long' });
   const dateEl = document.getElementById('pv-day-date');
-  if (dateEl) dateEl.textContent = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+  if (dateEl) dateEl.textContent = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
   const h = document.getElementById('pv-notes-date');
   if (h) h.textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
   // The planner's day-count line: Nth Day · M Left · Week W
@@ -6046,6 +6063,10 @@ function pvSyncDay() {
     const doy = Math.round((d - new Date(y, 0, 1, 12)) / 86400000) + 1;
     const total = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
     meta.textContent = `${doy}${pvOrdinal(doy)} Day \u00B7 ${total - doy} Left \u00B7 Week ${pvISOWeek(d)}`;
+    const q = PV_QUOTES[(doy - 1) % PV_QUOTES.length];
+    const qt = document.getElementById('pv-quote-text'), qa = document.getElementById('pv-quote-author');
+    if (qt) qt.textContent = '\u201C' + q[0] + '\u201D';
+    if (qa) qa.textContent = '\u2014 ' + q[1];
   }
   renderNotes();
 }
