@@ -2172,9 +2172,24 @@ html, body {
 }
 
 body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
-/* the header slims: wordmark on one line, tighter spacing — and the day's
-   quote moves to the book's foot (Classic keeps its header quote untouched).
-   The strip stays in the DOM as the toast's anchor; only its face rests. */
+/* the header compresses to two short rows: the voice button rides level with
+   the wordmark and the profile icons; the brain-dump tucks beneath it beside
+   the date. The rotating hint rests in this view, and the day's quote lives in
+   the fixed footer (Classic keeps its header exactly as it was). The quote
+   strip stays in the DOM as the toast's anchor; only its face rests. */
+body.pv .topbar {
+  display: grid; grid-template-columns: auto 1fr auto; column-gap: 16px; align-items: center;
+  grid-template-areas: "brand voice right" "date ai ." "strip strip strip";
+}
+body.pv .topbar-row { display: contents; }
+body.pv .wordmark { grid-area: brand; }
+body.pv .topbar-right { grid-area: right; }
+body.pv .topbar-date { grid-area: date; }
+body.pv .quote-strip { grid-area: strip; }
+body.pv .topbar .voice-btn { grid-area: voice; width: 100%; max-width: 460px; justify-self: center; margin: 0 !important; }
+body.pv #pv-slot-ai-top { grid-area: ai; justify-self: center; width: 100%; max-width: 460px; }
+body.pv #pv-slot-ai-top .ai-btn { margin: 2px auto 0 !important; }
+body.pv .voice-hint { display: none; }
 body.pv .quote-strip { background: transparent; border: none; padding: 0; margin: 0; min-height: 0; }
 body.pv .quote-strip .quote-text, body.pv .quote-strip .quote-auth { display: none; }
 body.pv .wordmark { flex-direction: row; align-items: baseline; gap: 7px; }
@@ -2201,15 +2216,17 @@ body.pv #app { display: flex !important; flex-direction: column; max-width: 1500
 body.pv #pv-book {
   display: block; position: relative; z-index: 1; flex: 1; min-height: 0;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 14px 10px 30px 14px;
+  padding: 14px 10px 66px 14px;   /* foot room: the fixed quote footer sits over the page bottom */
 }
 body.pv .pv-shell { display: flex; align-items: flex-start; }
 /* the quote's new home: a footer in the appointment-band blue, blending in
    at the foot of the book */
 body.pv #pv-footer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
   display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap;
   background: #D9E6F2; color: var(--navy, #0C447C);
-  border-radius: 0 0 6px 6px; margin: 0 0 4px; padding: 9px 18px;
+  padding: 7px 18px calc(7px + env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 10px rgba(4,44,83,0.15);
 }
 body.pv #pv-footer-quote { font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; line-height: 1.45; }
 body.pv #pv-footer-auth { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
