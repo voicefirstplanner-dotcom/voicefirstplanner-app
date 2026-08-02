@@ -2174,13 +2174,18 @@ html, body {
 body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
 /* the header slims: wordmark on one line, tighter spacing */
 body.pv .wordmark { flex-direction: row; align-items: baseline; gap: 7px; }
-body.pv .topbar { padding-top: 8px; padding-bottom: 8px; }
+body.pv .topbar { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 8px; }
 body.pv .topbar .voice-btn { margin-top: 4px !important; }
 body.pv .voice-hint { margin-top: 2px; }
-body.pv #lp-atmo { display: none !important; }
-/* the header slims down: the day's quote lives on the notes page in this view */
-body.pv .quote-strip { background: transparent; border: none; padding: 0; margin: 0; min-height: 0; }
-body.pv .quote-strip .quote-text, body.pv .quote-strip .quote-auth { display: none; }
+/* the Life Planning atmosphere photos show behind their wide spreads —
+   the page goes lightly translucent so the image reads through, and the
+   cards frost for legibility, mirroring Classic's own atmo treatment */
+body.pv.pv-mode-daily #lp-atmo { display: none !important; }
+body.pv.atmo-on.pv-mode-wide .pv-pages { background: color-mix(in srgb, #FDFDF9 78%, transparent); }
+body.pv.atmo-on.pv-mode-wide #pv-wide .sec.active .card {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
 
 body.pv #app { display: flex !important; flex-direction: column; max-width: 1500px; grid-template-columns: none; height: 100%; }
 /* html/body are overflow:hidden by design — in Classic only .content scrolls,
@@ -2238,8 +2243,7 @@ body.pv #pv-book .card {
   padding: 2px 2px 6px; margin: 0;
 }
 body.pv #pv-slot-tasks .card-label, body.pv #pv-slot-sched .card-label,
-body.pv #pv-slot-shop .card-label, body.pv #pv-slot-capture .card-label,
-body.pv #pv-slot-focus .card-label { display: none; }
+body.pv #pv-slot-shop .card-label, body.pv #pv-slot-capture .card-label { display: none; }
 body.pv #schedule-date { display: none; }
 body.pv #shopping-card > p { display: none; }
 
@@ -2250,15 +2254,11 @@ body.pv #pv-book .task-inp, body.pv #pv-book .quick-cap-ta, body.pv #pv-book .cl
 body.pv #pv-book #note-body-inp { min-height: 140px; }
 body.pv #pv-book .focus-input, body.pv #pv-book .focus-set { background: transparent; }
 
-/* the focus line sits inline at the top of the schedule column */
-body.pv #pv-slot-focus { border-bottom: 1px solid #C9D6E4; margin-bottom: 6px; }
-body.pv #focus-card { display: flex; align-items: center; gap: 8px; }
-body.pv #focus-card .focus-input, body.pv #focus-card .focus-set { flex: 1; min-width: 0; }
-
-/* rows lose their pill boxes and sit on the ruling */
-body.pv #task-list > div, body.pv #shopping-list > div {
-  background: transparent !important; border: none !important; box-shadow: none !important;
-  border-bottom: 1px solid #E3EBF2 !important; border-radius: 0 !important; margin: 0 !important;
+/* the daily focus: its standard box, full width across the top of the page */
+body.pv #pv-slot-focus { margin: 0 0 12px; }
+body.pv #pv-slot-focus .card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(4,44,83,0.08); padding: 12px 14px;
 }
 
 /* ---- Left page body: tasks column | focus + schedule column ---- */
@@ -2266,16 +2266,9 @@ body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; ali
 body.pv .pv-day-head { padding-bottom: 6px; }
 body.pv #pv-slot-cal { border-bottom: 2px solid var(--navy, #0C447C); padding-bottom: 8px; margin-bottom: 2px; }
 body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
-body.pv #pv-slot-tasks {
-  background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
-  min-height: 168px;
-}
 body.pv #pv-slot-ai .ai-btn { margin: 14px 0 0; }
 
 /* ---- Right page: quote, DAILY NOTES on ruled paper, shopping at the foot ---- */
-body.pv .pv-quote { padding: 0 2px 10px; text-align: right; }
-body.pv #pv-quote-text { display: block; font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; color: #33475C; line-height: 1.45; }
-body.pv #pv-quote-author { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--navy, #0C447C); margin-top: 3px; text-transform: uppercase; }
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
 body.pv .pv-ruled-page {
@@ -2294,10 +2287,6 @@ body.pv #pv-slot-notes .note-card {
   border-bottom: 1px solid #C9D6E4; padding: 8px 2px 10px; margin: 0;
 }
 body.pv .pv-notes-empty { font-size: 13px; color: #7C93A8; padding: 16px 2px; font-style: italic; }
-body.pv #pv-slot-shop {
-  background: repeating-linear-gradient(to bottom, transparent 0 27px, #E3EBF2 27px 28px);
-  min-height: 84px;
-}
 
 /* ============================================================
    THE RIGHT-EDGE CHROME — a sticky column beside the pages:
@@ -2376,7 +2365,7 @@ body.pv #pv-flip { display: none; }
   body.pv.pv-mode-daily .pv-right { display: none; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-right { display: block; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-left { display: none; }
-  body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 12px 0 0; }
+  body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 0 0 10px; }
   body.pv #pv-wide .sec.active { column-count: 1 !important; }
   body.pv .pv-flip-btn {
     border: 1px solid #C7D3DE; border-radius: 8px; background: #FDFDF9; color: var(--navy, #0C447C);
@@ -2395,6 +2384,16 @@ body.pv #pv-flip { display: none; }
 body.pv #pv-book { --pv-line: 28px; }
 
 /* --- quick capture becomes the top lines of the notes page --- */
+body.pv #notes-capture-card div:has(> #note-title-inp) { display: none; }
+body.pv #notes-capture-card div:has(> #note-body-inp) { align-items: flex-start; }
+body.pv #notes-capture-card div:has(> #note-body-inp) .field-mic { margin-top: 2px; }
+/* the writable hour line: write an appointment straight onto the schedule */
+body.pv .pv-hour-inp {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  font-family: 'Hanken Grotesk', var(--font); font-size: 14px; color: var(--text);
+  padding: 4px 6px; box-sizing: border-box;
+}
 body.pv #notes-capture-card #note-title-inp,
 body.pv #notes-capture-card #tag-pills,
 body.pv #notes-capture-card #note-cl-draft,
@@ -2411,31 +2410,15 @@ body.pv #note-body-inp {
    voice-first identity stays visible on the paper page */
 body.pv #pv-book .cl-add-btn { opacity: 0.4; background: transparent; color: var(--navy, #0C447C); border: 1px solid #C9D6E4; }
 
-/* --- task rows: a priority letter, text on the line, a small check --- */
-body.pv #task-list > div {
-  display: flex; align-items: baseline; gap: 8px; padding: 0 2px;
-  min-height: var(--pv-line); line-height: var(--pv-line); border-bottom: none !important;
-}
-body.pv #task-list .priority-badge { width: auto; height: auto; min-width: 16px; background: transparent !important; color: var(--navy, #0C447C) !important; font-weight: 700; font-size: 12.5px; border: none; }
-body.pv #task-list .task-text { flex: 1; font-size: 14px; }
-body.pv #task-list .row-edit { opacity: 0.25; }
-body.pv #task-list .row-edit:hover, body.pv #task-list .row-edit:active { opacity: 0.9; }
-body.pv #task-list .task-check { width: 16px; height: 16px; align-self: center; }
-body.pv .carry-tag { background: transparent !important; border: none !important; color: #8A9BB0 !important; font-style: italic; font-size: 10.5px !important; padding: 0 0 0 6px !important; }
-/* the add row is simply the next empty line: write, lift, done */
+/* task rows keep their standard box look — the blend: familiar rows on the page.
+   the add row is simply the next empty line: write, lift, done */
 body.pv #tasks-card #task-date, body.pv #tasks-card .add-btn { display: none; }
 body.pv #tasks-card .task-pri-sel { border: none; background: transparent; font-weight: 700; color: var(--navy, #0C447C); width: 36px; }
 body.pv #tasks-card .task-add-row + div { display: none; }   /* the hint line — Classic keeps it */
 
-/* --- shopping: rows and input on the ruling, no Add button --- */
-body.pv #shopping-list > div {
-  display: flex; align-items: baseline; gap: 8px; padding: 0 2px;
-  min-height: var(--pv-line); line-height: var(--pv-line); border-bottom: none !important;
-}
-body.pv #shopping-list .row-edit { opacity: 0.25; }
+/* --- shopping: standard rows; the input is still a write-on line --- */
 body.pv #shopping-card .save-btn { display: none; }
 body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); border: none !important; border-bottom: 1px solid #C9D6E4 !important; border-radius: 0 !important; background: transparent !important; }
-body.pv #shopping-footer { border-top: none !important; }
 
 /* --- the day's notes, resting on the lines --- */
 body.pv #pv-slot-notes .note-card { border-bottom: none; padding: 0 2px 4px; }
@@ -2446,11 +2429,6 @@ body.pv #pv-slot-notes .note-tags { display: none; }
 body.pv #pv-slot-notes .checklist-item { min-height: var(--pv-line); }
 body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 
-/* --- the focus: one clean ruled line, nothing boxed --- */
-body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
-  border: none !important; background: transparent; font-size: 14px;
-  line-height: var(--pv-line); min-height: var(--pv-line); padding: 0 2px;
-}
 </style>
 
 <div id="app">
@@ -2880,10 +2858,15 @@ body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
        pvExit). No renderer is duplicated; every id keeps working.
        ============================================================ -->
   <div id="pv-book">
+    <div id="pv-flip">
+      <button class="pv-flip-btn on" id="pv-flip-l" onclick="pvFlip('L')">&#8249; Planner page</button>
+      <button class="pv-flip-btn" id="pv-flip-r" onclick="pvFlip('R')">Notes page &#8250;</button>
+    </div>
     <div class="pv-shell">
     <div class="pv-chrome pv-chrome-left"><div id="pv-mtabs"></div></div>
     <div class="pv-pages">
       <div class="pv-page pv-left">
+        <div id="pv-slot-focus"></div>
         <div class="pv-cols">
           <div class="pv-colA">
             <div class="pv-day-head">
@@ -2898,13 +2881,11 @@ body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
           </div>
           <div class="pv-colB">
             <div class="pv-band">Appointment Schedule</div>
-            <div id="pv-slot-focus"></div>
             <div id="pv-slot-sched"></div>
           </div>
         </div>
       </div>
       <div class="pv-page pv-right">
-        <div class="pv-quote"><span id="pv-quote-text"></span><span id="pv-quote-author"></span></div>
         <div class="pv-band pv-band-notes"><span>Daily Notes</span><span class="pv-band-sub" id="pv-notes-date"></span></div>
         <div id="pv-day-meta"></div>
         <div class="pv-ruled-page">
@@ -2933,10 +2914,6 @@ body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
       </div>
     </div>
     </div><!-- /pv-shell -->
-    <div id="pv-flip">
-      <button class="pv-flip-btn on" id="pv-flip-l" onclick="pvFlip('L')">&#8249; Planner page</button>
-      <button class="pv-flip-btn" id="pv-flip-r" onclick="pvFlip('R')">Notes page &#8250;</button>
-    </div>
   </div>
 
   <!-- PROJECT DETAIL OVERLAY -->
@@ -6129,7 +6106,8 @@ function pvExit() {
   pvRestoreAll();
   const nb = document.getElementById('note-body-inp');
   if (nb && nb.dataset.pvPh) nb.placeholder = nb.dataset.pvPh;
-  renderNotes();   // drop the day filter — Classic shows every note again
+  renderNotes();          // drop the day filter — Classic shows every note again
+  renderScheduleGrid();   // and the grid sheds its planner-only writable lines
 }
 
 // Called from showTab whenever the Planner view is on — keeps the book's
@@ -6167,15 +6145,9 @@ function pvSyncDay() {
     const doy = Math.round((d - new Date(y, 0, 1, 12)) / 86400000) + 1;
     const total = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
     meta.textContent = `${doy}${pvOrdinal(doy)} Day \u00B7 ${total - doy} Left \u00B7 Week ${pvISOWeek(d)}`;
-    // The day's quote, straight from the app's own QUOTES shelf (same rotation
-    // maths as setQuote), keyed to the VIEWED day — a paper planner prints a
-    // quote on every page, not just today's. One source, zero duplication.
-    const q = QUOTES[doy % QUOTES.length];
-    const qt = document.getElementById('pv-quote-text'), qa = document.getElementById('pv-quote-author');
-    if (qt) qt.textContent = '\u201C' + q.t + '\u201D';
-    if (qa) qa.textContent = '\u2014 ' + q.a;
   }
   renderNotes();
+  renderScheduleGrid();   // rebuilds the writable hour lines for the viewed day
 }
 function pvOrdinal(n) {
   const v = n % 100;
@@ -6249,6 +6221,23 @@ function pvFlip(side) {
 function pvFocusOut(e) {
   if (!document.body.classList.contains('pv')) return;
   const t = e.target, id = t && t.id;
+  // A written hour line commits on its own — each line is its own entry, so
+  // the same-card guard below must not apply. Reuses addAppointment() whole,
+  // via the very form fields the popup path fills.
+  if (t && t.classList && t.classList.contains('pv-hour-inp')) {
+    const title = String(t.value || '').trim();
+    if (!title) return;
+    const h = parseInt(t.dataset.hour, 10);
+    const p2 = n => String(n).padStart(2, '0');
+    try {
+      document.getElementById('appt-title').value = title;
+      document.getElementById('appt-time-start').value = p2(h) + ':00';
+      document.getElementById('appt-time-end').value = p2(h + 1) + ':00';
+      document.getElementById('appt-date').value = viewingDate;
+      addAppointment();
+    } catch (err) {}
+    return;
+  }
   if (!id || !['note-body-inp', 'task-inp', 'shopping-input'].includes(id)) return;
   const to = e.relatedTarget;
   const card = t.closest && t.closest('.card');
@@ -6692,6 +6681,11 @@ function renderScheduleGrid() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:72px;position:relative;cursor:pointer';
     row.onclick = () => quickAddAppt(h);
+    // Planner view (2 Aug): an empty hour line is writable — write the
+    // appointment's name on the line (pen, Scribble or keys) and lifting off
+    // books it for this hour through addAppointment(), the same function the
+    // form's Save uses. The time label still opens the full popup on tap.
+    const pvWritable = (typeof pvDailyActive === 'function') && pvDailyActive() && slotAppts.length === 0;
 
     const timeLabel = document.createElement('div');
     timeLabel.style.cssText = 'width:38px;font-size:10px;color:var(--text-mid);padding-top:4px;flex-shrink:0;font-weight:500';
@@ -6705,6 +6699,15 @@ function renderScheduleGrid() {
     const halfLine = document.createElement('div');
     halfLine.style.cssText = 'position:absolute;top:50%;left:0;right:0;border-top:1px dotted var(--border);pointer-events:none';
     slotContent.appendChild(halfLine);
+    if (pvWritable) {
+      const hourInp = document.createElement('input');
+      hourInp.className = 'pv-hour-inp';
+      hourInp.dataset.hour = h;
+      hourInp.setAttribute('aria-label', 'Write an appointment for this hour');
+      hourInp.onclick = (e) => e.stopPropagation();          // the line is for writing; the popup stays on the time label
+      hourInp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); hourInp.blur(); } };
+      slotContent.appendChild(hourInp);
+    }
 
     // Current time indicator
     if (isToday && nowH === h) {
