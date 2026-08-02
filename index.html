@@ -6281,30 +6281,54 @@ document.addEventListener('focusout', pvFocusOut);
 // through shiftViewDay(), the same path the ‹ › arrows use. Only on the daily
 // spread; a swipe that starts on a field, a button or the tab chrome is left
 // alone, and mostly-vertical drags stay scrolls.
-let pvSwX = null, pvSwY = null, pvSwOK = false, pvSwallowClick = false;
+let pvSwX = null, pvSwY = null, pvSwOK = false, pvSwDrag = false, pvSwallowClick = false;
 document.addEventListener('touchstart', (e) => {
   if (!pvDailyActive()) { pvSwOK = false; return; }
   const t = e.target;
-  // the empty writing area is most of the notes page — a horizontal swipe on
-  // it (while it carries no ink) is a page turn, not writing
-  const emptyWritingArea = t && t.id === 'note-body-inp' && !String(t.value || '').trim();
-  pvSwOK = emptyWritingArea || !(t && t.closest && t.closest('input, textarea, select, button, .pv-chrome, #pv-flip'));
+  // Fields cover most of both pages now (the writing area, the hour lines) —
+  // they only refuse a swipe while they actually carry ink. Buttons, selects
+  // and the tab chrome always keep their touches.
+  const f = t && t.closest && t.closest('input, textarea');
+  const hasInk = f && String(f.value || '').trim();
+  pvSwOK = !hasInk && !(t && t.closest && t.closest('select, button, .pv-chrome, #pv-flip'));
+  pvSwDrag = false;
   const p = e.touches && e.touches[0];
   if (p) { pvSwX = p.clientX; pvSwY = p.clientY; }
 }, { passive: true });
+// live feedback: once the pull is clearly horizontal, the page follows the finger
+document.addEventListener('touchmove', (e) => {
+  if (!pvSwOK || pvSwX === null || !pvDailyActive()) return;
+  const p = e.touches && e.touches[0];
+  if (!p) return;
+  const dx = p.clientX - pvSwX, dy = p.clientY - pvSwY;
+  if (!pvSwDrag && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy)) pvSwDrag = true;
+  if (pvSwDrag) {
+    const pg = document.querySelector('.pv-pages');
+    if (pg) {
+      pg.style.transform = 'translateX(' + (dx * 0.35) + 'px)';
+      pg.style.opacity = String(Math.max(0.55, 1 - Math.abs(dx) / 600));
+    }
+  }
+}, { passive: true });
 document.addEventListener('touchend', (e) => {
+  const pg = document.querySelector('.pv-pages');
   if (!pvSwOK || pvSwX === null || !pvDailyActive()) { pvSwX = null; return; }
   const p = e.changedTouches && e.changedTouches[0];
   if (!p) { pvSwX = null; return; }
   const dx = p.clientX - pvSwX, dy = p.clientY - pvSwY;
   pvSwX = null;
-  if (Math.abs(dx) > 55 && Math.abs(dx) > 1.6 * Math.abs(dy)) {
+  const turned = Math.abs(dx) > 55 && Math.abs(dx) > 1.6 * Math.abs(dy);
+  if (pg) {
+    // release: clear the drag, then either turn or spring back
+    pg.style.transition = 'transform 0.16s ease, opacity 0.16s ease';
+    pg.style.transform = ''; pg.style.opacity = '';
+    setTimeout(() => { pg.style.transition = ''; }, 200);
+  }
+  if (turned) {
     pvSwallowClick = true;                 // the tap that ends a swipe must not tick a task
     setTimeout(() => { pvSwallowClick = false; }, 400);
     const dir = dx < 0 ? 1 : -1;
     shiftViewDay(dir);
-    // a visible page turn: the fresh day slides in from the direction you pulled
-    const pg = document.querySelector('.pv-pages');
     if (pg) {
       pg.classList.remove('pv-turn-next', 'pv-turn-prev');
       void pg.offsetWidth;   // restart the animation even on rapid swipes
@@ -8286,7 +8310,14 @@ function saveNote() {
   const title = rawTitle || (hasChecklist && !body ? 'Checklist' : 'Quick capture');
   if (!isPremium() && (state.notes||[]).length >= 10) { showToast('Free plan: up to 10 notes — upgrade for unlimited'); showUpgrade(); return; }
   const noteTs = Date.now();   // one instant: id and created are the same value by design
-  state.notes.unshift({ id: noteTs, created: noteTs, title, body, tags: [...state.selectedTags],
+  // Planner view (2 Aug): a note written on a TURNED page belongs to that
+  // page's day — exactly as tasks already do through the date field. Without
+  // this, a note saved on Thursday's page was stamped today and vanished from
+  // the page in front of the user. id stays the true capture instant; Classic
+  // is untouched (the guard is false outside the planner view).
+  const noteDay = (typeof pvDailyActive === 'function' && pvDailyActive() && viewingDate !== dateKey(today))
+    ? new Date(viewingDate + 'T12:00:00').getTime() : noteTs;
+  state.notes.unshift({ id: noteTs, created: noteDay, title, body, tags: [...state.selectedTags],
     checklist: hasChecklist ? draftChecklist.map(function(c){ return { text: c.text, done: false }; }) : null });
   document.getElementById('note-body-inp').value = '';
   document.getElementById('note-title-inp').value = '';
