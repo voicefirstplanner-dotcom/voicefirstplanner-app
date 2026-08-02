@@ -2371,6 +2371,76 @@ body.pv #pv-flip { display: none; }
   }
   body.pv .pv-flip-btn.on { background: var(--navy); color: var(--orange); border-color: var(--navy); }
 }
+
+/* ============================================================
+   THE PAPER PRINCIPLE — in this view the lines ARE the interface.
+   Boxes, buttons and pills that the line can replace are hidden;
+   writing on a line and lifting the pencil commits the entry
+   (see pvFocusOut). Controls that must remain are faded to
+   near-paper and wake on touch. One 28px ruling everywhere.
+   ============================================================ */
+body.pv #pv-book { --pv-line: 28px; }
+
+/* --- quick capture becomes the top lines of the notes page --- */
+body.pv #notes-capture-card #note-title-inp,
+body.pv #notes-capture-card #tag-pills,
+body.pv #notes-capture-card #note-cl-draft,
+body.pv #notes-capture-card #note-cl-adder,
+body.pv #notes-capture-card #note-cl-toggle,
+body.pv #notes-capture-card .save-btn { display: none; }
+body.pv #note-body-inp {
+  min-height: calc(var(--pv-line) * 4) !important; line-height: var(--pv-line); padding: 0 2px;
+  font-size: 15px; resize: none; border: none;
+}
+
+/* --- every mic stays (voice-first), but paper-quiet --- */
+body.pv #pv-book .field-mic {
+  width: 26px; height: 26px; opacity: 0.45;
+  background: transparent; border: 1px solid #C9D6E4; color: var(--navy, #0C447C);
+}
+body.pv #pv-book .field-mic:active { opacity: 1; }
+body.pv #pv-book .cl-add-btn { opacity: 0.4; background: transparent; color: var(--navy, #0C447C); border: 1px solid #C9D6E4; }
+
+/* --- task rows: a priority letter, text on the line, a small check --- */
+body.pv #task-list > div {
+  display: flex; align-items: baseline; gap: 8px; padding: 0 2px;
+  min-height: var(--pv-line); line-height: var(--pv-line); border-bottom: none !important;
+}
+body.pv #task-list .priority-badge { width: auto; height: auto; min-width: 16px; background: transparent !important; color: var(--navy, #0C447C) !important; font-weight: 700; font-size: 12.5px; border: none; }
+body.pv #task-list .task-text { flex: 1; font-size: 14px; }
+body.pv #task-list .row-edit { opacity: 0.25; }
+body.pv #task-list .row-edit:hover, body.pv #task-list .row-edit:active { opacity: 0.9; }
+body.pv #task-list .task-check { width: 16px; height: 16px; align-self: center; }
+body.pv .carry-tag { background: transparent !important; border: none !important; color: #8A9BB0 !important; font-style: italic; font-size: 10.5px !important; padding: 0 0 0 6px !important; }
+/* the add row is simply the next empty line: write, lift, done */
+body.pv #tasks-card #task-date, body.pv #tasks-card .add-btn { display: none; }
+body.pv #tasks-card .task-pri-sel { border: none; background: transparent; font-weight: 700; color: var(--navy, #0C447C); width: 36px; }
+body.pv #tasks-card .task-add-row + div { display: none; }   /* the hint line — Classic keeps it */
+
+/* --- shopping: rows and input on the ruling, no Add button --- */
+body.pv #shopping-list > div {
+  display: flex; align-items: baseline; gap: 8px; padding: 0 2px;
+  min-height: var(--pv-line); line-height: var(--pv-line); border-bottom: none !important;
+}
+body.pv #shopping-list .row-edit { opacity: 0.25; }
+body.pv #shopping-card .save-btn { display: none; }
+body.pv #shopping-input { min-height: var(--pv-line); line-height: var(--pv-line); }
+body.pv #shopping-footer { border-top: none !important; }
+
+/* --- the day's notes, resting on the lines --- */
+body.pv #pv-slot-notes .note-card { border-bottom: none; padding: 0 2px 4px; }
+body.pv #pv-slot-notes .note-title { font-size: 14.5px; line-height: var(--pv-line); }
+body.pv #pv-slot-notes .note-body { line-height: var(--pv-line); font-size: 14px; }
+body.pv #pv-slot-notes .row-edit { opacity: 0.25; }
+body.pv #pv-slot-notes .note-tags { display: none; }
+body.pv #pv-slot-notes .checklist-item { min-height: var(--pv-line); }
+body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
+
+/* --- the focus: one clean ruled line, nothing boxed --- */
+body.pv #focus-card .focus-input, body.pv #focus-card .focus-set {
+  border: none !important; background: transparent; font-size: 14px;
+  line-height: var(--pv-line); min-height: var(--pv-line); padding: 0 2px;
+}
 </style>
 
 <div id="app">
@@ -6151,6 +6221,30 @@ function pvFlip(side) {
   if (r) r.classList.toggle('on', side === 'R');
 }
 
+// THE PAPER PRINCIPLE (2 Aug): in Planner view you write on the line and the
+// entry commits itself when the pencil lifts and you move on — no Save or Add
+// button on the page. Delegated, planner-only, and it calls the very same
+// functions those buttons call: saveNote(), addTask(), addShoppingItem().
+// Focus moving WITHIN the same card (e.g. onto that field's mic) commits
+// nothing, so dictation can continue into a half-written line. Because the
+// hidden task-date field already follows the viewed day, a task written on a
+// turned page lands on THAT day — exactly as paper would have it.
+function pvFocusOut(e) {
+  if (!document.body.classList.contains('pv')) return;
+  const t = e.target, id = t && t.id;
+  if (!id || !['note-body-inp', 'task-inp', 'shopping-input'].includes(id)) return;
+  const to = e.relatedTarget;
+  const card = t.closest && t.closest('.card');
+  if (to && card && card.contains(to)) return;   // still working in this section
+  try {
+    if (!String(t.value || '').trim()) return;
+    if (id === 'note-body-inp') saveNote();
+    else if (id === 'task-inp') addTask();
+    else addShoppingItem();
+  } catch (err) {}
+}
+document.addEventListener('focusout', pvFocusOut);
+
 // ---- The switch itself: persisted beside the theme, applied like one ----
 const VIEW_MODES = [
   { id: 'classic', name: 'Classic',  desc: 'The everyday app' },
@@ -8153,7 +8247,7 @@ function renderNotes() {
     const card = document.createElement('div');
     card.className = 'note-card';
     let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Set reminder" onclick="remindForItem('note',${n.id})"><i class="ti ti-bell"></i></button><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
-    if (n.created) inner += `<div style="font-size:11px;color:var(--text-light);margin-top:1px">${capDayLabel(n.created)}</div>`;
+    if (n.created && !pvDay) inner += `<div style="font-size:11px;color:var(--text-light);margin-top:1px">${capDayLabel(n.created)}</div>`;
     if (n.body) inner += `<div class="note-body">${n.body}</div>`;
     if (n.checklist && n.checklist.length) {
       inner += `<div class="cl-list">` + n.checklist.map((c, i) => `
