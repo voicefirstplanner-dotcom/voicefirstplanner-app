@@ -20,6 +20,7 @@
 <script async src="https://r.wdfl.co/rw.js" data-rewardful="1e3933" data-domains="voicefirstdayplanner.com,app.voicefirstdayplanner.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    VOICEFIRSTPLANNER — WEB APP v1.0
@@ -2152,6 +2153,144 @@ html, body {
 <!-- ============================================================
      MAIN APP
      ============================================================ -->
+<style id="pv-css">
+/* ============================================================
+   PLANNER VIEW (2 Aug) — the two-page paper spread.
+   Every rule is scoped under body.pv or #view-picker-row so the
+   Classic view is provably untouched: with the switch off, none
+   of this applies anywhere.
+   ============================================================ */
+#pv-book { display: none; }
+#view-picker-row { display: none; }
+@media (min-width: 740px) and (min-height: 480px) {
+  #view-picker-row { display: flex; }
+}
+
+body.pv .content, body.pv .nav-group, body.pv .nav { display: none !important; }
+body.pv #lp-atmo { display: none !important; }
+body.pv #app { display: flex !important; flex-direction: column; max-width: 1460px; grid-template-columns: none; }
+body.pv #pv-book { display: block; position: relative; padding: 18px 46px 30px 14px; }
+
+body.pv #pv-book, body.pv #pv-book input, body.pv #pv-book textarea, body.pv #pv-book select, body.pv #pv-book button {
+  font-family: 'Hanken Grotesk', var(--font);
+}
+
+/* ---- The open book ---- */
+body.pv .pv-pages {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr;
+  background: #FBF8F2; border: 1px solid #D9CDB8; border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(4,44,83,0.35), 0 2px 0 #E7DCC6 inset;
+  min-height: calc(100vh - 210px);
+}
+/* the gutter: the fold of an open book */
+body.pv .pv-pages::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 34px; transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(91,78,58,0.14) 46%, rgba(91,78,58,0.26) 50%, rgba(91,78,58,0.14) 54%, transparent);
+  pointer-events: none; z-index: 1;
+}
+body.pv .pv-page { padding: 22px 26px 26px; min-width: 0; }
+body.pv .pv-left  { border-right: 1px solid #EAE0CC; }
+body.pv .pv-right { padding-right: 46px; }  /* room for the day rail */
+
+/* ---- Cards become page sections: rules, not boxes ---- */
+body.pv #pv-book .card {
+  background: transparent; border: none; box-shadow: none; border-radius: 0;
+  padding: 12px 2px 14px; margin: 0 0 4px; border-bottom: 1px solid #D9CDB8;
+}
+body.pv #pv-book .card-label {
+  font-family: 'Fraunces', serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: #6B5B41;
+}
+body.pv #pv-book .task-inp, body.pv #pv-book .quick-cap-ta, body.pv #pv-book .cl-add-inp, body.pv #pv-book #shopping-input {
+  background: transparent; border: none; border-bottom: 1.5px dashed #C9BBA0; border-radius: 0;
+  min-height: 40px; font-size: 15px;
+}
+body.pv #pv-book #note-body-inp { min-height: 130px; }   /* room for Scribble to write */
+body.pv #pv-book .focus-input { background: transparent; }
+
+/* ---- Left page top row: month calendar anchor + focus beside it ---- */
+body.pv .pv-toprow { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 18px; align-items: start; }
+body.pv #pv-slot-cal .card { border-bottom: none; }
+body.pv #pv-slot-ai .ai-btn { margin: 10px 0 0; }
+
+/* ---- Right page: the notes side ---- */
+body.pv .pv-notes-date {
+  font-family: 'Fraunces', serif; font-size: 21px; font-weight: 700; color: #3E3427;
+}
+body.pv .pv-notes-head { padding: 10px 2px 8px; border-bottom: 1px solid #D9CDB8; }
+body.pv #pv-slot-notes { padding-top: 6px; }
+body.pv #pv-slot-notes .note-card {
+  background: transparent; border: none; box-shadow: none; border-radius: 0;
+  border-bottom: 1px solid #E7DCC6; padding: 10px 2px 12px; margin: 0;
+}
+body.pv .pv-notes-empty { font-size: 13px; color: #8A7A5E; padding: 16px 2px; font-style: italic; }
+
+/* ---- Day-number rail: thumb-flip down the page edge ---- */
+body.pv #pv-rail {
+  position: absolute; top: 14px; bottom: 14px; right: 6px; width: 30px; z-index: 2;
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px; overflow-y: auto; scrollbar-width: none;
+}
+body.pv #pv-rail::-webkit-scrollbar { display: none; }
+body.pv .pv-rail-month {
+  font-family: 'Fraunces', serif; font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  color: #6B5B41; text-transform: uppercase; text-align: center; padding: 2px 0 4px;
+}
+body.pv .pv-rail-day {
+  flex: 1 1 auto; min-height: 15px; border: none; border-radius: 4px 0 0 4px; cursor: pointer;
+  font-family: 'Hanken Grotesk', var(--font); font-size: 10.5px; font-weight: 600;
+  background: #EFE7D6; color: #6B5B41; padding: 0; line-height: 1;
+}
+body.pv .pv-rail-day.on { background: var(--orange); color: #fff; font-weight: 700; }
+body.pv .pv-rail-day.tdy:not(.on) { background: #DCCFB2; color: #3E3427; }
+
+/* ---- Edge tabs: the section tabs that protrude past the page block ---- */
+body.pv .pv-edge-tabs { position: absolute; top: 56px; right: 4px; display: flex; flex-direction: column; gap: 10px; z-index: 3; }
+body.pv .pv-etab {
+  writing-mode: vertical-rl; padding: 14px 7px; border: 1px solid #D9CDB8; border-left: none;
+  border-radius: 0 8px 8px 0; background: #EFE7D6; color: #6B5B41; cursor: pointer;
+  font-family: 'Fraunces', serif; font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  box-shadow: 2px 2px 8px rgba(4,44,83,0.18);
+}
+body.pv .pv-etab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+
+/* ---- Wide spread (Projects / Life): section flows across both pages ---- */
+body.pv .pv-wide-host { display: none; grid-column: 1 / -1; padding: 22px 60px 26px 26px; min-width: 0; }
+body.pv #pv-life-tabs { display: none; gap: 8px; flex-wrap: wrap; padding: 0 0 12px; border-bottom: 1px solid #D9CDB8; margin-bottom: 6px; }
+body.pv .pv-ltab {
+  border: 1px solid #D9CDB8; border-radius: 8px 8px 0 0; background: #EFE7D6; color: #6B5B41;
+  padding: 6px 14px; cursor: pointer; font-family: 'Fraunces', serif; font-size: 12px; font-weight: 700;
+}
+body.pv .pv-ltab.active { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+@media (min-width: 1024px) {
+  body.pv #pv-wide .sec.active { column-count: 2; column-gap: 56px; }
+  body.pv #pv-wide .sec.active > * { break-inside: avoid; }
+}
+
+/* mode switching */
+body.pv.pv-mode-projects .pv-left, body.pv.pv-mode-projects .pv-right, body.pv.pv-mode-projects #pv-rail,
+body.pv.pv-mode-life .pv-left, body.pv.pv-mode-life .pv-right, body.pv.pv-mode-life #pv-rail { display: none; }
+body.pv.pv-mode-projects .pv-wide-host, body.pv.pv-mode-life .pv-wide-host { display: block; }
+body.pv.pv-mode-life #pv-life-tabs { display: flex; }
+
+/* ---- Page-flip: below the full-spread width, one page at a time ---- */
+body.pv #pv-flip { display: none; }
+@media (min-width: 740px) and (max-width: 1023.98px) {
+  body.pv .pv-pages { grid-template-columns: 1fr; }
+  body.pv .pv-pages::before { display: none; }
+  body.pv .pv-left { border-right: none; padding-right: 46px; }
+  body.pv.pv-mode-daily .pv-right { display: none; }
+  body.pv.pv-mode-daily #pv-book.show-right .pv-right { display: block; }
+  body.pv.pv-mode-daily #pv-book.show-right .pv-left { display: none; }
+  body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 12px 0 0; }
+  body.pv #pv-wide .sec.active { column-count: 1; }
+  body.pv .pv-flip-btn {
+    border: 1px solid #D9CDB8; border-radius: 8px; background: #FBF8F2; color: #6B5B41;
+    padding: 8px 18px; cursor: pointer; font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700;
+  }
+  body.pv .pv-flip-btn.on { background: var(--navy); color: var(--orange); border-color: var(--navy); }
+}
+</style>
+
 <div id="app">
 
   <!-- TOP BAR -->
@@ -2247,7 +2386,7 @@ html, body {
       </div>
 
       <!-- DAILY FOCUS -->
-      <div class="card">
+      <div class="card" id="focus-card">
         <div class="card-label">Daily focus</div>
         <div class="focus-set" id="focus-display" onclick="editFocus()"></div>
         <input class="focus-input" id="focus-input" placeholder="What's the one thing that matters most today?" onblur="setFocus()" onkeydown="if(event.key==='Enter')setFocus()">
@@ -2256,7 +2395,7 @@ html, body {
       <!-- P1: AI BRAIN-DUMP (Pro). Empty your head; the AI proposes tasks and
            appointments; NOTHING enters the planner until it is approved on the
            review sheet. Non-Pro users get the existing interest-capture modal. -->
-      <button class="ai-btn" style="margin:0 0 10px" onclick="openAiDump()">
+      <button class="ai-btn" id="ai-dump-btn" style="margin:0 0 10px" onclick="openAiDump()">
         <i class="ti ti-sparkles"></i>AI brain-dump — speak it, we'll sort it<span class="soon-badge" id="ai-dump-badge">Pro</span>
       </button>
 
@@ -2290,7 +2429,7 @@ html, body {
       </div>
 
       <!-- DAILY SCHEDULE (time-blocked view) -->
-      <div class="card">
+      <div class="card" id="schedule-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
           <div class="card-label" style="margin-bottom:0">⏰ Daily schedule</div>
           <span style="font-size:11px;color:var(--text-mid)">Tap a slot to add</span>
@@ -2460,7 +2599,7 @@ html, body {
 
     <!-- NOTES TAB -->
     <div class="sec" id="sec-notes">
-      <div class="card">
+      <div class="card" id="notes-capture-card">
         <div class="card-label">Quick capture</div>
         <input class="task-inp" id="note-title-inp" placeholder="Title (optional)" style="width:100%;margin-bottom:6px">
         <textarea class="quick-cap-ta" id="note-body-inp" rows="3" placeholder="Type or speak your thought…"></textarea>
@@ -2477,7 +2616,7 @@ html, body {
 
     <!-- SHOPPING TAB -->
     <div class="sec" id="sec-shopping">
-      <div class="card">
+      <div class="card" id="shopping-card">
         <div class="card-label">Shopping list</div>
         <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk and eggs to my shopping list" — or "add sunscreen to my travel list" to sort items into named lists. Tick them off as you go.</p>
         <div id="shopping-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
@@ -2571,6 +2710,54 @@ html, body {
     </div>
 
   </div><!-- /content -->
+
+  <!-- ============================================================
+       PLANNER VIEW BOOK (2 Aug) — the two-page spread. Presentation
+       only: every planning element inside these pages is the app's own
+       node, moved here on entry and moved back on exit (see pvEnter /
+       pvExit). No renderer is duplicated; every id keeps working.
+       ============================================================ -->
+  <div id="pv-book">
+    <div class="pv-pages">
+      <div class="pv-page pv-left">
+        <div class="pv-toprow">
+          <div id="pv-slot-cal"></div>
+          <div class="pv-topright">
+            <div id="pv-slot-focus"></div>
+            <div id="pv-slot-ai"></div>
+          </div>
+        </div>
+        <div id="pv-slot-tasks"></div>
+        <div id="pv-slot-sched"></div>
+        <div id="pv-slot-shop"></div>
+      </div>
+      <div class="pv-page pv-right">
+        <div class="pv-notes-head"><div class="pv-notes-date" id="pv-notes-date"></div></div>
+        <div id="pv-slot-capture"></div>
+        <div id="pv-slot-notes"></div>
+      </div>
+      <div class="pv-wide-host">
+        <div id="pv-life-tabs">
+          <button class="pv-ltab" data-life="goals" onclick="showTab('goals')">Goals</button>
+          <button class="pv-ltab" data-life="values" onclick="showTab('values')">Values</button>
+          <button class="pv-ltab" data-life="bucket" onclick="showTab('bucket')">Bucket List</button>
+          <button class="pv-ltab" data-life="habits" onclick="showTab('habits')">Habits</button>
+          <button class="pv-ltab" data-life="reflect" onclick="showTab('reflect')">Reflect</button>
+        </div>
+        <div id="pv-wide"></div>
+      </div>
+      <div id="pv-rail"></div>
+    </div>
+    <div class="pv-edge-tabs">
+      <button class="pv-etab" data-mode="daily" onclick="pvGoMode('daily')">Daily Planning</button>
+      <button class="pv-etab" data-mode="projects" onclick="pvGoMode('projects')">Projects</button>
+      <button class="pv-etab" data-mode="life" onclick="pvGoMode('life')">Life Planning</button>
+    </div>
+    <div id="pv-flip">
+      <button class="pv-flip-btn on" id="pv-flip-l" onclick="pvFlip('L')">&#8249; Planner page</button>
+      <button class="pv-flip-btn" id="pv-flip-r" onclick="pvFlip('R')">Notes page &#8250;</button>
+    </div>
+  </div>
 
   <!-- PROJECT DETAIL OVERLAY -->
   <div class="detail-overlay" id="proj-detail">
@@ -2771,6 +2958,11 @@ html, body {
       <div class="settings-section">
         <div class="settings-section-title">Appearance</div>
         <div id="theme-picker" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 2px"></div>
+        <div class="settings-row" id="view-picker-row" style="flex-direction:column;align-items:stretch;gap:6px">
+          <span class="settings-row-label">Layout</span>
+          <div id="view-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:4px 2px"></div>
+          <div style="font-size:11px;color:var(--text-mid);line-height:1.4">Planner view shows your whole day as an open two-page spread &mdash; the classic paper planner, on iPad and desktop.</div>
+        </div>
         <div class="settings-row"><span class="settings-row-label">Reminder sound</span><input type="checkbox" id="set-rem-sound" onchange="toggleReminderSound(this.checked)" style="width:20px;height:20px;accent-color:var(--orange)"></div>
       </div>
       <div class="settings-section" id="library-section">
@@ -3063,7 +3255,7 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound'];
+                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode'];
 
 function serializeState() {
   const out = {};
@@ -3719,6 +3911,7 @@ let state = {
   inactiveValues: new Set(),
   apptHintDismissed: false,
   calLastView: 'daily',
+  viewMode: 'classic',   // 'classic' | 'planner' — the whole-app presentation, chosen in Settings beside the themes
   theme: 'classic',
   reminderSound: true,   // the synthesised reminder bell (Stage 2 addendum) — off leaves notifications intact
   iconIdx: 0,
@@ -3908,6 +4101,7 @@ function launchApp() {
   topUpRecurringSeries(); // keep every recurring series covered ~60 days ahead
   renderAll();
   showGroup('daily-planning', ['daily','week','month','year'].includes(state.calLastView) ? state.calLastView : 'daily');
+  applyViewMode();       // Planner view is persisted state too — applied after first paint, exactly like the theme
   try { addHelpChips(); } catch (e) {}
   loadEntitlement();
   handleCheckoutReturn();
@@ -4048,6 +4242,10 @@ function showGroup(group, activeTab) {
 }
 
 function showTab(name, btn, skipGroupSync) {
+  // Planner view (2 Aug): the spread IS the day — week/month/year live in the
+  // month calendar on the page, and notes/shopping are already on the spread.
+  // Any request for those tabs lands on the daily spread. Classic is untouched.
+  if (document.body.classList.contains('pv') && ['week','month','year','notes','shopping'].includes(name)) name = 'daily';
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const sec = document.getElementById('sec-' + name);
@@ -4073,6 +4271,7 @@ function showTab(name, btn, skipGroupSync) {
       if (real) real.classList.add('active');
     }
   }
+  if (typeof pvAfterShowTab === 'function' && document.body.classList.contains('pv')) pvAfterShowTab(name);
 }
 
 // ============================================================
@@ -5665,6 +5864,183 @@ function renderThemePicker() {
 }
 
 // ============================================================
+// PLANNER VIEW (2 Aug) — the two-page paper spread. A whole-app
+// presentation, chosen in Settings beside the themes, iPad and
+// desktop only. RE-SKIN, NEVER A FORK: nothing here renders any
+// planning data. The app's own elements — the month calendar,
+// tasks card, schedule card, shopping card, quick capture and
+// notes list — are MOVED into the book on entry and moved back
+// on exit, so every fixed element id, renderer and code path
+// (voice included) keeps working identically in both views.
+// ============================================================
+const PV_MOVES = [
+  // [element id, destination slot id] — the daily spread's dissected pieces
+  ['cal-strip-card',    'pv-slot-cal'],
+  ['focus-card',        'pv-slot-focus'],
+  ['ai-dump-btn',       'pv-slot-ai'],
+  ['tasks-card',        'pv-slot-tasks'],
+  ['schedule-card',     'pv-slot-sched'],
+  ['shopping-card',     'pv-slot-shop'],
+  ['notes-capture-card','pv-slot-capture'],
+  ['notes-list',        'pv-slot-notes'],
+  // whole sections that ride the wide spread (Projects / Life edge tabs)
+  ['sec-projects', 'pv-wide'], ['sec-goals', 'pv-wide'], ['sec-values', 'pv-wide'],
+  ['sec-bucket', 'pv-wide'], ['sec-habits', 'pv-wide'], ['sec-reflect', 'pv-wide'],
+];
+let pvLastLife = 'goals';   // transient: which Life tab the spread last showed
+
+// Offered only where the spread honestly fits (no phone; no letterbox windows).
+function pvAllowed() {
+  try { return window.matchMedia('(min-width: 740px) and (min-height: 480px)').matches; }
+  catch (e) { return false; }
+}
+function pvDailyActive() {
+  return document.body.classList.contains('pv') && document.body.classList.contains('pv-mode-daily');
+}
+// A note belongs on a day's page if it was captured that day. Undated notes
+// (unparseable historic ids only) ride on today's page so nothing is ever lost.
+function pvNoteOnDay(n, dayK) {
+  if (n.created) return dateKey(new Date(n.created)) === dayK;
+  return dayK === dateKey(today);
+}
+
+// Move an element into the book, leaving a marker at its origin; restore reverses.
+function pvMoveAll() {
+  PV_MOVES.forEach(([id, slotId]) => {
+    const el = document.getElementById(id), slot = document.getElementById(slotId);
+    if (!el || !slot || el.dataset.pvMoved) return;
+    const ph = document.createElement('script');   // inert, invisible, keeps exact position
+    ph.type = 'text/x-pv-placeholder'; ph.dataset.pvFor = id;
+    el.parentNode.insertBefore(ph, el);
+    slot.appendChild(el);
+    el.dataset.pvMoved = '1';
+  });
+}
+function pvRestoreAll() {
+  PV_MOVES.forEach(([id]) => {
+    const el = document.getElementById(id);
+    const ph = document.querySelector(`script[type="text/x-pv-placeholder"][data-pv-for="${id}"]`);
+    if (!el || !ph) return;
+    ph.parentNode.insertBefore(el, ph);
+    ph.remove();
+    delete el.dataset.pvMoved;
+  });
+}
+
+function pvEnter() {
+  if (document.body.classList.contains('pv')) return;
+  pvMoveAll();
+  document.body.classList.add('pv');
+  // Land on the spread that matches where the user was.
+  const cur = document.querySelector('.sec.active');
+  const curName = cur ? cur.id.replace('sec-', '') : 'daily';
+  if (['goals','values','bucket','habits','reflect'].includes(curName)) { pvLastLife = curName; showTab(curName); }
+  else if (curName === 'projects') showTab('projects');
+  else showTab('daily');
+}
+function pvExit() {
+  if (!document.body.classList.contains('pv')) return;
+  document.body.classList.remove('pv', 'pv-mode-daily', 'pv-mode-projects', 'pv-mode-life');
+  const book = document.getElementById('pv-book'); if (book) book.classList.remove('show-right');
+  pvRestoreAll();
+  renderNotes();   // drop the day filter — Classic shows every note again
+}
+
+// Edge tabs → the three spreads.
+function pvGoMode(mode) {
+  if (mode === 'daily') showTab('daily');
+  else if (mode === 'projects') showTab('projects');
+  else showTab(pvLastLife || 'goals');
+}
+// Called from showTab whenever the Planner view is on — keeps the book's
+// chrome (edge tabs, life tabs, mode classes, rail, notes page) in step.
+function pvAfterShowTab(name) {
+  let mode = 'daily';
+  if (name === 'projects') mode = 'projects';
+  else if (['goals','values','bucket','habits','reflect'].includes(name)) { mode = 'life'; pvLastLife = name; }
+  document.body.classList.remove('pv-mode-daily', 'pv-mode-projects', 'pv-mode-life');
+  document.body.classList.add('pv-mode-' + mode);
+  document.querySelectorAll('.pv-etab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('.pv-ltab').forEach(b => b.classList.toggle('active', b.dataset.life === name));
+  if (mode === 'daily') pvSyncDay();
+}
+
+// The spread turns with the date: rail + the notes page heading + the day's notes.
+// Hooked from updateViewingDateLabel, so every existing date-change path —
+// calendar taps, ‹ › arrows, voice commands, Today — turns the page for free.
+function pvSyncDay() {
+  if (!pvDailyActive()) return;
+  pvRenderRail();
+  const h = document.getElementById('pv-notes-date');
+  if (h) h.textContent = new Date(viewingDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  renderNotes();
+}
+
+// The day-number rail: every day of the viewed month down the page edge.
+// Tapping a number turns the whole spread to that day via the same
+// openDayInDaily() the Week and Month views already use — one code path.
+function pvRenderRail() {
+  const rail = document.getElementById('pv-rail');
+  if (!rail) return;
+  const d = new Date(viewingDate + 'T12:00:00');
+  const year = d.getFullYear(), month = d.getMonth();
+  const last = new Date(year, month + 1, 0).getDate();
+  const todayK = dateKey(today);
+  let html = `<div class="pv-rail-month">${d.toLocaleDateString('en-GB', { month: 'short' })}</div>`;
+  for (let dd = 1; dd <= last; dd++) {
+    const k = dateKey(new Date(year, month, dd));
+    const cls = 'pv-rail-day' + (k === viewingDate ? ' on' : '') + (k === todayK ? ' tdy' : '');
+    html += `<button class="${cls}" onclick="openDayInDaily('${k}')">${dd}</button>`;
+  }
+  rail.innerHTML = html;
+}
+
+// Portrait / narrower widths: one page at a time, flipped like a notebook.
+function pvFlip(side) {
+  const book = document.getElementById('pv-book');
+  if (!book) return;
+  book.classList.toggle('show-right', side === 'R');
+  const l = document.getElementById('pv-flip-l'), r = document.getElementById('pv-flip-r');
+  if (l) l.classList.toggle('on', side !== 'R');
+  if (r) r.classList.toggle('on', side === 'R');
+}
+
+// ---- The switch itself: persisted beside the theme, applied like one ----
+const VIEW_MODES = [
+  { id: 'classic', name: 'Classic',  desc: 'The everyday app' },
+  { id: 'planner', name: 'Planner',  desc: 'Two-page spread' },
+];
+function applyViewMode() {
+  const want = state.viewMode === 'planner' && pvAllowed();
+  if (want) pvEnter(); else pvExit();
+}
+function setViewMode(id) {
+  state.viewMode = VIEW_MODES.some(v => v.id === id) ? id : 'classic';
+  applyViewMode();
+  renderViewPicker();
+  try { persistNow(); } catch (e) {}
+}
+function renderViewPicker() {
+  const el = document.getElementById('view-picker');
+  if (!el) return;
+  const cur = state.viewMode === 'planner' ? 'planner' : 'classic';
+  el.innerHTML = VIEW_MODES.map(v =>
+    `<button type="button" onclick="setViewMode('${v.id}')" style="border:2px solid ${v.id === cur ? 'var(--orange)' : 'var(--border)'};border-radius:10px;padding:8px 4px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px">` +
+    `<span style="font-size:11px;font-weight:700;color:var(--text)">${v.name}</span>` +
+    `<span style="font-size:9.5px;color:var(--text-mid)">${v.desc}</span>` +
+    (v.id === cur ? '<span style="font-size:9px;font-weight:700;color:var(--orange)">SELECTED</span>' : '<span style="font-size:9px;color:transparent">.</span>') +
+    `</button>`).join('');
+}
+// A saved Planner preference never applies where the spread can't fit: on
+// resize below the floor the app falls back to Classic (preference kept),
+// and returns to the spread when the window can honestly hold it again.
+let pvResizeT = null;
+window.addEventListener('resize', () => {
+  clearTimeout(pvResizeT);
+  pvResizeT = setTimeout(() => { if (state && state.viewMode) applyViewMode(); }, 180);
+});
+
+// ============================================================
 // LIFE PLANNING ATMOSPHERE (Change 3) — one photo per section,
 // workbook chapter-opener style. WebP with JPEG fallback, lazy:
 // nothing is fetched until a Life Planning tab is opened. On any
@@ -6608,6 +6984,7 @@ function updateViewingDateLabel() {
   lbl.textContent = formatDateNice(viewingDate);
   btn.style.display = viewingDate === dateKey(today) ? 'none' : 'block';
   renderFocus();   // focus is per-date: the day changed, so the focus must follow
+  if (typeof pvSyncDay === 'function') pvSyncDay();   // Planner view: the spread turns with the date
 }
 
 function goToToday() {
@@ -7620,7 +7997,13 @@ function renderNotes() {
   renderTagPills();
   const el = document.getElementById('notes-list');
   el.innerHTML = '';
+  // Planner view (2 Aug): the right page shows the viewed day's notes only —
+  // same renderer, same rows, one presentation-time filter. Classic shows all.
+  const pvDay = (typeof pvDailyActive === 'function' && pvDailyActive()) ? viewingDate : null;
+  let pvShown = 0;
   state.notes.forEach(n => {
+    if (pvDay && !pvNoteOnDay(n, pvDay)) return;
+    pvShown++;
     const card = document.createElement('div');
     card.className = 'note-card';
     let inner = `<div style="display:flex;align-items:flex-start;gap:6px"><div class="note-title" style="flex:1">${n.title}</div><button class="row-edit" title="Set reminder" onclick="remindForItem('note',${n.id})"><i class="ti ti-bell"></i></button><button class="row-edit" title="Edit" onclick="editNote(${n.id})"><i class="ti ti-pencil"></i></button></div>`;
@@ -7648,6 +8031,7 @@ function renderNotes() {
     card.innerHTML = inner;
     el.appendChild(card);
   });
+  if (pvDay && !pvShown) el.innerHTML = '<div class="pv-notes-empty">No notes on this page yet &mdash; write one above, or speak it.</div>';
 }
 
 // ============================================================
@@ -9356,6 +9740,7 @@ function openMonthView(y, m) {
 function renderAll() {
   applyTheme();            // theme is persisted state — repaint before anything draws
   renderThemePicker();
+  renderViewPicker();      // Planner view switch lives beside the themes — same treatment
   renderFocus();
   renderTasks();
   renderHabits();
