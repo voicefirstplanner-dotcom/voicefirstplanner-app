@@ -6326,13 +6326,15 @@ function pvFocusOut(e) {
 }
 document.addEventListener('focusout', pvFocusOut);
 
-// Swiping turns the page — left for the next day, right for the day before,
-// through shiftViewDay(), the same path the ‹ › arrows use. Only on the daily
-// spread; a swipe that starts on a field, a button or the tab chrome is left
-// alone, and mostly-vertical drags stay scrolls.
+// Swipe page-turn — RETIRED 3 Aug by Dave's call: without a true
+// Kindle-grade turn (the outgoing page sliding away 1:1 under the finger,
+// which this live-DOM architecture can't give honestly), a near-miss gesture
+// feels worse than none. Navigation is fully covered by the calendar's day
+// taps, the month tabs and the ‹ › arrows. Flip PV_SWIPE to true to revive.
+const PV_SWIPE = false;
 let pvSwX = null, pvSwY = null, pvSwOK = false, pvSwDrag = false, pvSwallowClick = false;
 document.addEventListener('touchstart', (e) => {
-  if (!pvDailyActive()) { pvSwOK = false; return; }
+  if (!PV_SWIPE || !pvDailyActive()) { pvSwOK = false; return; }
   const t = e.target;
   // Fields cover most of both pages now (the writing area, the hour lines) —
   // they only refuse a swipe while they actually carry ink. Buttons, selects
@@ -6346,7 +6348,7 @@ document.addEventListener('touchstart', (e) => {
 }, { passive: true });
 // live feedback: once the pull is clearly horizontal, the page follows the finger
 document.addEventListener('touchmove', (e) => {
-  if (!pvSwOK || pvSwX === null || !pvDailyActive()) return;
+  if (!PV_SWIPE || !pvSwOK || pvSwX === null || !pvDailyActive()) return;
   const p = e.touches && e.touches[0];
   if (!p) return;
   const dx = p.clientX - pvSwX, dy = p.clientY - pvSwY;
@@ -6360,6 +6362,7 @@ document.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 document.addEventListener('touchend', (e) => {
+  if (!PV_SWIPE) return;
   const pg = document.querySelector('.pv-pages');
   if (!pvSwOK || pvSwX === null || !pvDailyActive()) { pvSwX = null; return; }
   const p = e.changedTouches && e.changedTouches[0];
