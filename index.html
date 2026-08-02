@@ -52,7 +52,7 @@
   --nav-h: 56px;
   --topbar-h: 72px;
   /* ---- Theme system (Change 2). A theme is a variable set, nothing structural.
-     Classic = these root values. --appt drives the timed-appointment colour
+     Classic = these root values. --appt drives the timed-appointment color
      everywhere (pills, chevrons, time text via the darker --appt-text);
      --atmo-tint is the RGB the Life Planning scrim takes from the theme. ---- */
   --card: #FFFFFF;
@@ -1551,7 +1551,7 @@ html, body {
   /* Cap readable width so cards & list items don't sprawl */
   .content > .sec { max-width: 860px; }
 
-  /* Modals: centre on desktop instead of the mobile bottom-sheet */
+  /* Modals: center on desktop instead of the mobile bottom-sheet */
   .modal-overlay { align-items: center; }
   .modal-sheet {
     max-width: 480px;
@@ -2638,10 +2638,10 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <div id="schedule-grid" style="position:relative"></div>
       </div>
 
-      <!-- PRIORITISED TASKS -->
+      <!-- PRIORITIZED TASKS -->
       <div class="card" id="tasks-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div class="card-label" style="margin-bottom:0">✅ Prioritised tasks</div>
+          <div class="card-label" style="margin-bottom:0">✅ Prioritized tasks</div>
         </div>
         <div id="overload-notice" style="display:none;background:color-mix(in srgb, var(--appt) 12%, transparent);border-left:3px solid var(--appt);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
         <div id="task-list"></div>
@@ -2936,7 +2936,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
               <div id="pv-day-date"></div>
             </div>
             <div id="pv-slot-cal"></div>
-            <div class="pv-band">Prioritised Daily Task List</div>
+            <div class="pv-band">Prioritized Daily Task List</div>
             <div id="pv-slot-tasks"></div>
           </div>
           <div class="pv-colB">
@@ -3610,7 +3610,7 @@ async function restoreSession() {
 // DATA
 // ============================================================
 const QUOTES = [
-  { t: "The key is not to prioritise what's on your schedule, but to schedule your priorities.", a: "Stephen R. Covey" },
+  { t: "The key is not to prioritize what's on your schedule, but to schedule your priorities.", a: "Stephen R. Covey" },
   { t: "Either you run the day, or the day runs you.", a: "Jim Rohn" },
   { t: "Begin with the end in mind.", a: "Stephen R. Covey" },
   { t: "Motivation is what gets you started. Habit is what keeps you going.", a: "Jim Rohn" },
@@ -3777,7 +3777,7 @@ const QUOTES = [
   { t: "If it is not right do not do it; if it is not true do not say it.", a: "Marcus Aurelius" },
   { t: "Dwell on the beauty of life. Watch the stars, and see yourself running with them.", a: "Marcus Aurelius" },
   { t: "When you arise in the morning, think of what a precious privilege it is to be alive.", a: "Marcus Aurelius" },
-  { t: "The soul becomes dyed with the colour of its thoughts.", a: "Marcus Aurelius" },
+  { t: "The soul becomes dyed with the color of its thoughts.", a: "Marcus Aurelius" },
   { t: "Character is destiny.", a: "Heraclitus" },
   { t: "No man is free who is not master of himself.", a: "Epictetus" },
   { t: "Wealth consists not in having great possessions, but in having few wants.", a: "Epictetus" },
@@ -4091,7 +4091,7 @@ let state = {
   tasks: [
     { id: 1, text: 'Review team proposal', p: 'A', done: false, date: null },
     { id: 2, text: 'Call Mum', p: 'B', done: false, date: null },
-    { id: 3, text: 'Organise desk', p: 'C', done: true, date: null },
+    { id: 3, text: 'Organize desk', p: 'C', done: true, date: null },
   ],
   appointments: [],
   habits: DEFAULT_HABITS.map(h => ({ ...h })),
@@ -4398,7 +4398,7 @@ function renderObRoles() {
         <div style="flex:1"><div class="role-name">${r.name}</div><div class="role-def">${r.def}</div></div>
         <i class="ti ti-check" style="font-size:16px;color:var(--orange)"></i>
       </div>`).join('')}
-    <p style="font-size:12px;color:var(--text-light);margin-top:10px">You can customise your roles in the Values tab after setup.</p>`;
+    <p style="font-size:12px;color:var(--text-light);margin-top:10px">You can customize your roles in the Values tab after setup.</p>`;
 }
 
 function renderObVoice() {
@@ -4916,7 +4916,7 @@ function endVoiceTutorial(completed) {
 
 // Inject a small "Voice tips" help chip into each tab, deep-linking to that field's
 // tutorial step. Safe to call repeatedly (guarded per section).
-// Jump to the Prioritised tasks card — from any calendar view (switches to
+// Jump to the Prioritized tasks card — from any calendar view (switches to
 // Daily first when needed, then scrolls).
 function jumpToTasks() {
   const goScroll = () => {
@@ -5005,14 +5005,12 @@ function attachFieldMics() {
 }
 
 function processVoice(text) {
-  // Whisper often mishears the command word "Add" as "And" or "Ad" at the start of
-  // a sentence (e.g. "Add pay the insurance" -> "And pay the insurance"), which left
-  // the command with no task trigger word. Normalise it back so those tasks register.
-  // "Ed" is the same mishearing, but "Ed" is also a name — so it is only rewritten
-  // when a task-like verb follows. "Ed called me about the invoice" stays a name;
-  // "Ed review the proposal" becomes "Add review the proposal". Verified against the
-  // three observed failures (Whisper test 17 Jul, scripts 8, 4 and 11).
-  text = text.replace(/^\s*ed\b[,.:;]?(?=\s+(?:review|pay|paid|finish|finished|call|book|send|buy|get|pick|clean|fix|check|email|renew|submit|file|water|schedule|chase|confirm|order|cancel|update|print|collect|prep|prepare|write|draft|arrange|sort|return|text|remind|sign|pack|post|ring)\b)/i, 'Add');
+  // Whisper often mishears the command word "Add" as "And", "Ad" or "Ed" at the
+  // start of a sentence. FIX 2 (3 Aug, Dave's ruling): a LEADING "Ed" is always
+  // "Add" — add outranks the name Ed at ~1000:1 in this app, and a genuine
+  // "Ed…" recording as an add is the accepted cost. Only the leading position
+  // is rewritten: "meet Ed at 3pm" keeps its Ed (and lands as the appointment).
+  text = text.replace(/^\s*ed\b[,.:;]?\s*/i, 'Add ');
   text = text.replace(/^\s*(?:and|ad)\b/i, 'Add');
   const t = text.toLowerCase();
   document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
@@ -5022,16 +5020,34 @@ function processVoice(text) {
     handleReminderVoice(text);
     return;
   }
-  // Check for appointment/meeting voice command — a clock time plus event/schedule intent
-  const hasClockTime = /\b\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?\b/i.test(t) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(t) || /\b(?:at|from)\s+\d{1,2}\b/i.test(t) || /\b\d{1,2}\s*o'?\s*clock\b/i.test(t) || /\b(noon|midday|midnight)\b/i.test(t);
-  const apptIntent = ['meeting','appointment','appt','calendar','schedule','diary','dinner','lunch','breakfast','brunch','coffee','drinks','catch up','catchup',' with ','call ','meet ','dentist','doctor','session','interview','review','standup','stand-up','reminder','workshop','class','gym ','training','viewing','inspection','consultation','webinar','demo','presentation'].some(k => t.includes(k));
-  // A recurrence phrase + a clock time is itself appointment intent, even without a keyword
-  // (e.g. "take vitamins every day at 8am", "pay rent weekly at 5pm", "pilates every Thursday at 6:30pm").
-  const hasRecurrence = /\bevery\s+week\s*days?\b/i.test(t) || /\bon\s+weekdays\b/i.test(t) || /\bevery\s+weekday\b/i.test(t)
-    || /\bevery\s+(?:sun|mon|tues?|wednes?|thurs?|fri|satur)(?:day)?s?\b/i.test(t)
-    || /\bevery\s*day\b/i.test(t) || /\bdaily\b/i.test(t) || /\beach\s+day\b/i.test(t)
-    || /\bweekly\b/i.test(t) || /\bevery\s+week\b/i.test(t);
-  if (hasClockTime && (apptIntent || hasRecurrence)) {
+  // FIX 3 (3 Aug): a leading "note" — or a "make/take a note" anywhere — wins
+  // over task words and times alike. Dave's principle: nothing wrong if a task
+  // ends up in notes by mistake; it is still saved. Conservative variant set
+  // (note / notes / noted / note to self); no recognizer near-misses were
+  // captured in the device pass, so none are guessed at — log and extend.
+  const leadNote = /^\s*(?:note|notes|noted)\b/i.test(t) || /\b(?:make|take)\s+a\s+note\b/i.test(t);
+  if (leadNote) {
+    const clean = text
+      .replace(/^\s*note\s+to\s+self\b[:,]?\s*/i, '')
+      .replace(/\b(?:make|take)\s+a\s+note\s*(?:that|to|of|:)?\s*/i, '')
+      .replace(/^\s*(?:noted|notes|note)\b[:,]?\s*(?:that\s+)?/i, '')
+      .trim();
+    const vnTs = Date.now();   // one instant: id and created are the same value by design
+    state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
+    renderNotes();
+    showToast('Saved to notes');
+    return;
+  }
+  // FIX 1 (3 Aug): a time attached means an appointment, unless the words
+  // explicitly route elsewhere. "When in doubt, land the capture where it's
+  // most likely wanted" — a time is the strongest possible signal.
+  const explicitRoute = /^\s*(?:task|todo|to-do)\b/i.test(t) || /\btask\s*:/i.test(t) || /\bas a task\b/i.test(t)
+    || /\b(?:shopping|grocery|groceries)\s+list\b/i.test(t) || /\bbucket\s*list\b/i.test(t);
+  const hasClockTime = /\b\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?\b/i.test(t) || /\b\d{1,2}\s*(?:am|pm)\b/i.test(t) || /\b(?:at|from)\s+\d{1,2}\b/i.test(t) || /\b\d{1,2}\s*o'?\s*clock\b/i.test(t) || /\b(?:at|from)\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i.test(t) || /\b(noon|midday|midnight)\b/i.test(t);
+  // The old appointment-keyword list is superseded by FIX 1: the time IS the
+  // intent. Short utterances — even one word plus a time ("work at 3pm",
+  // "gym at six") — are valid appointments now.
+  if (hasClockTime && !explicitRoute) {
     const toMin = (h, m) => h * 60 + m;
     const fromMin = tot => { tot = ((tot % 1440) + 1440) % 1440; return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; };
     // Meridiem heuristic for bare / "o'clock" hours: 1-6 -> afternoon, 7-12 & 0 stay (12 = noon).
@@ -5051,13 +5067,16 @@ function processVoice(text) {
       if (mm = str.match(/(\d{1,2})\s*[:.;]\s*(\d{2})\s*(am|pm)?/)) { h = +mm[1]; mins = +mm[2]; ampm = mm[3] || ''; }
       else if (mm = str.match(/(\d{1,2})\s*(am|pm)/)) { h = +mm[1]; ampm = mm[2]; }
       else if (mm = str.match(/(\d{1,2})\s*o'?\s*clock/)) { h = +mm[1]; }
+      else if (mm = str.match(/^(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)$/)) {
+        h = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12 }[mm[1]];
+      }
       else if (mm = str.match(/(\d{1,2})/)) { h = +mm[1]; }
       else return null;
       h = applyMeridiem(h, ampm);
       if (h > 23) h = 9; if (mins > 59) mins = 0;
       return { h, mins, ampm };
     };
-    // Start time — prioritised: "at/from HH:MM | HHam | HH o'clock", then any clock token, then bare "at/from HH", range start, noon.
+    // Start time — prioritized: "at/from HH:MM | HHam | HH o'clock", then any clock token, then bare "at/from HH", range start, noon.
     let timeStart = '09:00', timeEnd = '10:00', startMin = 540, endMin = null;
     const startSrc =
          (t.match(/\b(?:at|from)\s+(\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?)/i)||[])[1]
@@ -5067,6 +5086,7 @@ function processVoice(text) {
       || (t.match(/(\d{1,2}\s*[:.;]\s*\d{2}\s*(?:am|pm)?)/i)||[])[1]
       || (t.match(/(\d{1,2}\s*(?:am|pm))/i)||[])[1]
       || (t.match(/\b(?:at|from)\s+(\d{1,2})\b/i)||[])[1]
+      || (t.match(/\b(?:at|from)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i)||[])[1]
       || (t.match(/\b(\d{1,2})\s*(?:to|until|till|through|–|-)\s*\d{1,2}\b/i)||[])[1]
       || ((/\b(noon|midday|midnight)\b/i.test(t)) ? t.match(/\b(noon|midday|midnight)\b/i)[1] : null);
     const sc = parseTimeToken(startSrc);
@@ -5164,6 +5184,7 @@ function processVoice(text) {
       .replace(/\b\d{1,2}\s*o'?\s*clock\b/gi,'')
       .replace(/\bo'?\s*clock\b/gi,'')
       .replace(/\b(?:at|from)\s+\d{1,2}\b/gi,'')
+      .replace(/\b(?:at|from)\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,'')
       .replace(/\b(noon|midday|midnight)\b/gi,'')
       .replace(/\b[ap]\.\s*m\.?/gi,'')
       .replace(/\bon (?:the )?\d{1,2}(?:st|nd|rd|th)?(?:\s+of)?\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)?\b/gi,'')
@@ -5390,6 +5411,33 @@ function processVoice(text) {
     showTab('projects', null);
     showToast(`Project created: "${pj}"`);
   } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
+    voiceCreateTask(text, t);
+  } else if (logHabitByVoice(t)) {
+    /* a habit was matched by name/synonym and ticked for today inside logHabitByVoice() */
+  } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
+    const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
+    const vnTs = Date.now();   // one instant: id and created are the same value by design
+    state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
+    renderNotes();
+    showToast('Saved to notes');
+  } else if (t.includes('focus')) {
+    const clean = text.replace(/^(set|my) focus (is|to)?/i,'').replace(/focus on/i,'').trim();
+    setFocusText(clean || text);
+    showToast('Daily focus set');
+  } else {
+    // FIX 3 tail (3 Aug): nothing matched — land it as a TASK rather than lose
+    // it. "A capture in the slightly-wrong place is still saved and findable;
+    // a capture that gets lost is gone." This also retires the old "sent to
+    // AI" stub, which claimed a success that never happened — the same trust
+    // rule the overload messages live by. One code path with the task branch.
+    voiceCreateTask(text, t);
+  }
+}
+
+// The task branch's whole body, extracted verbatim so the explicit task route
+// and the nothing-matched fallback share ONE implementation (3 Aug). Parses
+// priority and spoken dates exactly as before; creates and shows the task.
+function voiceCreateTask(text, t) {
     // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
     let p = 'C';
     const mPr = t.match(/\b(?:as an?\s+)?([abc])\s+priority\b/) || t.match(/\bas an?\s+([abc])\b/);
@@ -5473,24 +5521,6 @@ function processVoice(text) {
     showTab('daily', null);
     const dateLabel = taskDate === dateKey(today) ? 'today' : formatDateNice(taskDate);
     showToast(`Task added for ${dateLabel}: "${(clean || text).slice(0,25)}"`);
-  } else if (logHabitByVoice(t)) {
-    /* a habit was matched by name/synonym and ticked for today inside logHabitByVoice() */
-  } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
-    const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
-    const vnTs = Date.now();   // one instant: id and created are the same value by design
-    state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
-    renderNotes();
-    showToast('Saved to notes');
-  } else if (t.includes('focus')) {
-    const clean = text.replace(/^(set|my) focus (is|to)?/i,'').replace(/focus on/i,'').trim();
-    setFocusText(clean || text);
-    showToast('Daily focus set');
-  } else {
-    showToast('Processing: "' + text.slice(0,40) + '"');
-    setTimeout(() => {
-      document.getElementById('voice-hint').textContent = 'Command sent to AI — check your tasks';
-    }, 500);
-  }
 }
 
 // ============================================================
@@ -6673,7 +6703,7 @@ function aiRemoveItem(cid) {
 // count AND the save must be CONFIRMED before the sheet closes or success is
 // claimed. Items that can't commit (no text) stay on the sheet, named. If the
 // account save fails, everything is rolled back out of state and the sheet
-// stays open — "Added 0" reporting as success is the one behaviour the trust
+// stays open — "Added 0" reporting as success is the one behavior the trust
 // boundary cannot allow.
 async function commitAiReview() {
   if (!aiProposal || !aiReviewCount()) return;
@@ -8139,7 +8169,7 @@ async function downloadPhoto(idx, btnEl) {
       try {
         await navigator.share({ files: [file] });
       } catch (err) {
-        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;   // user cancelled — normal
+        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;   // user canceled — normal
         showToast('Couldn\'t share that photo — try again');
       }
       return;
@@ -9108,7 +9138,7 @@ function handleCheckoutReturn() {
   const c = params.get('checkout');
   if (!c) return;
   history.replaceState({}, '', location.pathname);
-  if (c === 'cancel') { showToast('Checkout cancelled — no charge made'); return; }
+  if (c === 'cancel') { showToast('Checkout canceled — no charge made'); return; }
   // Sign-in-before-checkout (C17 option 1). The marketing site's Lifetime button
   // links here rather than straight to Stripe: by the time we run, the user is
   // signed in, so metadata.supabase_user_id is always set and the webhook can never
