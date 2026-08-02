@@ -2280,13 +2280,19 @@ body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
 body.pv .pv-band-notes { margin-top: 0; }
 body.pv #pv-day-meta { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: #5B7692; text-align: right; padding: 3px 2px 8px; border-bottom: 1px solid #C9D6E4; }
 body.pv .pv-ruled-page { min-height: 300px; flex: 1; display: flex; flex-direction: column; }
-/* the writing area IS the rest of the page: below the day's saved notes, every
-   remaining ruled line belongs to one big writable field — tap or Scribble
-   anywhere on the empty lines and you are writing. Ink and ruling share one
-   rhythm because the lines are painted on the field itself. */
-body.pv #pv-slot-capture { flex: 1; display: flex; flex-direction: column; min-height: 140px; }
-body.pv #pv-slot-capture .card { flex: 1; display: flex; flex-direction: column; padding-bottom: 0; }
-body.pv #notes-capture-card div:has(> #note-body-inp) { flex: 1; }
+/* the standard Quick Capture box is the page's pen: it sits at the top, lined
+   inside so it reads writable — title, note, optional checklist, Save — and
+   every saved note takes its place on the lines below. The ruling fills only
+   the empty remainder, so ink and lines never clash. */
+body.pv #pv-slot-capture { margin: 4px 0 10px; }
+body.pv #pv-slot-capture .card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(4,44,83,0.08); padding: 12px 14px;
+}
+body.pv .pv-lines-fill {
+  flex: 1; min-height: 84px;
+  background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px);
+}
 body.pv .pv-write-hint {
   font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--navy, #0C447C); line-height: var(--pv-line, 28px); padding: 0 2px;
@@ -2397,10 +2403,7 @@ body.pv #pv-flip { display: none; }
 body.pv #pv-book { --pv-line: 28px; }
 
 /* --- quick capture becomes the top lines of the notes page --- */
-body.pv #notes-capture-card div:has(> #note-title-inp) { display: none; }
-body.pv #notes-capture-card .field-mic { display: none; }
 body.pv #notes-capture-card div:has(> #note-body-inp) { align-items: flex-start; }
-body.pv #notes-capture-card div:has(> #note-body-inp) .field-mic { display: inline-flex; margin-top: 2px; }
 /* the writable hour line: write an appointment straight onto the schedule */
 body.pv .pv-hour-inp {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -2408,18 +2411,10 @@ body.pv .pv-hour-inp {
   font-family: 'Hanken Grotesk', var(--font); font-size: 14px; color: var(--text);
   padding: 4px 6px; box-sizing: border-box;
 }
-body.pv #notes-capture-card #note-title-inp,
-body.pv #notes-capture-card #tag-pills,
-body.pv #notes-capture-card #note-cl-draft,
-body.pv #notes-capture-card #note-cl-adder,
-body.pv #notes-capture-card #note-cl-toggle,
-body.pv #notes-capture-card .save-btn { display: none; }
-body.pv #notes-capture-card.pv-has-ink .save-btn {
-  display: block; width: auto; align-self: flex-end; margin: 6px 0 10px; padding: 8px 18px;
-}
+body.pv #notes-capture-card #tag-pills { display: none; }   /* tags stay Classic; the box keeps to title, note, checklist, Save */
 body.pv #note-body-inp {
-  min-height: calc(var(--pv-line) * 4) !important; height: 100%; line-height: var(--pv-line); padding: 0 2px;
-  font-size: 15px; resize: none; border: none;
+  min-height: calc(var(--pv-line) * 3) !important; line-height: var(--pv-line); padding: 0 2px;
+  font-size: 15px; resize: vertical; border: none;
   background: repeating-linear-gradient(to bottom, transparent 0 27px, #C9D6E4 27px 28px) !important;
 }
 
@@ -2911,9 +2906,10 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <div class="pv-band pv-band-notes"><span>Daily Notes</span><span class="pv-band-sub" id="pv-notes-date"></span></div>
         <div id="pv-day-meta"></div>
         <div class="pv-ruled-page">
-          <div class="pv-write-hint">Speak, type or write on the lines &nbsp;&middot;&nbsp; a blank line ends the note</div>
-          <div id="pv-slot-notes"></div>
+          <div class="pv-write-hint">Speak, type or write on the lines</div>
           <div id="pv-slot-capture"></div>
+          <div id="pv-slot-notes"></div>
+          <div class="pv-lines-fill"></div>
         </div>
         <div class="pv-band">Shopping List</div>
         <div id="pv-slot-shop"></div>
@@ -6263,14 +6259,13 @@ function pvFocusOut(e) {
     } catch (err) {}
     return;
   }
-  if (!id || !['note-body-inp', 'task-inp', 'shopping-input'].includes(id)) return;
+  if (!id || !['task-inp', 'shopping-input'].includes(id)) return;   // notes commit via the box's Save
   const to = e.relatedTarget || pvLastDown;   // iPad taps focus nothing: follow the finger
   const card = t.closest && t.closest('.card');
   if (to && card && card.contains(to)) return;   // still working in this section (mic, buttons, checklist)
   try {
     if (!String(t.value || '').trim()) return;
-    if (id === 'note-body-inp') saveNote();
-    else if (id === 'task-inp') addTask();
+    if (id === 'task-inp') addTask();
     else addShoppingItem();
   } catch (err) {}
   setTimeout(pvInkSync, 0);
@@ -6345,7 +6340,7 @@ document.addEventListener('click', (e) => {
 // line's own Add / Save button appears at its end; empty the line and it folds
 // away again. Lift-to-save and Enter still work — this is the button for
 // anyone who looks for one. The buttons ARE the Classic buttons, unhidden.
-const PV_INK = { 'task-inp': 'tasks-card', 'note-body-inp': 'notes-capture-card', 'shopping-input': 'shopping-card' };
+const PV_INK = { 'task-inp': 'tasks-card', 'shopping-input': 'shopping-card' };
 function pvInkSync() {
   Object.keys(PV_INK).forEach(id => {
     const f = document.getElementById(id), card = document.getElementById(PV_INK[id]);
@@ -6358,17 +6353,6 @@ document.addEventListener('input', (e) => {
   if (!document.body.classList.contains('pv')) return;
   const t = e.target;
   if (!t || !PV_INK[t.id]) return;
-  // A blank line ends the note (2 Aug): press return on an empty line — the
-  // writing above saves as its own note through saveNote(), the field clears,
-  // and the cursor stays on the page ready for the next thought. Exactly how
-  // a paper page separates entries: with white space.
-  if (t.id === 'note-body-inp' && /\n\n$/.test(t.value)) {
-    t.value = t.value.replace(/\n+$/, '');
-    if (t.value.trim()) {
-      try { saveNote(); } catch (err) {}
-      setTimeout(() => { try { t.focus(); } catch (err) {} }, 0);
-    }
-  }
   pvInkSync();
 }, true);
 document.addEventListener('click', (e) => {
