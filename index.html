@@ -2177,6 +2177,8 @@ body.pv .wordmark { flex-direction: row; align-items: baseline; gap: 7px; }
 body.pv .topbar { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 8px; }
 body.pv .topbar .voice-btn { margin-top: 4px !important; }
 body.pv .voice-hint { margin-top: 2px; }
+body.pv #pv-slot-ai-top { display: flex; justify-content: center; }
+body.pv #pv-slot-ai-top .ai-btn { margin: 6px auto 0 !important; max-width: 460px; width: 100%; }
 /* the Life Planning atmosphere photos show behind their wide spreads —
    the page goes lightly translucent so the image reads through, and the
    cards frost for legibility, mirroring Classic's own atmo treatment */
@@ -2191,7 +2193,7 @@ body.pv #app { display: flex !important; flex-direction: column; max-width: 1500
 /* html/body are overflow:hidden by design — in Classic only .content scrolls,
    so in Planner view the book itself is the scroll container */
 body.pv #pv-book {
-  display: block; position: relative; flex: 1; min-height: 0;
+  display: block; position: relative; z-index: 1; flex: 1; min-height: 0;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: 14px 10px 30px 14px;
 }
@@ -2266,7 +2268,6 @@ body.pv .pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; ali
 body.pv .pv-day-head { padding-bottom: 6px; }
 body.pv #pv-slot-cal { border-bottom: 2px solid var(--navy, #0C447C); padding-bottom: 8px; margin-bottom: 2px; }
 body.pv .pv-colA, body.pv .pv-colB { min-width: 0; }
-body.pv #pv-slot-ai .ai-btn { margin: 14px 0 0; }
 
 /* ---- Right page: quote, DAILY NOTES on ruled paper, shopping at the foot ---- */
 body.pv .pv-band-notes { margin-top: 0; }
@@ -2361,9 +2362,12 @@ body.pv #pv-flip { display: none; }
   body.pv .pv-pages { grid-template-columns: 1fr; }
   body.pv .pv-pages::before { display: none; }
   body.pv .pv-left { border-right: none; }
-  body.pv .pv-cols { grid-template-columns: 1fr; }
   body.pv.pv-mode-daily .pv-right { display: none; }
-  body.pv.pv-mode-daily #pv-book.show-right .pv-right { display: block; }
+  body.pv.pv-mode-daily #pv-book.show-right .pv-right {
+    display: flex; flex-direction: column; height: calc(100vh - 195px);
+  }
+  body.pv.pv-mode-daily #pv-book.show-right .pv-ruled-page { flex: 2 1 0; min-height: 0; overflow-y: auto; }
+  body.pv.pv-mode-daily #pv-book.show-right #pv-slot-shop { flex: 1 1 0; min-height: 0; overflow-y: auto; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-left { display: none; }
   body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 0 0 10px; }
   body.pv #pv-wide .sec.active { column-count: 1 !important; }
@@ -2467,6 +2471,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
       <span class="voice-btn-text" id="voice-btn-text">Tap to speak your plan</span>
     </button>
     <div class="voice-hint" id="voice-hint">Say: "Add review the proposal as an A priority"</div>
+    <div id="pv-slot-ai-top"></div>
   </div>
 
   <!-- NAV -->
@@ -2877,7 +2882,6 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
             <div id="pv-slot-cal"></div>
             <div class="pv-band">Prioritised Daily Task List</div>
             <div id="pv-slot-tasks"></div>
-            <div id="pv-slot-ai"></div>
           </div>
           <div class="pv-colB">
             <div class="pv-band">Appointment Schedule</div>
@@ -2906,7 +2910,8 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
         <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
         <button class="pv-stab" data-tab="projects" onclick="showTab('projects')">Projects</button>
-        <button class="pv-stab pv-stab-group" data-tab="goals" onclick="showTab('goals')">Life Planning</button>
+        <button class="pv-stab pv-stab-group" data-tab="life-group" onclick="showTab('goals')">Life Planning</button>
+        <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
         <button class="pv-stab" data-tab="values" onclick="showTab('values')">Values</button>
         <button class="pv-stab" data-tab="bucket" onclick="showTab('bucket')">Bucket</button>
         <button class="pv-stab" data-tab="habits" onclick="showTab('habits')">Habits</button>
@@ -6035,7 +6040,7 @@ const PV_MOVES = [
   // [element id, destination slot id] — the daily spread's dissected pieces
   ['cal-strip-card',    'pv-slot-cal'],
   ['focus-card',        'pv-slot-focus'],
-  ['ai-dump-btn',       'pv-slot-ai'],
+  ['ai-dump-btn',       'pv-slot-ai-top'],   // rides under the voice button: both capture doors side by side
   ['tasks-card',        'pv-slot-tasks'],
   ['schedule-card',     'pv-slot-sched'],
   ['shopping-card',     'pv-slot-shop'],
