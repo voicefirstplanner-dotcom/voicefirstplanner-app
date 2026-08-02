@@ -2220,6 +2220,11 @@ body.pv .pv-pages::before {
   pointer-events: none; z-index: 1;
 }
 body.pv .pv-page { padding: 18px 20px 24px; min-width: 0; }
+/* the page turn: the fresh day slides in from the direction of the pull */
+body.pv .pv-pages.pv-turn-next { animation: pvTurnNext 0.24s ease-out; }
+body.pv .pv-pages.pv-turn-prev { animation: pvTurnPrev 0.24s ease-out; }
+@keyframes pvTurnNext { from { transform: translateX(36px); opacity: 0.3; } to { transform: none; opacity: 1; } }
+@keyframes pvTurnPrev { from { transform: translateX(-36px); opacity: 0.3; } to { transform: none; opacity: 1; } }
 body.pv .pv-left { border-right: 1px solid #E2E9EF; }
 
 /* ---- The day header: big day number, weekday, month ---- */
@@ -2906,7 +2911,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <div class="pv-band pv-band-notes"><span>Daily Notes</span><span class="pv-band-sub" id="pv-notes-date"></span></div>
         <div id="pv-day-meta"></div>
         <div class="pv-ruled-page">
-          <div class="pv-write-hint">Speak, type or write on the lines</div>
+          <div class="pv-write-hint">Speak, type or write on the lines &nbsp;&middot;&nbsp; a blank line ends the note</div>
           <div id="pv-slot-notes"></div>
           <div id="pv-slot-capture"></div>
         </div>
@@ -6296,7 +6301,16 @@ document.addEventListener('touchend', (e) => {
   if (Math.abs(dx) > 55 && Math.abs(dx) > 1.6 * Math.abs(dy)) {
     pvSwallowClick = true;                 // the tap that ends a swipe must not tick a task
     setTimeout(() => { pvSwallowClick = false; }, 400);
-    shiftViewDay(dx < 0 ? 1 : -1);
+    const dir = dx < 0 ? 1 : -1;
+    shiftViewDay(dir);
+    // a visible page turn: the fresh day slides in from the direction you pulled
+    const pg = document.querySelector('.pv-pages');
+    if (pg) {
+      pg.classList.remove('pv-turn-next', 'pv-turn-prev');
+      void pg.offsetWidth;   // restart the animation even on rapid swipes
+      pg.classList.add(dir === 1 ? 'pv-turn-next' : 'pv-turn-prev');
+      setTimeout(() => pg.classList.remove('pv-turn-next', 'pv-turn-prev'), 320);
+    }
   }
 }, { passive: true });
 document.addEventListener('click', (e) => {
@@ -6318,7 +6332,20 @@ function pvInkSync() {
 // bubbling listener never hears — capture hears every input, spoken or typed
 document.addEventListener('input', (e) => {
   if (!document.body.classList.contains('pv')) return;
-  if (e.target && PV_INK[e.target.id]) pvInkSync();
+  const t = e.target;
+  if (!t || !PV_INK[t.id]) return;
+  // A blank line ends the note (2 Aug): press return on an empty line — the
+  // writing above saves as its own note through saveNote(), the field clears,
+  // and the cursor stays on the page ready for the next thought. Exactly how
+  // a paper page separates entries: with white space.
+  if (t.id === 'note-body-inp' && /\n\n$/.test(t.value)) {
+    t.value = t.value.replace(/\n+$/, '');
+    if (t.value.trim()) {
+      try { saveNote(); } catch (err) {}
+      setTimeout(() => { try { t.focus(); } catch (err) {} }, 0);
+    }
+  }
+  pvInkSync();
 }, true);
 document.addEventListener('click', (e) => {
   if (!document.body.classList.contains('pv')) return;
