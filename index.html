@@ -5442,7 +5442,12 @@ function voiceCreateTask(text, t) {
     let p = 'C';
     const mPr = t.match(/\b(?:as an?\s+)?([abc])\s+priority\b/) || t.match(/\bas an?\s+([abc])\b/);
     if (mPr) p = mPr[1].toUpperCase();
-    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').trim();
+    // Priority-phrase removal used to leave its trailing debris behind
+    // ("call the electrician ."). Collapse doubled spaces from mid-sentence
+    // removal, then strip an orphaned trailing punctuation run — one that
+    // stands apart from the last word. A period tight against a word is the
+    // user's own and stays. (4 Aug; matching regexes deliberately untouched.)
+    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').replace(/\s{2,}/g,' ').replace(/\s+[.,;:!?]+$/,'').trim();
 
     // Parse date from voice
     const numWords = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
