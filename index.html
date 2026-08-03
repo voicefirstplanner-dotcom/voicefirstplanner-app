@@ -2645,7 +2645,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         </div>
         <div id="overload-notice" style="display:none;background:color-mix(in srgb, var(--appt) 12%, transparent);border-left:3px solid var(--appt);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--navy);line-height:1.45"></div>
         <div id="task-list"></div>
-        <div id="task-clear-row" style="display:none;justify-content:flex-end;margin-top:8px"><button onclick="clearTickedTasks()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear ticked</button></div>
+        <div id="task-clear-row" style="display:none;justify-content:flex-end;margin-top:8px"><button onclick="clearTickedTasks()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear completed</button></div>
         <div class="task-add-row" style="flex-wrap:wrap;gap:6px;margin-top:8px">
           <input class="task-inp" id="task-inp" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask()" style="flex:1;min-width:120px">
           <select class="task-pri-sel" id="task-pri">
@@ -2819,7 +2819,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <div class="sec" id="sec-shopping">
       <div class="card" id="shopping-card">
         <div class="card-label">Shopping list</div>
-        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk and eggs to my shopping list" — or "add sunscreen to my travel list" to sort items into named lists. Tick them off as you go.</p>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:12px;line-height:1.5">Remembered something while you're out? Just say it. "Add milk and eggs to my shopping list" — or "add sunscreen to my travel list" to sort items into named lists. Check them off as you go.</p>
         <div id="shopping-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <input id="shopping-input" type="text" placeholder="Add an item — or a few, separated by commas…" style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')addShoppingItem()" />
@@ -2829,7 +2829,7 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <div id="shopping-list" style="margin-top:12px"></div>
         <div id="shopping-footer" style="display:none;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
           <span id="shopping-count" style="font-size:12px;color:var(--text-mid)"></span>
-          <button id="shopping-clear-btn" onclick="clearTickedShopping()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear ticked</button>
+          <button id="shopping-clear-btn" onclick="clearTickedShopping()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy);cursor:pointer">Clear completed</button>
         </div>
       </div>
     </div>
@@ -7374,7 +7374,7 @@ function renderTasks() {
     if (days >= 1) {
       const strong = days >= 3;                       // gentle escalation from day 3
       const label = days === 1 ? 'carried · day 1' : `carried · ${days} days`;
-      carryTag = `<span class="carry-tag${strong ? ' carry-strong' : ''}" title="Persistent Task \u2014 carries forward every day until you tick it done">${label}</span>`;
+      carryTag = `<span class="carry-tag${strong ? ' carry-strong' : ''}" title="Persistent Task \u2014 carries forward every day until you check it off">${label}</span>`;
     }
     d.innerHTML = `
       <div class="priority-badge p${t.p}">${t.p}</div>
@@ -8643,7 +8643,7 @@ function clearTickedTasks() {
   renderTasks();
   renderCalStrip();
   try { persistNow(); } catch (e) {}
-  showToast(doomed.length === 1 ? 'Cleared 1 ticked task' : `Cleared ${doomed.length} ticked tasks`);
+  showToast(doomed.length === 1 ? 'Cleared 1 completed task' : `Cleared ${doomed.length} completed tasks`);
 }
 
 function clearTickedShopping() {
@@ -8652,7 +8652,7 @@ function clearTickedShopping() {
   l.items = l.items.filter(function(x){ return !x.done; });
   renderShopping();
   const removed = before - l.items.length;
-  if (removed > 0) showToast(removed === 1 ? 'Cleared 1 ticked item' : `Cleared ${removed} ticked items`);
+  if (removed > 0) showToast(removed === 1 ? 'Cleared 1 completed item' : `Cleared ${removed} completed items`);
 }
 
 function renderShopping() {
@@ -8686,7 +8686,7 @@ function renderShopping() {
   if (total > 0) {
     footer.style.display = 'flex';
     const left = total - ticked;
-    countEl.textContent = ticked > 0 ? `${left} to get · ${ticked} ticked` : `${left} item${left === 1 ? '' : 's'} to get`;
+    countEl.textContent = ticked > 0 ? `${left} to get · ${ticked} done` : `${left} item${left === 1 ? '' : 's'} to get`;
     clearBtn.style.display = ticked > 0 ? 'block' : 'none';
   } else {
     footer.style.display = 'none';
@@ -10038,7 +10038,7 @@ function addBucketItem() {
 }
 function toggleBucketItem(id) {
   const it = (state.bucket || []).find(x => x.id === id);
-  if (it) { it.done = !it.done; renderBucket(); if (it.done) showToast('Ticked off your bucket list — nice one!'); }
+  if (it) { it.done = !it.done; renderBucket(); if (it.done) showToast('Checked off your bucket list — nice one!'); }
 }
 function deleteBucketItem(id) {
   state.bucket = (state.bucket || []).filter(x => x.id !== id);
