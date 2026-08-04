@@ -2751,11 +2751,11 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
           <option value="">Link to a life role (optional)</option>
         </select>
       </div>
-      <button class="ai-btn" onclick="aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.')">
-        <i class="ti ti-sparkles"></i>AI goal setting<span class="soon-badge">Pro · soon</span>
+      <button class="ai-btn" onclick="openAiGoal()">
+        <i class="ti ti-sparkles"></i>AI goal setting<span class="soon-badge">Pro</span>
       </button>
-      <button class="ai-btn" onclick="aiAction('Help me break one of my long-term goals into specific weekly action steps I can add to my daily plan.')">
-        <i class="ti ti-list-check"></i>AI weekly action breakdown<span class="soon-badge">Pro · soon</span>
+      <button class="ai-btn" onclick="openAiBreakdown()">
+        <i class="ti ti-list-check"></i>AI weekly action breakdown<span class="soon-badge">Pro</span>
       </button>
     </div>
 
@@ -3404,6 +3404,39 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     </div>
     <button class="modal-cta" id="ai-dump-go" onclick="submitAiDump()">Structure it</button>
     <button class="modal-close-btn" onclick="closeAiDump()">Cancel</button>
+  </div>
+</div>
+
+<!-- PRO PHASE 2 (4 Aug) — AI GOAL SETTING input modal. Same contract as the
+     brain-dump modal: input in, proposal out, NOTHING committed here. -->
+<div class="modal-overlay" id="ai-goal-modal" onclick="if(event.target===this)closeAiGoal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">AI goal setting</div>
+    <div class="modal-sub">Say or type what matters to you right now — ambitions, timeframes, constraints. The AI drafts measurable goals linked to your life roles, as a proposal you approve before anything is added.</div>
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
+      <textarea class="task-inp" id="ai-goal-text" rows="5" placeholder="e.g. I want to get properly fit this year, read more instead of scrolling, and put real time into the boat…" style="flex:1;resize:vertical"></textarea>
+      <button class="field-mic" onclick="dictateInto('ai-goal-text',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+    </div>
+    <button class="modal-cta" id="ai-goal-go" onclick="submitAiGoal()">Draft my goals</button>
+    <button class="modal-close-btn" onclick="closeAiGoal()">Cancel</button>
+  </div>
+</div>
+
+<!-- PRO PHASE 2 (4 Aug) — AI WEEKLY BREAKDOWN input modal: pick one of your
+     goals, add any guidance, get a week of concrete tasks as a proposal. -->
+<div class="modal-overlay" id="ai-breakdown-modal" onclick="if(event.target===this)closeAiBreakdown()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">AI weekly action breakdown</div>
+    <div class="modal-sub">Pick a goal. The AI proposes small, concrete steps spread across the coming week — you approve before anything lands in your plan.</div>
+    <select class="task-inp" id="ai-breakdown-goal" style="width:100%;margin-bottom:10px"></select>
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
+      <textarea class="task-inp" id="ai-breakdown-text" rows="3" placeholder="Optional guidance — days to avoid, pace, where to focus…" style="flex:1;resize:vertical"></textarea>
+      <button class="field-mic" onclick="dictateInto('ai-breakdown-text',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+    </div>
+    <button class="modal-cta" id="ai-breakdown-go" onclick="submitAiBreakdown()">Break it down</button>
+    <button class="modal-close-btn" onclick="closeAiBreakdown()">Cancel</button>
   </div>
 </div>
 
@@ -6605,12 +6638,115 @@ async function submitAiDump() {
   }
 }
 
+// ---- Pro Phase 2 (4 Aug): goal setting + weekly breakdown openers ----
+// Gating mirrors openAiDump exactly: Pro opens the modal; non-Pro gets the
+// real upgrade path when it exists, or the interest-capture line (the same
+// wording the buttons carried before) when it doesn't. The SERVER remains the
+// real gate either way.
+function openAiGoal() {
+  if (!aiClientIsPro()) {
+    if (proPathOpen()) document.getElementById('pro-upgrade-modal').classList.add('open');
+    else aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.');
+    return;
+  }
+  document.getElementById('ai-goal-modal').classList.add('open');
+}
+function closeAiGoal() { document.getElementById('ai-goal-modal').classList.remove('open'); }
+
+function openAiBreakdown() {
+  if (!aiClientIsPro()) {
+    if (proPathOpen()) document.getElementById('pro-upgrade-modal').classList.add('open');
+    else aiAction('Help me break one of my long-term goals into specific weekly action steps I can add to my daily plan.');
+    return;
+  }
+  const goals = state.goals || [];
+  if (!goals.length) { showToast('Add a goal first — then the AI can break it down'); showTab('goals'); return; }
+  const sel = document.getElementById('ai-breakdown-goal');
+  sel.innerHTML = goals.map((g, i) =>
+    `<option value="${i}">${String(g.name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')} (${g.cur || 0}/${g.tot || 1})</option>`).join('');
+  document.getElementById('ai-breakdown-modal').classList.add('open');
+}
+function closeAiBreakdown() { document.getElementById('ai-breakdown-modal').classList.remove('open'); }
+
+async function aiAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (sb) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    } catch (e) {}
+  }
+  return headers;
+}
+
+async function submitAiGoal() {
+  const ta = document.getElementById('ai-goal-text');
+  const btn = document.getElementById('ai-goal-go');
+  const text = (ta.value || '').trim();
+  if (!text) { showToast('Say or type what matters first'); return; }
+  btn.disabled = true; btn.textContent = 'Drafting…';
+  try {
+    const resp = await fetch('/api/ai-goal', {
+      method: 'POST', headers: await aiAuthHeaders(),
+      body: JSON.stringify({
+        text,
+        roles: (state.roles || []).map(r => r.name).filter(Boolean),
+        values: (state.values || []).map(v => (typeof v === 'string' ? v : v && v.name)).filter(Boolean),
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      // Fail LOUD; the raw text stays in the box so nothing is lost.
+      showToast(data.error || 'Couldn\'t draft goals — try again');
+      return;
+    }
+    closeAiGoal();
+    openAiReview(data);
+  } catch (e) {
+    showToast('Couldn\'t draft goals — try again');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Draft my goals';
+  }
+}
+
+async function submitAiBreakdown() {
+  const btn = document.getElementById('ai-breakdown-go');
+  const sel = document.getElementById('ai-breakdown-goal');
+  const g = (state.goals || [])[parseInt(sel.value, 10)];
+  if (!g) { showToast('Pick a goal first'); return; }
+  btn.disabled = true; btn.textContent = 'Breaking it down…';
+  try {
+    const resp = await fetch('/api/ai-breakdown', {
+      method: 'POST', headers: await aiAuthHeaders(),
+      body: JSON.stringify({
+        today: nowKey(),
+        goalName: g.name,
+        goalProgress: `${g.cur || 0}/${g.tot || 1}`,
+        role: g.role || '',
+        notes: (document.getElementById('ai-breakdown-text').value || '').trim(),
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      showToast(data.error || 'Couldn\'t break this down — try again');
+      return;
+    }
+    closeAiBreakdown();
+    openAiReview(data);
+  } catch (e) {
+    showToast('Couldn\'t break this down — try again');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Break it down';
+  }
+}
+
 // ---- Review sheet ----
 function openAiReview(proposal) {
   let cid = 1;
   aiProposal = {
     tasks: (proposal.tasks || []).map(t => ({ cid: cid++, ...t })),
     appointments: (proposal.appointments || []).map(a => ({ cid: cid++, ...a })),
+    goals: (proposal.goals || []).map(g => ({ cid: cid++, ...g })),   // Pro Phase 2
   };
   renderAiReview();
   document.getElementById('ai-review-modal').classList.add('open');
@@ -6623,7 +6759,7 @@ function cancelAiReview() {
 }
 
 function aiReviewCount() {
-  return aiProposal ? aiProposal.tasks.length + aiProposal.appointments.length : 0;
+  return aiProposal ? aiProposal.tasks.length + aiProposal.appointments.length + (aiProposal.goals || []).length : 0;
 }
 
 function renderAiReview() {
@@ -6632,6 +6768,29 @@ function renderAiReview() {
   if (!aiProposal) { list.innerHTML = ''; return; }
   const esc = sTxt => String(sTxt).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   let html = '';
+  // Pro Phase 2: proposed GOALS review like everything else — name, measurable
+  // target, role link (their own roles only), the model's one-line "why" shown
+  // for the decision and never committed.
+  (aiProposal.goals || []).forEach(g => {
+    const roleOpts = ['<option value=""' + (g.role ? '' : ' selected') + '>No role link</option>']
+      .concat((state.roles || []).map(r => `<option value="${esc(r.name)}"${r.name === g.role ? ' selected' : ''}>${esc(r.name)}</option>`)).join('');
+    html += `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--orange)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--orange);text-transform:uppercase;flex:1">Goal</span>
+        <button type="button" title="Remove" onclick="aiRemoveItem(${g.cid})" style="background:none;border:none;color:var(--text-mid);cursor:pointer;font-size:16px;padding:2px 6px;opacity:0.7">×</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input class="task-inp" id="ai-rg-${g.cid}" value="${esc(g.name)}" oninput="aiEditField(${g.cid},'name',this.value)" style="flex:1">
+        <button class="field-mic" onclick="dictateInto('ai-rg-${g.cid}',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <span class="ap-label" style="margin:0">Target</span>
+        <input type="number" min="1" class="ap-time" style="width:90px" value="${parseInt(g.tot,10) >= 1 ? parseInt(g.tot,10) : 1}" onchange="aiEditField(${g.cid},'tot',this.value)">
+        <select class="task-inp" style="flex:1" onchange="aiEditField(${g.cid},'role',this.value)">${roleOpts}</select>
+      </div>
+      ${g.why ? `<div style="font-size:12px;color:var(--text-mid);font-style:italic">${esc(g.why)}</div>` : ''}
+    </div>`;
+  });
   aiProposal.tasks.forEach(t => {
     html += `<div class="card" style="margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -6681,7 +6840,8 @@ function renderAiReview() {
 
 function aiFind(cid) {
   if (!aiProposal) return null;
-  return aiProposal.tasks.find(t => t.cid === cid) || aiProposal.appointments.find(a => a.cid === cid) || null;
+  return aiProposal.tasks.find(t => t.cid === cid) || aiProposal.appointments.find(a => a.cid === cid)
+    || (aiProposal.goals || []).find(g => g.cid === cid) || null;
 }
 function aiEditField(cid, field, value) {
   const item = aiFind(cid);
@@ -6697,6 +6857,7 @@ function aiRemoveItem(cid) {
   if (!aiProposal) return;
   aiProposal.tasks = aiProposal.tasks.filter(t => t.cid !== cid);
   aiProposal.appointments = aiProposal.appointments.filter(a => a.cid !== cid);
+  if (aiProposal.goals) aiProposal.goals = aiProposal.goals.filter(g => g.cid !== cid);
   renderAiReview();
 }
 
@@ -6717,15 +6878,26 @@ async function commitAiReview() {
   try {
     const todayK = nowKey();   // the user's REAL today, not the page-load date
     const approved = aiReviewCount();
-    const keepTasks = [], keepAppts = [], blocked = [];
+    const keepTasks = [], keepAppts = [], keepGoals = [], blocked = [];
     aiProposal.tasks.forEach(t => {
       ((t.text || '').trim()) ? keepTasks.push(t) : blocked.push(t);
     });
     aiProposal.appointments.forEach(a => {
       ((a.title || '').trim()) ? keepAppts.push(a) : blocked.push(a);
     });
+    // Goals respect the same cap the manual add enforces: free plan holds 3.
+    // Goals past the cap are BLOCKED, not silently dropped — they stay on the
+    // sheet, and the partial toast names the count, per the fail-loud contract.
+    state.goals = state.goals || [];
+    let goalSlots = isPremium() ? Infinity : Math.max(0, 3 - state.goals.length);
+    let capBlocked = 0;
+    (aiProposal.goals || []).forEach(g => {
+      if (!((g.name || '').trim())) { blocked.push(g); return; }
+      if (goalSlots > 0) { keepGoals.push(g); goalSlots--; }
+      else { blocked.push(g); capBlocked++; }
+    });
 
-    const newTaskIds = [], newApptIds = [];
+    const newTaskIds = [], newApptIds = [], newGoalIds = [];
     let seq = 0, firstDate = null;
     keepTasks.forEach(t => {
       const d = (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) ? t.date : todayK;
@@ -6745,7 +6917,14 @@ async function commitAiReview() {
       newApptIds.push(id);
       if (!firstDate) firstDate = d;
     });
-    const written = newTaskIds.length + newApptIds.length;
+    keepGoals.forEach(g => {
+      const id = Date.now() + (seq++);
+      let tot = parseInt(g.tot, 10); if (!Number.isInteger(tot) || tot < 1) tot = 1;
+      const roleOk = (state.roles || []).some(r => r.name === g.role);
+      state.goals.push({ id, name: g.name.trim(), cur: 0, tot, role: roleOk ? g.role : '' });
+      newGoalIds.push(id);
+    });
+    const written = newTaskIds.length + newApptIds.length + newGoalIds.length;
 
     // Confirm the save BEFORE claiming anything.
     const save = await persistCritical();
@@ -6753,6 +6932,7 @@ async function commitAiReview() {
       // Roll back: state must match reality — no phantom items that vanish on reload.
       state.tasks = state.tasks.filter(t => !newTaskIds.includes(t.id));
       state.appointments = state.appointments.filter(a => !newApptIds.includes(a.id));
+      state.goals = state.goals.filter(g => !newGoalIds.includes(g.id));
       showToast(`Nothing was added — couldn't save to your account (${save.error || 'connection problem'}). Check your connection and press Add again.`);
       return;   // sheet stays open with everything still on it
     }
@@ -6761,8 +6941,12 @@ async function commitAiReview() {
       // Partial: the saved items leave the sheet; the blocked ones stay, named.
       aiProposal.tasks = aiProposal.tasks.filter(t => blocked.includes(t));
       aiProposal.appointments = aiProposal.appointments.filter(a => blocked.includes(a));
+      if (aiProposal.goals) aiProposal.goals = aiProposal.goals.filter(g => blocked.includes(g));
       renderAiReview();
-      showToast(`${written} added and saved · ${approved - written} couldn't be added (no text) — still on the sheet`);
+      showToast(capBlocked
+        ? `${written} added and saved · ${capBlocked} goal${capBlocked === 1 ? '' : 's'} over the free plan's 3 — upgrade for unlimited`
+        : `${written} added and saved · ${approved - written} couldn't be added (no text) — still on the sheet`);
+      if (capBlocked) showUpgrade();
     } else {
       aiProposal = null;
       document.getElementById('ai-review-modal').classList.remove('open');
@@ -6776,7 +6960,9 @@ async function commitAiReview() {
     }
     renderTasks();
     apRefresh();
-    if (!aiProposal) showTab('daily');
+    if (newGoalIds.length) renderGoals();
+    // Land where the work landed: a goals-only commit opens the Goals page.
+    if (!aiProposal) showTab(newGoalIds.length && !newTaskIds.length && !newApptIds.length ? 'goals' : 'daily');
   } finally {
     addBtn.disabled = false; addBtn.textContent = btnLabel;
   }
