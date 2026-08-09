@@ -2500,8 +2500,12 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 .search-hit-date { font-size: 11px; color: var(--text-light); white-space: nowrap; }
 .search-empty { text-align: center; padding: 18px 0; color: var(--text-mid); font-size: 13px; }
 #search-results { max-height: 55vh; overflow-y: auto; }
-@keyframes searchFlashPulse { 0% { background: #CFE3F8; } 100% { background: transparent; } }
-.search-hit-flash { animation: searchFlashPulse 2.4s ease-out 1; border-radius: 8px; }
+@keyframes searchFlashPulse {
+  0%   { box-shadow: 0 0 0 3px var(--orange), 0 0 16px 3px rgba(242,119,26,0.55); background: rgba(242,119,26,0.14); }
+  70%  { box-shadow: 0 0 0 3px var(--orange), 0 0 12px 2px rgba(242,119,26,0.30); background: rgba(242,119,26,0.08); }
+  100% { box-shadow: 0 0 0 3px rgba(242,119,26,0), 0 0 0 0 rgba(242,119,26,0); background: rgba(242,119,26,0); }
+}
+.search-hit-flash { animation: searchFlashPulse 2.6s ease-out 1; border-radius: 8px; position: relative; z-index: 1; }
 
 </style>
 
@@ -4694,20 +4698,50 @@ function searchGoDay(dk) {
   if (typeof renderCalStrip === 'function') renderCalStrip();
 }
 
-// After landing, pulse the first element in the container that carries the
-// match, and scroll it into view. Presentation-only; times out on its own.
+// After landing, pulse the row that carries the match, and scroll it into
+// view. Presentation-only; self-clearing. Job 2b (9 Aug): the first version
+// was invisible on device. Diagnosis against the served code found two real
+// faults and one compounding one:
+//   1. THE COLOUR (primary) — a pale-blue background pulse on rows that are
+//      already pale blue/white reads as nothing in daylight. Now an orange
+//      outline + glow pulse (house --orange), which also survives children
+//      with opaque backgrounds painting over a background tint.
+//   2. THE MATCHER — the old leaf-node walk (children.length === 0) skipped
+//      any row whose text div holds a child (a task with a carry tag, a note
+//      title beside its buttons), so on real data it often flashed nothing.
+//      Now rows are matched row-first against the app's actual row classes.
+//   3. THE ONE FIXED TIMEOUT (compounding) — a single 140ms shot loses any
+//      race with a late render. Now the flash waits two frames for the
+//      landing render to settle, retries while the target is missing, and
+//      re-applies once if a later render replaces the flashed node.
 function searchFlash(containerId, q) {
-  setTimeout(() => {
+  if (!q) return;
+  const ROW_SEL = '.task-row,.note-card,.goal-item,.capture-item,.proj-card,.checklist-item';
+  let tries = 0, reapplied = false;
+  const findRow = () => {
     const box = document.getElementById(containerId);
-    if (!box || !q) return;
-    const el = Array.from(box.querySelectorAll('*')).find(n =>
-      n.children.length === 0 && String(n.textContent || '').toLowerCase().includes(q));
-    const row = el ? (el.closest('.task-row,.note-card,.goal-card,.cap-row,.checklist-item,[class]') || el) : null;
-    if (!row) return;
+    if (!box) return null;
+    const rows = Array.from(box.querySelectorAll(ROW_SEL));
+    return rows.find(r => String(r.textContent || '').toLowerCase().includes(q))
+      || Array.from(box.children).find(r => String(r.textContent || '').toLowerCase().includes(q))
+      || null;
+  };
+  const apply = () => {
+    tries++;
+    const row = findRow();
+    if (!row) { if (tries < 12) setTimeout(apply, 150); return; }
     row.classList.add('search-hit-flash');
-    try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { row.scrollIntoView(); }
-    setTimeout(() => row.classList.remove('search-hit-flash'), 2600);
-  }, 140);
+    try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { try { row.scrollIntoView(); } catch (e2) {} }
+    // If a later render swallowed the flashed node, find its replacement once.
+    setTimeout(() => {
+      if (!document.contains(row) && !reapplied) { reapplied = true; tries = 0; apply(); }
+    }, 450);
+    setTimeout(() => { try { row.classList.remove('search-hit-flash'); } catch (e) {} }, 2800);
+  };
+  // Two frames lets the landing path's synchronous renders paint first.
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  } else { setTimeout(apply, 50); }
 }
 
 // Tap a result and it lands on the real thing — the task on its day, the note
