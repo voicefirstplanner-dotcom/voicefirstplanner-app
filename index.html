@@ -2213,7 +2213,12 @@ body.pv.atmo-on.pv-mode-wide .pv-pages { background: transparent; border-color: 
 body.pv.atmo-on.pv-mode-wide .pv-pages::before { display: none; }
 body.pv.pv-mode-wide #pv-wide .sec.active .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(4,44,83,0.18); padding: 14px; margin-bottom: 12px;
+  /* Shadow removed (9 Aug): on iPad landscape the two-column spread makes
+     WebKit fragment a tall card across the columns despite break-inside:avoid,
+     and each fragment painted its own box-shadow — a soft horizontal shadow
+     line across the photo at the break. Border + solid background keep the
+     card defined; no shadow means no fragment edge can ever paint one. */
+  padding: 14px; margin-bottom: 12px;
 }
 /* AI buttons on a wide spread (9 Aug): column balancing was orphaning them at
    the top of the second column, floating alone on the atmosphere photo. They
