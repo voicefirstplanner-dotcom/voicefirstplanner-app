@@ -3288,15 +3288,15 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.monthly)">Get Premium — $7.99/mo</button>
     <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.annual)">Premium Annual — $47.88/yr · save 50%</button>
     <button id="lifetime-buy-btn" class="modal-cta" style="margin-top:8px;background:var(--navy);color:#fff" onclick="startCheckout(STRIPE_PRICES.lifetime)">Lifetime — $99 once</button>
-    <div style="font-weight:700;color:var(--navy);margin:22px 0 2px;font-size:15px">Pro <span style="font-weight:400;color:var(--orange);font-size:13px">— coming soon, with AI</span></div>
-    <div class="pro-feat"><i class="ti ti-sparkles"></i>Everything in Premium, plus:</div>
-    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI voice planning — unlimited commands interpreted by AI</div>
-    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI project summaries and next actions</div>
-    <div class="pro-feat"><i class="ti ti-sparkles"></i>Calendar sync — Apple, Google, Outlook</div>
-    <div class="pro-feat"><i class="ti ti-sparkles"></i>Focus and Pomodoro timer with voice activation</div>
+    <div style="font-weight:700;color:var(--navy);margin:22px 0 2px;font-size:15px">Pro <span style="font-weight:400;color:var(--orange);font-size:13px">— Premium, plus AI</span></div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI brain-dump — speak the mess, it sorts it</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>AI goal setting and weekly action breakdown</div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>Four Voice-First Life workbooks + the research paper <span style="color:var(--text-light)">(annual)</span></div>
+    <div class="pro-feat"><i class="ti ti-sparkles"></i>First access to Book 2 and Series 2, <em>A Definite Purpose</em> — Pro only</div>
     <div class="pro-price">$12.99 <span>/ month USD</span></div>
-    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Or $89/year — save 43% (when Pro launches)</div>
-    <button class="modal-cta" onclick="closeUpgrade();showToast('Pro with AI is coming — we\'ll notify you at launch!')">Notify me when Pro launches</button>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">Or $89/year — save 43%</div>
+    <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
+    <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $89/yr · save 43%</button>
     <button class="modal-close-btn" onclick="closeUpgrade()">Maybe later</button>
   </div>
 </div>
