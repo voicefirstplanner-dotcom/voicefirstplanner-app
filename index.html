@@ -9162,11 +9162,11 @@ const STRIPE_PRICES = {
 };
 
 // Kill-switch, same pattern as LIFETIME_LIVE: while false, real users still see
-// "Pro — coming soon" everywhere (compliance: AI stays coming-soon in all public
-// copy until a live Pro purchase → AI use is verified end to end). Testers reach
-// the real purchase path with #pro-test in the URL; startCheckout() enforces the
-// switch server-of-truth-style below, so no stray surface can sell Pro early.
-const PRO_LIVE = false;
+// Pro is LIVE (9 Aug 2026): the website sells it, Gate 2 bypass test passed
+// (both AI endpoints 403 non-Pro), server-side entitlement proven. #pro-test
+// in the URL remains a tester path; startCheckout() still enforces this switch
+// so flipping it back to false closes every purchase surface at once.
+const PRO_LIVE = true;
 function proPathOpen() { return PRO_LIVE || (location.hash || '').includes('pro-test'); }
 
 async function startCheckout(priceId) {
@@ -9338,6 +9338,15 @@ function handleCheckoutReturn() {
   if (c === 'lifetime') {
     if (!LIFETIME_LIVE) { showToast('Lifetime is coming soon'); return; }
     startCheckout(STRIPE_PRICES.lifetime);
+    return;
+  }
+  // The site's Pro buttons send a single ?checkout=pro (no monthly/annual
+  // distinction — confirmed from the live buttons 9 Aug). Same sign-in-before-
+  // checkout shape as Lifetime, but Pro has two prices, so we open the upgrade
+  // modal and the buyer picks Monthly or Annual there.
+  if (c === 'pro') {
+    if (!proPathOpen()) { showToast('Pro is coming soon'); return; }
+    document.getElementById('pro-upgrade-modal').classList.add('open');
     return;
   }
   if (c === 'success') {
