@@ -2488,6 +2488,21 @@ body.pv #pv-slot-notes .note-tags { display: none; }
 body.pv #pv-slot-notes .checklist-item { min-height: var(--pv-line); }
 body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 
+/* ---- GLOBAL SEARCH (Job 2, 9 Aug) — one field, grouped results, tap-to-land ---- */
+.search-field-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.search-field-row input { flex: 1; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: var(--font); font-size: 15px; color: var(--text); box-sizing: border-box; }
+.search-group-head { display: flex; align-items: baseline; gap: 6px; margin: 12px 0 4px; font-size: 12px; font-weight: 800; color: var(--navy); text-transform: uppercase; letter-spacing: 0.4px; }
+.search-group-head .sg-count { font-weight: 600; color: var(--text-light); text-transform: none; letter-spacing: 0; }
+.search-hit-row { display: flex; align-items: center; gap: 8px; padding: 9px 6px; border-bottom: 0.5px solid var(--border); cursor: pointer; border-radius: 6px; }
+.search-hit-row:hover { background: #EAF2FB; }
+.search-hit-text { flex: 1; font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-hit-text mark { background: #CFE3F8; color: var(--navy); border-radius: 3px; padding: 0 1px; }
+.search-hit-date { font-size: 11px; color: var(--text-light); white-space: nowrap; }
+.search-empty { text-align: center; padding: 18px 0; color: var(--text-mid); font-size: 13px; }
+#search-results { max-height: 55vh; overflow-y: auto; }
+@keyframes searchFlashPulse { 0% { background: #CFE3F8; } 100% { background: transparent; } }
+.search-hit-flash { animation: searchFlashPulse 2.4s ease-out 1; border-radius: 8px; }
+
 </style>
 
 <div id="app">
@@ -2501,6 +2516,9 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
       </div>
       <div class="topbar-right">
         <div class="user-badge" id="user-badge">Dave</div>
+        <button class="topbar-icon-btn" onclick="openSearch()" aria-label="Search everything" title="Search everything">
+          <i class="ti ti-search" style="font-size:20px"></i>
+        </button>
         <button class="topbar-icon-btn" onclick="openReminders()" aria-label="Reminders" title="Reminders">
           <i class="ti ti-bell" style="font-size:20px"></i>
         </button>
@@ -3298,6 +3316,23 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
     <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $89/yr · save 43%</button>
     <button class="modal-close-btn" onclick="closeUpgrade()">Maybe later</button>
+  </div>
+</div>
+
+<!-- GLOBAL SEARCH modal (Job 2, 9 Aug) — free on every plan, both views.
+     "Say anything in, find anything back": one field, results grouped by kind
+     with counts, each row shows the match and its date, tap lands on the real
+     thing with the match highlighted. Empty groups are hidden, never zeroed. -->
+<div class="modal-overlay" id="search-modal" onclick="if(event.target===this)closeSearch()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Find anything</div>
+    <div class="modal-sub">Search everything you've said or typed — tap a result to go to it.</div>
+    <div class="search-field-row">
+      <input id="search-inp" type="text" placeholder="Try: roofer, dentist, milk…" oninput="runSearch(this.value)" autocomplete="off">
+    </div>
+    <div id="search-results"><div class="search-empty">Type a word or two — results appear as you type.</div></div>
+    <button class="modal-close-btn" onclick="closeSearch()">Close</button>
   </div>
 </div>
 
@@ -4529,6 +4564,198 @@ function showTab(name, btn, skipGroupSync) {
 }
 
 // ============================================================
+// GLOBAL SEARCH  (Job 2, 9 Aug 2026)
+// ============================================================
+// The site's promise — "say anything in, find anything back" — made true.
+// Pure client-side: every kind lives in `state`, so the whole index is built
+// per keystroke from live data. Free on every plan by design. Groups appear
+// in the brief's order; empty groups are hidden, not shown as zero.
+
+function openSearch() {
+  document.getElementById('search-modal').classList.add('open');
+  const inp = document.getElementById('search-inp');
+  setTimeout(() => { try { inp.focus(); } catch (e) {} }, 60);
+  if (inp.value.trim()) runSearch(inp.value);
+}
+
+function closeSearch() {
+  document.getElementById('search-modal').classList.remove('open');
+}
+
+// One escape for everything the panel prints (reuses the checklist escaper's
+// contract; defined locally so search stands alone).
+function sEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Date label for a result row: accepts a 'YYYY-MM-DD' key or an ms timestamp.
+function searchDateLabel(v) {
+  if (!v) return '';
+  const d = typeof v === 'number' ? new Date(v) : new Date(v + 'T12:00:00');
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+
+// The snippet: the matching text with the query wrapped in <mark>. Long texts
+// are windowed around the first match so the hit is always visible in the row.
+function searchSnippet(text, q) {
+  const raw = String(text || '');
+  const i = raw.toLowerCase().indexOf(q);
+  let shown = raw;
+  if (raw.length > 70 && i >= 0) {
+    const start = Math.max(0, i - 24);
+    shown = (start > 0 ? '…' : '') + raw.slice(start, start + 70) + (start + 70 < raw.length ? '…' : '');
+  }
+  const j = shown.toLowerCase().indexOf(q);
+  if (j < 0) return sEsc(shown);
+  return sEsc(shown.slice(0, j)) + '<mark>' + sEsc(shown.slice(j, j + q.length)) + '</mark>' + sEsc(shown.slice(j + q.length));
+}
+
+// Build the flat hit list: {kind, id, extra, text, date}. One place decides
+// what is searchable — tasks, appointments, notes (incl. checklist items),
+// projects and their captures, shopping across all lists, goals, bucket,
+// reflections (incl. the "what happened" log). Everything in state.
+function searchIndex(q) {
+  const hits = [];
+  const has = s => String(s || '').toLowerCase().includes(q);
+  state.tasks.forEach(t => { if (has(t.text)) hits.push({ kind: 'task', id: t.id, text: t.text, date: t.date || dateKey(today) }); });
+  state.notes.forEach(n => {
+    const clHit = (n.checklist || []).find(c => has(c.text));
+    if (has(n.title) || has(n.body) || clHit) {
+      hits.push({ kind: 'note', id: n.id, text: clHit ? clHit.text : (has(n.body) && !has(n.title) ? n.body : n.title), date: n.created || null });
+    }
+  });
+  state.appointments.forEach(a => {
+    if (has(a.title) || has(a.with) || has(a.location) || has(a.notes)) {
+      hits.push({ kind: 'appt', id: a.id, text: a.title + (a.with ? ' · ' + a.with : ''), date: a.date });
+    }
+  });
+  (state.projects || []).forEach(p => {
+    if (has(p.name) || has(p.desc)) hits.push({ kind: 'project', id: p.id, text: p.name, date: null });
+    (p.captures || []).forEach((c, ci) => {
+      if (has(c.title) || has(c.meta)) hits.push({ kind: 'project', id: p.id, extra: ci, text: (c.title || '') + ' — ' + p.name, date: null });
+    });
+  });
+  (state.shoppingLists || []).forEach(l => (l.items || []).forEach(it => {
+    if (has(it.text)) hits.push({ kind: 'shop', id: it.id, extra: l.id, text: it.text + (state.shoppingLists.length > 1 ? ' — ' + l.name : ''), date: null });
+  }));
+  state.goals.forEach(g => { if (has(g.name)) hits.push({ kind: 'goal', id: g.id, text: g.name, date: null }); });
+  state.bucket.forEach(b => { if (has(b.text)) hits.push({ kind: 'bucket', id: b.id, text: b.text, date: null }); });
+  (state.reflections || []).forEach(r => {
+    const f = [r.well, r.improve, r.grateful, r.intention].find(v => has(v));
+    if (f) hits.push({ kind: 'reflection', id: r.date, text: f, date: r.date });
+  });
+  (state.happenedLog || []).forEach((h, hi) => { if (has(h.text)) hits.push({ kind: 'reflection', id: null, extra: hi, text: h.text, date: h.date }); });
+  return hits;
+}
+
+const SEARCH_GROUPS = [
+  ['task', 'Tasks'], ['note', 'Notes'], ['appt', 'Appointments'], ['project', 'Projects'],
+  ['shop', 'Shopping'], ['goal', 'Goals'], ['bucket', 'Bucket List'], ['reflection', 'Reflections'],
+];
+
+function runSearch(raw) {
+  const el = document.getElementById('search-results');
+  const q = String(raw || '').trim().toLowerCase();
+  if (q.length < 2) {
+    el.innerHTML = '<div class="search-empty">Type a word or two — results appear as you type.</div>';
+    return;
+  }
+  const hits = searchIndex(q);
+  if (!hits.length) {
+    el.innerHTML = '<div class="search-empty">Nothing found for "' + sEsc(raw.trim()) + '" — try a different word.</div>';
+    return;
+  }
+  let html = '';
+  SEARCH_GROUPS.forEach(([kind, label]) => {
+    const g = hits.filter(h => h.kind === kind);
+    if (!g.length) return;   // empty groups are hidden, never shown as zero
+    html += `<div class="search-group-head">${label} <span class="sg-count">(${g.length})</span></div>`;
+    g.slice(0, 12).forEach(h => {
+      const dl = searchDateLabel(h.date);
+      html += `<div class="search-hit-row" onclick="searchGo('${h.kind}',${JSON.stringify(h.id)},${JSON.stringify(h.extra === undefined ? null : h.extra)})">` +
+        `<div class="search-hit-text">${searchSnippet(h.text, q)}</div>` +
+        (dl ? `<div class="search-hit-date">${dl}</div>` : '') + `</div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+// Land on a day: the exact render sequence the appointment-save path uses.
+function searchGoDay(dk) {
+  viewingDate = dk;
+  calViewMonth = new Date(dk + 'T12:00:00');
+  calViewMonth.setDate(1);
+  showTab('daily');
+  updateViewingDateLabel();
+  renderTasks();
+  renderAppointments();
+  if (typeof renderScheduleGrid === 'function') renderScheduleGrid();
+  if (typeof renderCalStrip === 'function') renderCalStrip();
+}
+
+// After landing, pulse the first element in the container that carries the
+// match, and scroll it into view. Presentation-only; times out on its own.
+function searchFlash(containerId, q) {
+  setTimeout(() => {
+    const box = document.getElementById(containerId);
+    if (!box || !q) return;
+    const el = Array.from(box.querySelectorAll('*')).find(n =>
+      n.children.length === 0 && String(n.textContent || '').toLowerCase().includes(q));
+    const row = el ? (el.closest('.task-row,.note-card,.goal-card,.cap-row,.checklist-item,[class]') || el) : null;
+    if (!row) return;
+    row.classList.add('search-hit-flash');
+    try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { row.scrollIntoView(); }
+    setTimeout(() => row.classList.remove('search-hit-flash'), 2600);
+  }, 140);
+}
+
+// Tap a result and it lands on the real thing — the task on its day, the note
+// open, the appointment's sheet — with the match highlighted.
+function searchGo(kind, id, extra) {
+  const q = (document.getElementById('search-inp').value || '').trim().toLowerCase();
+  closeSearch();
+  if (kind === 'task') {
+    const t = state.tasks.find(x => x.id === id); if (!t) return;
+    searchGoDay(t.date || dateKey(today));
+    searchFlash('task-list', q);
+  } else if (kind === 'appt') {
+    const a = state.appointments.find(x => x.id === id); if (!a) return;
+    searchGoDay(a.date);
+    openApptPopup(a.id);
+  } else if (kind === 'note') {
+    const n = state.notes.find(x => x.id === id); if (!n) return;
+    // Planner view shows a day's notes on that day's right page — set the day
+    // first so the note is actually on the open spread. Classic is unaffected.
+    if (n.created) { viewingDate = dateKey(new Date(n.created)); updateViewingDateLabel(); }
+    showTab('notes');
+    renderNotes();
+    searchFlash('notes-list', q);
+  } else if (kind === 'project') {
+    const p = state.projects.find(x => x.id === id); if (!p) return;
+    showTab('projects');
+    renderProjects();
+    openDetail(p);
+    if (extra !== null && extra !== undefined) searchFlash('detail-captures', q);
+  } else if (kind === 'shop') {
+    if (extra) state.activeShopId = extra;
+    showTab('shopping');
+    renderShopping();
+    searchFlash('shopping-list', q);
+  } else if (kind === 'goal') {
+    showTab('goals'); renderGoals(); searchFlash('goals-list', q);
+  } else if (kind === 'bucket') {
+    showTab('bucket'); renderBucket(); searchFlash('bucket-list', q);
+  } else if (kind === 'reflection') {
+    showTab('reflect');
+    const wrap = document.getElementById('reflection-history');
+    if (wrap && wrap.style.display !== 'block' && typeof toggleReflectionHistory === 'function') toggleReflectionHistory();
+    else renderReflectionList();
+    searchFlash('reflection-list', q);
+  }
+}
+
+// ============================================================
 // VOICE
 // ============================================================
 // --- Recording-based voice: records a short audio clip and transcribes it
@@ -5069,6 +5296,18 @@ function processVoice(text) {
     state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
     renderNotes();
     showToast('Saved to notes');
+    return;
+  }
+  // GLOBAL SEARCH (Job 2, 9 Aug): "find the roofer" — a leading find/search/
+  // look-up is retrieval, never capture. Leading position only, same principle
+  // as the note and reminder intercepts: "add find-my-keys to tasks" is a task.
+  const searchLead = t.match(/^\s*(?:find|search|look\s*up|where\s+is|where's)\b[\s:,-]*(?:for\s+|my\s+planner\s+for\s+)?(.*)$/i);
+  if (searchLead) {
+    const sq = (searchLead[1] || '').replace(/[.?!]\s*$/, '').replace(/^(?:the|my|a|an)\s+/i, '').trim();
+    openSearch();
+    const inp = document.getElementById('search-inp');
+    inp.value = sq;
+    runSearch(sq);
     return;
   }
   // FIX 1 (3 Aug): a time attached means an appointment, unless the words
