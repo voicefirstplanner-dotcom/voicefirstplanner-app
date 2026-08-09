@@ -2205,6 +2205,12 @@ body.pv.pv-mode-daily #lp-atmo { display: none !important; }
 /* the photo shows clean — no wash — and every box on a wide spread is
    solidly defined so it reads clearly against the image */
 body.pv.atmo-on.pv-mode-wide .pv-pages { background: transparent; border-color: transparent; box-shadow: none; }
+/* Spine fix (9 Aug): the pages' ::before is the book's centre spine — a 34px
+   navy gradient at 50%. The transparent rule above clears the element, not the
+   pseudo-element, so on a photo spread the spine kept painting: a vertical
+   line splitting the image into two shades. On photo spreads it goes; paper
+   spreads (daily, and wide without a photo) keep their spine. */
+body.pv.atmo-on.pv-mode-wide .pv-pages::before { display: none; }
 body.pv.pv-mode-wide #pv-wide .sec.active .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: 0 4px 14px rgba(4,44,83,0.18); padding: 14px; margin-bottom: 12px;
