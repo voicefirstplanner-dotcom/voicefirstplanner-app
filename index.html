@@ -3334,6 +3334,10 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <div class="modal-sub">Search everything you've said or typed — tap a result to go to it.</div>
     <div class="search-field-row">
       <input id="search-inp" type="text" placeholder="Try: roofer, dentist, milk…" oninput="runSearch(this.value)" autocomplete="off">
+      <!-- Job 2c (9 Aug): the search mic REPLACES rather than appends — clearing
+           the field at tap means dictateInto's append lands on empty, so a fresh
+           spoken query never mixes with a stale typed one. No shared-code change. -->
+      <button class="field-mic" onclick="document.getElementById('search-inp').value='';dictateInto('search-inp',this)" title="Speak your search" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
     </div>
     <div id="search-results"><div class="search-empty">Type a word or two — results appear as you type.</div></div>
     <button class="modal-close-btn" onclick="closeSearch()">Close</button>
