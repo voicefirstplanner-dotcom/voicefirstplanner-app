@@ -3128,11 +3128,15 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
        theme; cards go translucent with a blur so the photo breathes through.
        If no photo has loaded, none of this applies — the plain theme renders. ---- */
     #lp-atmo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;opacity:0;transition:opacity .6s ease;pointer-events:none;}
-    /* Goals (final, 9 Aug): the asset itself now carries enough sky above the
-       summit (rebuilt from Dave's original with a seamless sky extension), so
-       the peak seats below the header on every screen with a plain top anchor.
-       No image shift, no layer offset — nothing left to expose a seam. */
-    #lp-atmo.pos-goals{background-position:center top;}
+    /* Goals (final, 9 Aug): asset rebuilt from Dave's original with a sky
+       extension so the summit clears the header everywhere. The extension's
+       blend row sits at 18.3% of the image width in CSS terms (14.94vw with
+       cover width-fit); the layer slides up just enough to pin that row at
+       100px — behind the opaque topbar at every desktop width. On phones the
+       min() clamps to 0: cover goes height-fit there and the blend row sits
+       behind the taller phone header on its own. Summit clearance verified
+       430–2560px. */
+    #lp-atmo.pos-goals{top:min(0px, calc(100px - 14.94vw));background-position:center top;}
     /* Scrim fix (26 Jul): light gradient wash — the photo reads as a photo at
        first glance. Densest behind the content column where the cards sit,
        lightest at the edges. Legibility lives on the cards, not the wash. */
