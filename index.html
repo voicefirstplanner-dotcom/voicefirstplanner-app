@@ -3129,10 +3129,13 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
        If no photo has loaded, none of this applies — the plain theme renders. ---- */
     #lp-atmo{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;opacity:0;transition:opacity .6s ease;pointer-events:none;}
     /* Goals: peak sits below the header (desktop) and below the header + the
-       Month/Year sheet tabs (phone, which stacks taller). The empty band the
-       shift creates hides behind the opaque topbar. */
-    #lp-atmo.pos-goals{background-position:center 170px;}
-    @media (max-width:767.98px){ #lp-atmo.pos-goals{background-position:center 290px;} }
+       Month/Year sheet tabs (phone, which stacks taller). Fix (9 Aug, live-
+       bisected): shifting the image INSIDE the layer exposed its top edge as
+       a horizontal seam — "the line" — because the shifted band does NOT
+       reliably hide behind the topbar. The layer itself now extends upward
+       instead: same peak placement, nothing to expose, no tiling. */
+    #lp-atmo.pos-goals{top:-170px;}
+    @media (max-width:767.98px){ #lp-atmo.pos-goals{top:-290px;} }
     /* Scrim fix (26 Jul): light gradient wash — the photo reads as a photo at
        first glance. Densest behind the content column where the cards sit,
        lightest at the edges. Legibility lives on the cards, not the wash. */
