@@ -2564,8 +2564,8 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
-    <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('values',this)"><i class="ti ti-heart"></i>Values</button>
+    <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('bucket',this)"><i class="ti ti-flag"></i>Bucket List</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('habits',this)"><i class="ti ti-flame"></i>Habits</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('reflect',this)"><i class="ti ti-writing"></i>Reflect</button>
@@ -2989,9 +2989,9 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
         <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
         <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
         <button class="pv-stab" data-tab="projects" onclick="showTab('projects')">Projects</button>
-        <button class="pv-stab pv-stab-group" data-tab="life-group" onclick="showTab('goals')">Life Planning</button>
-        <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
+        <button class="pv-stab pv-stab-group" data-tab="life-group" onclick="showTab('values')">Life Planning</button>
         <button class="pv-stab" data-tab="values" onclick="showTab('values')">Values</button>
+        <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
         <button class="pv-stab" data-tab="bucket" onclick="showTab('bucket')">Bucket</button>
         <button class="pv-stab" data-tab="habits" onclick="showTab('habits')">Habits</button>
         <button class="pv-stab" data-tab="reflect" onclick="showTab('reflect')">Reflect</button>
@@ -5010,7 +5010,7 @@ const VT_STEPS = [
     expect:'A goal is created \u2014 you\u2019ll set the target next.' },
   // ---- Values (no voice) ----
   { key:'values', sec:'values', title:'Choose your values', novoice:true,
-    what:'Values are the one thing you tap rather than speak. They anchor everything else \u2014 your goals and roles link back to them.',
+    what:'Values can be spoken or tapped \u2014 say \u201CAdd health to my values\u201D, or tap to choose. They anchor everything else \u2014 your goals and roles link back to them.',
     action:'Open Values and tap up to 5 that matter most. No need to say anything for this one.' },
   // ---- Bucket list ----
   { key:'bucket', sec:'bucket', title:'Add to your bucket list',
