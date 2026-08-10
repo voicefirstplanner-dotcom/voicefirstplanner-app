@@ -150,8 +150,28 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
   // subscription must never be downgraded by it. Without this, an old monthly
   // lapsing would silently strip the Premium they paid $99 for — and, under the
   // Library, their books with it.
+  //
+  // Job 6 (10 Aug): with the founding-member Pro add-on, one subscription shape
+  // now legitimately BELONGS to a Lifetime member. A pro-plan subscription
+  // upgrades them to plan='pro' while active — source stays 'lifetime', which
+  // is what every other guard keys off — and its lapse falls back to
+  // plan='premium', source='lifetime'. NEVER to free. Any non-pro subscription
+  // on a Lifetime account remains ignored exactly as before.
   const current = await getEntitlement(userId);
   if (current?.source === 'lifetime') {
+    if (planFromPrice(price) === 'pro') {
+      await upsertEntitlement({
+        user_id: userId,
+        plan: active ? 'pro' : 'premium',
+        source: 'lifetime',
+        status: active ? sub.status : 'active',
+        stripe_customer_id: sub.customer,
+        stripe_subscription_id: sub.id,
+        current_period_end: active ? periodEnd(sub) : null,
+      });
+      console.log('Lifetime member', userId, '— founding Pro subscription', sub.id, sub.status, active ? '=> plan=pro' : '=> back to lifetime premium');
+      return;
+    }
     console.log('Lifetime member', userId, '— subscription', sub.id, sub.status, 'ignored for entitlement');
     return;
   }
@@ -587,6 +607,21 @@ export default async function handler(req, res) {
         // own outright.
         const held = await getEntitlement(userId);
         if (held?.source === 'lifetime') {
+          // Job 6 (10 Aug): a founding member cancelling the Pro add-on falls
+          // back to Lifetime Premium — the entitlement they bought outright —
+          // never to free, and never left on Pro they no longer pay for.
+          if (held.plan === 'pro') {
+            await upsertEntitlement({
+              user_id: userId,
+              plan: 'premium',
+              source: 'lifetime',
+              status: 'active',
+              stripe_subscription_id: null,
+              current_period_end: null,
+            });
+            console.log('Lifetime member', userId, '— founding Pro', sub.id, 'cancelled => back to lifetime premium');
+            break;
+          }
           console.log('Lifetime member', userId, '— subscription', sub.id, 'cancelled; entitlement untouched');
           break;
         }
