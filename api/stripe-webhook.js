@@ -642,28 +642,41 @@ export default async function handler(req, res) {
 
         // Resolve the user: the payment_intent carries supabase_user_id (set at
         // checkout, payment_intent_data.metadata), with the customer map as fallback.
-        let userId = null;
+        // Job 6c: uidFromPI is tracked separately — it doubles as the POSITIVE
+        // identification of the Lifetime one-off below.
+        let uidFromPI = null;
         if (charge.payment_intent) {
           try {
             const pi = await stripe.paymentIntents.retrieve(charge.payment_intent);
-            userId = pi.metadata?.supabase_user_id || null;
+            uidFromPI = pi.metadata?.supabase_user_id || null;
           } catch (e) {
             console.warn('Could not retrieve PI for refunded charge', charge.id, e.message);
           }
         }
-        if (!userId) userId = await findUserIdByCustomer(charge.customer);
+        const userId = uidFromPI || (await findUserIdByCustomer(charge.customer));
         if (!userId) { console.warn('No user for refunded charge', charge.id); break; }
 
-        // ⛔ CONFIRM IT'S THE LIFETIME CHARGE — BY THE CHARGE, NOT THE ACCOUNT.
-        // Job 6b (10 Aug, live incident): the old guard inferred "Lifetime charge"
-        // from the ACCOUNT (source==='lifetime'), which held only while a Lifetime
-        // account could have no other charge. Job 6 gave founding members a Pro
-        // subscription — and the $22.25 refund of that add-on walked straight
-        // through the account guard and revoked the Premium-for-life a founding
-        // member paid $99 for. The durable marker on the charge itself: every
-        // subscription charge carries an invoice; the Lifetime one-off never does.
-        if (charge.invoice) {
-          console.log('Refund on subscription charge', charge.id, 'user', userId, '— entitlement untouched (subscription.deleted owns that state)');
+        // ⛔ POSITIVE IDENTIFICATION, OR NOTHING. Job 6c (10 Aug, second live
+        // incident): the 6b guard tested charge.invoice — a field Stripe REMOVED
+        // from the charge object on this account's API version (2026-05-27),
+        // proven from the delivered event payload, which carries no invoice key
+        // at all. The guard could never fire, and the $3.25 founding-Pro refund
+        // revoked a Lifetime account for the second time.
+        //
+        // This guard now rests only on data WE wrote: our Lifetime checkout puts
+        // supabase_user_id into payment_intent_data.metadata, so the one-off's
+        // PI carries it (verified on the live July $99 charges) and a
+        // subscription's PI does not (verified on the live $3.25 charge —
+        // "Metadata: none"). A charge is treated as the Lifetime one-off ONLY
+        // when identified by our own PI metadata; everything else is logged and
+        // the entitlement is NEVER touched — in any event order,
+        // subscription.deleted owns subscription state and nothing here can
+        // contradict it. Belt: a description beginning "Subscription" is
+        // subscription billing regardless.
+        const isLifetimeOneOff = !!uidFromPI && !String(charge.description || '').startsWith('Subscription');
+        if (!isLifetimeOneOff) {
+          console.log('Refund on non-one-off charge', charge.id, 'user', userId,
+            '— entitlement untouched (positive Lifetime identification required; subscription.deleted owns subscription state)');
           break;
         }
         // Secondary guard (idempotency + non-Lifetime one-offs): once revoked,
