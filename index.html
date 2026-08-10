@@ -3530,9 +3530,9 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     <div class="modal-handle"></div>
     <div class="modal-title">Go Pro</div>
     <div class="modal-sub">Pro unlocks the AI brain-dump: say everything on your mind — tasks, people, times — and it comes back sorted for your approval. Nothing enters your planner until you say so. Every planning feature included.</div>
-    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">$7.42 a month billed annually at $89, or $12.99 month to month — save 43%</div>
-    <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
-    <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
+    <div id="pro-modal-priceline" style="font-size:12px;color:var(--text-light);margin-bottom:4px">$7.42 a month billed annually at $89, or $12.99 month to month — save 43%</div>
+    <button class="modal-cta" id="pro-modal-btn-monthly" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
+    <button class="modal-cta" id="pro-modal-btn-annual" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
     <button class="modal-close-btn" onclick="closeProUpgrade()">Not now</button>
   </div>
 </div>
@@ -6898,7 +6898,7 @@ function aiClientIsPro() {
 function openAiDump() {
   if (!aiClientIsPro()) {
     if (proPathOpen()) {
-      document.getElementById('pro-upgrade-modal').classList.add('open');   // the real upgrade path
+      openProModal();   // the real upgrade path
     } else {
       aiAction('Speak your whole brain-dump — tasks, appointments, people, times — and have it sorted into your planner for your approval.');   // "Pro — coming soon" interest capture (compliance)
     }
@@ -6907,6 +6907,33 @@ function openAiDump() {
   document.getElementById('ai-dump-modal').classList.add('open');
 }
 function closeProUpgrade() { document.getElementById('pro-upgrade-modal').classList.remove('open'); }
+
+// Job 6: a Lifetime member sees the founding rate, never the standard prices.
+// Called every time the Go Pro modal opens; rewrites the price line and both
+// buttons from the entitlement. Presentation is Pricing v8 through the 10 Aug
+// ruling — annual per-month figure leads; figures quoted, never computed.
+function openProModal() {
+  const founding = state.entitlement?.source === 'lifetime';
+  const line = document.getElementById('pro-modal-priceline');
+  const bm = document.getElementById('pro-modal-btn-monthly');
+  const ba = document.getElementById('pro-modal-btn-annual');
+  if (line && bm && ba) {
+    if (founding) {
+      line.textContent = 'Add Pro for $1.85 a month billed annually at $22.25, or $3.25 month to month — the founding-member rate';
+      bm.textContent = 'Pro — $3.25/mo · founding rate';
+      bm.onclick = () => startCheckout(STRIPE_PRICES.pro_founding_monthly);
+      ba.textContent = 'Pro Annual — $1.85/mo, billed $22.25 · founding rate';
+      ba.onclick = () => startCheckout(STRIPE_PRICES.pro_founding_annual);
+    } else {
+      line.textContent = '$7.42 a month billed annually at $89, or $12.99 month to month — save 43%';
+      bm.textContent = 'Pro — $12.99/mo';
+      bm.onclick = () => startCheckout(STRIPE_PRICES.pro_monthly);
+      ba.textContent = 'Pro Annual — $7.42/mo, billed $89 · save 43%';
+      ba.onclick = () => startCheckout(STRIPE_PRICES.pro_annual);
+    }
+  }
+  document.getElementById('pro-upgrade-modal').classList.add('open');
+}
 function closeAiDump() { document.getElementById('ai-dump-modal').classList.remove('open'); }
 
 async function submitAiDump() {
@@ -6949,7 +6976,7 @@ async function submitAiDump() {
 // real gate either way.
 function openAiGoal() {
   if (!aiClientIsPro()) {
-    if (proPathOpen()) document.getElementById('pro-upgrade-modal').classList.add('open');
+    if (proPathOpen()) openProModal();
     else aiAction('Help me set a meaningful long-term goal using values-based planning. Ask me about my values and life roles first, then help me define a goal with clear milestones.');
     return;
   }
@@ -6959,7 +6986,7 @@ function closeAiGoal() { document.getElementById('ai-goal-modal').classList.remo
 
 function openAiBreakdown() {
   if (!aiClientIsPro()) {
-    if (proPathOpen()) document.getElementById('pro-upgrade-modal').classList.add('open');
+    if (proPathOpen()) openProModal();
     else aiAction('Help me break one of my long-term goals into specific weekly action steps I can add to my daily plan.');
     return;
   }
@@ -9462,6 +9489,11 @@ const STRIPE_PRICES = {
   // Pro (P1 AI). Dave: paste the two price IDs from the Stripe dashboard here
   // at deploy (each price MUST carry metadata plan=pro — the webhook keys off it).
   pro_monthly: 'price_1TxgJc1EGD58JnWmWPeoEUuY',
+  // Founding-member Pro (Job 6): Lifetime accounts only. The app only ever
+  // OFFERS these to source==='lifetime', and create-checkout-session refuses
+  // them server-side for anyone else — the UI is presentation, not the gate.
+  pro_founding_monthly: 'price_1U2ma81EGD58JnWm32aa4L2V',
+  pro_founding_annual:  'price_1U2mdU1EGD58JnWm7MtGbyG4',
   pro_annual:  'price_1TxgM71EGD58JnWmE0yUtzic',
 };
 
@@ -9478,7 +9510,8 @@ async function startCheckout(priceId) {
     showToast('Lifetime is coming soon');
     return;
   }
-  if ((priceId === STRIPE_PRICES.pro_monthly || priceId === STRIPE_PRICES.pro_annual) && !proPathOpen()) {
+  if ((priceId === STRIPE_PRICES.pro_monthly || priceId === STRIPE_PRICES.pro_annual ||
+       priceId === STRIPE_PRICES.pro_founding_monthly || priceId === STRIPE_PRICES.pro_founding_annual) && !proPathOpen()) {
     showToast('Pro is coming soon');
     return;
   }
@@ -9547,10 +9580,21 @@ function renderPlan() {
   const labels = { free: 'Free', premium: 'Premium', pro: 'Pro' };
   const valEl = document.getElementById('set-plan');
   const actEl = document.getElementById('set-plan-action');
-  if (valEl) valEl.textContent = ent.source === 'lifetime' ? 'Premium (Lifetime)' : (labels[ent.plan] || 'Free');
+  if (valEl) valEl.textContent = ent.source === 'lifetime'
+    ? (ent.plan === 'pro' ? 'Pro (Lifetime)' : 'Premium (Lifetime)')
+    : (labels[ent.plan] || 'Free');
   if (!actEl) return;
-  if (isPremium() && ent.source === 'lifetime') {
-    actEl.style.display = 'none';
+  if (ent.source === 'lifetime' && ent.plan === 'pro') {
+    // Founding member with the Pro add-on: billing portal manages (or cancels)
+    // the subscription. Cancelling falls back to Premium-for-life server-side.
+    actEl.style.display = '';
+    actEl.textContent = 'Manage billing';
+    actEl.onclick = openBillingPortal;
+  } else if (isPremium() && ent.source === 'lifetime') {
+    // Job 6: the founding-member route — visible ONLY to Lifetime accounts.
+    actEl.style.display = '';
+    actEl.textContent = 'Add Pro — founding rate';
+    actEl.onclick = openProModal;
   } else if (isPremium()) {
     actEl.style.display = '';
     actEl.textContent = 'Manage billing';
@@ -9650,7 +9694,7 @@ function handleCheckoutReturn() {
   // modal and the buyer picks Monthly or Annual there.
   if (c === 'pro') {
     if (!proPathOpen()) { showToast('Pro is coming soon'); return; }
-    document.getElementById('pro-upgrade-modal').classList.add('open');
+    openProModal();
     return;
   }
   if (c === 'success') {
