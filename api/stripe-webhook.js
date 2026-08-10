@@ -654,12 +654,20 @@ export default async function handler(req, res) {
         if (!userId) userId = await findUserIdByCustomer(charge.customer);
         if (!userId) { console.warn('No user for refunded charge', charge.id); break; }
 
-        // CONFIRM IT'S A LIFETIME CHARGE. The only durable Lifetime marker is the
-        // entitlement source written by the purchase path — checkout tags no
-        // 'lifetime' on the Stripe side. This is also the guard that makes us IGNORE
-        // subscription refunds (their source is 'monthly'/'annual') and makes the
-        // whole handler idempotent: once revoked, source is no longer 'lifetime', so
-        // a replayed event finds nothing to do.
+        // ⛔ CONFIRM IT'S THE LIFETIME CHARGE — BY THE CHARGE, NOT THE ACCOUNT.
+        // Job 6b (10 Aug, live incident): the old guard inferred "Lifetime charge"
+        // from the ACCOUNT (source==='lifetime'), which held only while a Lifetime
+        // account could have no other charge. Job 6 gave founding members a Pro
+        // subscription — and the $22.25 refund of that add-on walked straight
+        // through the account guard and revoked the Premium-for-life a founding
+        // member paid $99 for. The durable marker on the charge itself: every
+        // subscription charge carries an invoice; the Lifetime one-off never does.
+        if (charge.invoice) {
+          console.log('Refund on subscription charge', charge.id, 'user', userId, '— entitlement untouched (subscription.deleted owns that state)');
+          break;
+        }
+        // Secondary guard (idempotency + non-Lifetime one-offs): once revoked,
+        // source is no longer 'lifetime', so a replayed event finds nothing to do.
         const held = await getEntitlement(userId);
         if (held?.source !== 'lifetime') {
           console.log('Refund on non-Lifetime / already-revoked charge', charge.id, 'user', userId, '— ignored');
