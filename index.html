@@ -9611,9 +9611,14 @@ function renderPlan() {
 // Files live in the PRIVATE lifetime-library bucket. /api/library-download is the
 // real gate; this UI mirrors the same matrix for display only. Access is decided
 // server-side, so a row shown here that shouldn't be still gets a 403 from the API.
+// Job 3 (11 Aug): the three books every account receives, full titles verbatim
+// per Dave's 11 Aug ruling — no shortening on any surface. `book2` is the flag
+// row: shown to Pro Annual and Lifetime, free when it publishes, no download
+// until it does, and NO DATE, ever.
 const LIBRARY_ITEMS = [
-  { id: 'workbook', title: 'The Workbook' },
-  { id: 'guide',    title: 'The Voice Command Guide' },
+  { id: 'manual',   title: 'The VoiceFirstPlanner Instruction Manual' },
+  { id: 'guide',    title: 'The VoiceFirstPlanner Voice Command Guide' },
+  { id: 'workbook', title: 'The Voice First Life Planning System \u2014 Starter Workbook' },
   { id: 'values',   title: "Values \u2014 Busy Isn't the Same as Living Well" },
   { id: 'goals',    title: "Goals \u2014 Wishing Isn't the Same as Deciding" },
   { id: 'habits',   title: "Habits \u2014 Motivation Isn't the Same as Momentum" },
@@ -9623,16 +9628,24 @@ const LIBRARY_ITEMS = [
   { id: 'week',     title: "Week Ahead \u2014 A Week Isn't the Same as Seven Days" },
   { id: 'reflect',  title: "Reflect \u2014 Experience Isn't the Same as Wisdom" },
   { id: 'research', title: 'Why Planning This Way Works (research)' },
+  { id: 'book2',    title: 'The Voice-First Life', flag: 'being written now' },
 ];
-const LIB_STARTER  = ['workbook', 'guide'];
-const LIB_ANNUAL   = [...LIB_STARTER, 'research', 'values', 'goals', 'habits'];
-const LIB_LIFETIME = LIBRARY_ITEMS.map(i => i.id);
+// Tier lists per Pricing v8 section 1 — quoted, never computed. These mirror
+// api/library-download.js, which is the authoritative gate; keep them in step.
+const LIB_STARTER  = ['manual', 'guide', 'workbook'];                        // 3 — free, and the base of everything
+const LIB_MONTHLY  = [...LIB_STARTER, 'values'];                             // 4 — Premium Monthly AND Pro Monthly
+const LIB_ANNUAL   = [...LIB_STARTER, 'values', 'goals', 'habits', 'research']; // 7 — Premium Annual
+const LIB_PRO_ANNUAL = [...LIB_ANNUAL, 'reflect', 'book2'];                  // 8 downloads + the flag row
+const LIB_LIFETIME = LIBRARY_ITEMS.map(i => i.id);                           // 12 downloads + the flag row
 
 function libraryAllowed() {
   const ent = state.entitlement || { plan: 'free' };
   if (ent.source === 'lifetime') return LIB_LIFETIME;
   const paid = ent.plan === 'premium' || ent.plan === 'pro';
-  if (paid && ent.source === 'annual') return LIB_ANNUAL;
+  // Job 3: Pro Annual carries Reflect and the book flag; Premium Annual does not;
+  // both Monthly tiers carry Values. Anything unrecognised falls to STARTER.
+  if (paid && ent.source === 'annual') return ent.plan === 'pro' ? LIB_PRO_ANNUAL : LIB_ANNUAL;
+  if (paid) return LIB_MONTHLY;
   return LIB_STARTER;
 }
 
@@ -9643,9 +9656,14 @@ function renderLibrary() {
   if (titleEl) titleEl.textContent = (state.entitlement?.source === 'lifetime') ? 'Your Lifetime Library' : 'Your Library';
   const allowed = libraryAllowed();
   const items = LIBRARY_ITEMS.filter(i => allowed.includes(i.id));
+  // A flagged item is a future book: it shows as a row with its status and no
+  // download until it publishes. Status text comes from the item; NO DATE, ever.
   wrap.innerHTML = items.map(i =>
-    '<div class="settings-row"><span class="settings-row-label">' + i.title + '</span>' +
-    '<span class="settings-row-action" style="color:var(--orange);font-weight:600" onclick="downloadLibraryItem(\'' + i.id + '\', this)">Download</span></div>'
+    i.flag
+      ? '<div class="settings-row"><span class="settings-row-label">' + i.title +
+        '<span style="display:block;font-size:11px;color:var(--text-light);font-weight:400">Free when it publishes \u2014 ' + i.flag + '</span></span></div>'
+      : '<div class="settings-row"><span class="settings-row-label">' + i.title + '</span>' +
+        '<span class="settings-row-action" style="color:var(--orange);font-weight:600" onclick="downloadLibraryItem(\'' + i.id + '\', this)">Download</span></div>'
   ).join('');
 }
 
