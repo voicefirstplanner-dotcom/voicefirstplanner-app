@@ -18,8 +18,18 @@ const SIGNED_TTL = 60; // seconds — long enough to start the download, short e
 // Storage without updating the matching key here AND re-issuing links: a rename
 // breaks the in-app Library and every tokenised link already sitting in an inbox.
 const ITEM_KEYS = {
-  workbook: 'Workbook_FINAL.pdf',
-  guide:    'VoiceFirstPlanner-Voice-Command-Guide.pdf',
+  // Job 3 (11 Aug): all three starter books were rebuilt in Design and uploaded
+  // under new object names. The IDS are unchanged, so the welcome email's
+  // sentinels stay stable (Job 4 owns that file). `book2` is deliberately absent
+  // — it is a flag row with no file until it publishes, so a request for it must
+  // fall through to unknown_item.
+  // Keys are plain ASCII, lowercase, hyphens only (Management's 11 Aug ruling):
+  // spaces need URL-encoding on every request and an em dash can normalise
+  // differently between upload and request. Display titles live in
+  // LIBRARY_ITEMS and are unaffected by these names.
+  manual:   'instruction-manual.pdf',
+  guide:    'voice-command-guide.pdf',
+  workbook: 'starter-workbook.pdf',
   values:   '1) VFP_PDF_Values_Busy_Isnt_The_Same_As_Living_Well_FINAL_v2.pdf',
   goals:    '2) VFP_PDF_Goals_Wishing_Isnt_The_Same_As_Deciding_v1.pdf',
   habits:   '3) VFP_PDF_Habits_Motivation_Isnt_The_Same_As_Momentum_v1.pdf',
@@ -34,20 +44,27 @@ const ITEM_KEYS = {
 // Tier -> allowed item ids. Starter books are available to every signed-in tier;
 // higher tiers layer on top. This is the AUTHORITATIVE boundary — the Settings UI
 // mirrors it for display, but access is decided here.
-const STARTER = ['workbook', 'guide'];
-const ANNUAL  = [...STARTER, 'research', 'values', 'goals', 'habits'];
-const LIFETIME = ['workbook', 'guide', 'values', 'goals', 'habits', 'bucket',
-                  'projects', 'daily', 'week', 'reflect', 'research'];
+// Per Pricing v8 section 1 — quoted, never computed. index.html mirrors these
+// for display; THIS is the boundary that decides access.
+const STARTER    = ['manual', 'guide', 'workbook'];                            // 3 — free
+const MONTHLY    = [...STARTER, 'values'];                                     // 4 — Premium AND Pro monthly
+const ANNUAL     = [...STARTER, 'values', 'goals', 'habits', 'research'];      // 7 — Premium Annual
+const PRO_ANNUAL = [...ANNUAL, 'reflect'];                                     // 8 — Pro Annual
+// ⛔ LIFETIME IS EXPLICIT, NOT INHERITED — listing every id by hand is what makes
+// a new book's absence visible here. The Manual is present deliberately.
+const LIFETIME   = ['manual', 'guide', 'workbook', 'values', 'goals', 'habits',
+                    'bucket', 'projects', 'daily', 'week', 'reflect', 'research']; // 12
 
-// Resolve the caller's allowed set from their entitlement.
-// FLAG (Dave): assumes Annual includes the 2 starter books (Free gets them, so a
-// paying Annual member shouldn't lose them). Pro is not in the v24 matrix, so it's
-// treated by its source like Premium; confirm when Pro's library is defined.
+// Resolve the caller's allowed set from their entitlement. The earlier flag —
+// "Pro is not in the matrix, confirm when Pro's library is defined" — is now
+// answered by v8 section 1: Pro Annual is Premium Annual plus Reflect, and both
+// Monthly tiers carry Values.
 function allowedItems(plan, source) {
   if (source === 'lifetime') return LIFETIME;
   const paid = plan === 'premium' || plan === 'pro';
-  if (paid && source === 'annual') return ANNUAL;
-  return STARTER; // free, monthly, and any unknown state -> least privilege
+  if (paid && source === 'annual') return plan === 'pro' ? PRO_ANNUAL : ANNUAL;
+  if (paid) return MONTHLY;
+  return STARTER; // free and any unknown state -> least privilege
 }
 
 // Read a user's CURRENT entitlement and decide whether they may have `item`,
@@ -156,14 +173,15 @@ export default async function handler(req, res) {
 
     // 2. Validate the requested item.
     const { item } = req.body || {};
-    if (!item || !ITEM_KEYS[item]) return res.status(400).json({ error: 'Unknown item' });
+    if (!item || !ITEM_KEYS[item]) return res.status(400).json({ error: 'Unknown item', code: 'unknown_item' });
 
     // 3. Read entitlement + check access + mint URL (shared with the GET path).
     const result = await resolveDownload(userId, item);
     if (!result.ok) {
-      if (result.code === 'not_in_plan') return res.status(403).json({ error: 'Not included in your plan' });
-      if (result.code === 'file_missing') return res.status(404).json({ error: 'File not available — please contact support' });
-      return res.status(400).json({ error: 'Unknown item' });
+      // Machine-readable codes, same pattern as the Pro endpoints' not_pro.
+      if (result.code === 'not_in_plan') return res.status(403).json({ error: 'Not included in your plan', code: 'not_in_plan' });
+      if (result.code === 'file_missing') return res.status(404).json({ error: 'File not available — please contact support', code: 'file_missing' });
+      return res.status(400).json({ error: 'Unknown item', code: 'unknown_item' });
     }
 
     return res.status(200).json({ url: result.url });
