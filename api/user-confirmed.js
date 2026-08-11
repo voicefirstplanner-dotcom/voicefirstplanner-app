@@ -54,8 +54,9 @@ const WELCOME0_MODE = (process.env.WELCOME0_MODE || 'template').toLowerCase();
 // telling the App Room — a renamed sentinel silently breaks substitution (the
 // fail-loud fallback below catches it, but the dashboard copy would be bypassed).
 const SENTINELS = {
-  workbook: 'https://vfp.link/dl/workbook',
+  manual:   'https://vfp.link/dl/manual',
   guide:    'https://vfp.link/dl/guide',
+  workbook: 'https://vfp.link/dl/workbook',
 };
 
 const DL_BASE = (process.env.APP_URL || 'https://app.voicefirstdayplanner.com') + '/api/library-download';
@@ -86,18 +87,21 @@ function rewriteAnchorByText(html, textNeedle, newHref) {
 }
 
 // The code-owned Welcome 0 — a faithful build of the intended design (post-
-// confirmation intro, the two book downloads, and the "add to Home Screen" block
+// confirmation intro, the three book downloads, and the "add to Home Screen" block
 // that Job 2 strips out of the Supabase confirmation email). Used as the primary
 // email in 'baked' mode, and as the fallback in 'template' mode — so a fallback
 // is a fully-styled email, never a degraded one. Links are tokenised directly.
 export function bakedWelcome0Html(firstName, token) {
   const name = esc(firstName || 'there');
-  const wb = dlHref(token, 'workbook');
+  // Job 4: three books. `doc` ids are the library ids Job 3 established —
+  // manual, guide, workbook — which is what library-download.js keys off.
+  const mn = dlHref(token, 'manual');
   const gd = dlHref(token, 'guide');
+  const wb = dlHref(token, 'workbook');
   const APP = 'https://app.voicefirstdayplanner.com';
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#F0F5FB;">
-<div style="display:none;max-height:0;overflow:hidden;">Your free Workbook and Voice Command Guide are ready \u2014 download them right here.</div>
+<div style="display:none;max-height:0;overflow:hidden;">Your three books are ready \u2014 the Instruction Manual, the Voice Command Guide and the Starter Workbook, free with your account.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0F5FB;padding:24px 0;">
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#2C2C2A;">
@@ -108,14 +112,17 @@ export function bakedWelcome0Html(firstName, token) {
 
     <div style="border-top:1px solid #E2E8F0;margin:0 0 24px;line-height:1px;font-size:1px;">&nbsp;</div>
 
-    <h2 style="font-size:17px;color:#0C447C;margin:0 0 8px;">Your free workbook and command guide are ready</h2>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 20px;">Ten guided worksheets to plan your whole life \u2014 values, goals, habits, dreams and every day \u2014 plus the full Voice Command Guide so you always know what to say. Both free with your account.</p>
+    <h2 style="font-size:17px;color:#0C447C;margin:0 0 8px;">Your three books are ready</h2>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 20px;">Every screen and every spoken command in the Instruction Manual, the full command reference in the Voice Command Guide, and the Starter Workbook to plan your whole life \u2014 values, goals, habits, dreams and every day. All three free with your account.</p>
 
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 10px;"><tr><td style="border:1.5px solid #0C447C;border-radius:26px;">
-      <a href="${wb}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Workbook</a>
+      <a href="${mn}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Instruction Manual</a>
+    </td></tr></table>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 10px;"><tr><td style="border:1.5px solid #0C447C;border-radius:26px;">
+      <a href="${gd}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Voice Command Guide</a>
     </td></tr></table>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td style="border:1.5px solid #0C447C;border-radius:26px;">
-      <a href="${gd}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Voice Command Guide</a>
+      <a href="${wb}" style="display:inline-block;padding:12px 26px;color:#0C447C;font-size:15px;font-weight:700;text-decoration:none;">Download the Starter Workbook</a>
     </td></tr></table>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F7FB;border-left:4px solid #F26A21;border-radius:4px;margin:0 0 24px;">
@@ -156,22 +163,31 @@ export function bakedWelcome0Html(firstName, token) {
 
 // Pure link substitution — no I/O, so it's unit-testable against the real code.
 // Swaps the frozen sentinels for per-user tokenised links, with an anchor-text
-// safety net for the guide. Returns { html, ok } where ok means BOTH download
-// links are present and tokenised.
+// safety net. Returns { html, ok } where ok means ALL THREE download links are
+// present and tokenised.
+//
+// ⛔ Job 4 (11 Aug): this counts to THREE. Sentinel, anchor-text needle and the
+// ok check must move together — a third book with a two-document ok check would
+// send a dead button while reporting success. Needle order matters: 'Voice
+// Command Guide' and 'Instruction Manual' are matched BEFORE the looser
+// 'Workbook', and each needle only runs while its own doc is still untokenised.
 export function applyWelcome0Links(templateHtml, token) {
-  const wb = dlHref(token, 'workbook');
+  const mn = dlHref(token, 'manual');
   const gd = dlHref(token, 'guide');
+  const wb = dlHref(token, 'workbook');
   let html = String(templateHtml || '');
 
   // Primary: swap the frozen sentinels.
-  if (html.includes(SENTINELS.workbook)) html = html.split(SENTINELS.workbook).join(wb);
+  if (html.includes(SENTINELS.manual))   html = html.split(SENTINELS.manual).join(mn);
   if (html.includes(SENTINELS.guide))    html = html.split(SENTINELS.guide).join(gd);
+  if (html.includes(SENTINELS.workbook)) html = html.split(SENTINELS.workbook).join(wb);
 
-  // Safety net: if either link still isn't tokenised, rewrite by anchor text.
+  // Safety net: if a link still isn't tokenised, rewrite by anchor text.
+  if (!html.includes('doc=manual'))   html = rewriteAnchorByText(html, 'Instruction Manual', mn);
   if (!html.includes('doc=guide'))    html = rewriteAnchorByText(html, 'Voice Command Guide', gd);
   if (!html.includes('doc=workbook')) html = rewriteAnchorByText(html, 'Workbook', wb);
 
-  const ok = html.includes('doc=workbook') && html.includes('doc=guide');
+  const ok = html.includes('doc=manual') && html.includes('doc=guide') && html.includes('doc=workbook');
   return { html, ok };
 }
 
@@ -205,17 +221,18 @@ async function buildWelcome0(firstName, token) {
     // Diagnostic: report exactly what came back, so a fallback is never a mystery
     // and a draft-vs-published version issue is visible in one line.
     const htmlStr = typeof tpl?.html === 'string' ? tpl.html : '';
-    const hasWb = htmlStr.includes(SENTINELS.workbook);
+    const hasMn = htmlStr.includes(SENTINELS.manual);
     const hasGd = htmlStr.includes(SENTINELS.guide);
-    console.log('Welcome0 template fetched: status=%s unpublished=%s sentinels(wb=%s gd=%s) htmlLen=%s',
-      tpl?.status, tpl?.has_unpublished_versions, hasWb, hasGd, htmlStr.length);
+    const hasWb = htmlStr.includes(SENTINELS.workbook);
+    console.log('Welcome0 template fetched: status=%s unpublished=%s sentinels(mn=%s gd=%s wb=%s) htmlLen=%s',
+      tpl?.status, tpl?.has_unpublished_versions, hasMn, hasGd, hasWb, htmlStr.length);
 
     if (!htmlStr) throw new Error('template html empty');
 
     const { html, ok } = applyWelcome0Links(htmlStr, token);
     if (ok) return { html, subject, mode: 'template' };
 
-    console.error('Welcome0 substitution incomplete (wb-sentinel=%s gd-sentinel=%s) — sending baked design', hasWb, hasGd);
+    console.error('Welcome0 substitution incomplete (mn-sentinel=%s gd-sentinel=%s wb-sentinel=%s) — sending baked design', hasMn, hasGd, hasWb);
   } catch (e) {
     console.error('Welcome0 template build failed:', e.message, '— sending baked design');
   }
