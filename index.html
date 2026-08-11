@@ -5784,7 +5784,13 @@ function voiceCreateTask(text, t) {
     // removal, then strip an orphaned trailing punctuation run — one that
     // stands apart from the last word. A period tight against a word is the
     // user's own and stays. (4 Aug; matching regexes deliberately untouched.)
-    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').replace(/\s{2,}/g,' ').replace(/\s+[.,;:!?]+$/,'').trim();
+    // Job 8a (11 Aug): "as a priority" — a priority word with NO letter — matched
+    // none of the as-patterns, so the bare "a priority" rule stripped its own half
+    // and left an orphaned "as" on the end ("pay the bill as"). Removing the whole
+    // letterless phrase FIRST fixes it at source. The matcher above is deliberately
+    // untouched: it must stay specific, or "add a priority task" files under band A.
+    // With no letter spoken the task still lands in band C, as the manual states.
+    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+priority\b/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').replace(/\s{2,}/g,' ').replace(/\s+[.,;:!?]+$/,'').replace(/\s+\bas\b\s*$/i,'').trim();
 
     // Parse date from voice
     const numWords = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
@@ -8782,9 +8788,23 @@ function renderDetailCaptures() {
       <div class="cap-detail" style="display:none;width:100%;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text);line-height:1.5"></div>`;
     if (isPhoto) {
       const img = d.querySelector('.cap-thumb');
+      // Job 8b (11 Aug): a photo capture with nothing retrievable — an older
+      // capture, a failed upload, or a signed-URL lookup that resolves empty —
+      // used to leave the <img> with no src and a broken frame in the row.
+      // Fall back to the same capture icon every other type uses, so it reads
+      // as a capture rather than as a fault. Both cases are covered: nothing to
+      // try at render time, and a promise that comes back empty.
+      const useIcon = () => {
+        if (!img.isConnected) return;
+        const icon = document.createElement('div');
+        icon.className = 'cap-icon';
+        icon.innerHTML = '<i class="ti ' + (c.icon || 'ti-photo') + '"></i>';
+        img.replaceWith(icon);
+      };
       const src = c.demoUrl || null;
       if (src) img.src = src;
-      else if (c.storagePath) photoSignedUrl(c.storagePath).then(u => { if (u && img.isConnected) img.src = u; });
+      else if (c.storagePath) photoSignedUrl(c.storagePath).then(u => { if (u && img.isConnected) img.src = u; else useIcon(); }).catch(useIcon);
+      else useIcon();
     }
     const detail = d.querySelector('.cap-detail');
     let detailHtml = '';
@@ -9637,6 +9657,15 @@ const LIB_MONTHLY  = [...LIB_STARTER, 'values'];                             // 
 const LIB_ANNUAL   = [...LIB_STARTER, 'values', 'goals', 'habits', 'research']; // 7 — Premium Annual
 const LIB_PRO_ANNUAL = [...LIB_ANNUAL, 'reflect', 'book2'];                  // 8 downloads + the flag row
 const LIB_LIFETIME = LIBRARY_ITEMS.map(i => i.id);                           // 12 downloads + the flag row
+// Job 3b: display grouping only — never an access rule. Every id in
+// LIBRARY_ITEMS appears exactly once here; the harness asserts that, so a new
+// book cannot be added and quietly fail to appear in any group.
+const LIB_GROUPS = [
+  { label: 'Your planner',                ids: ['manual', 'guide'] },
+  { label: 'The Voice First Life series', ids: ['workbook', 'values', 'goals', 'habits', 'bucket',
+                                                'projects', 'daily', 'week', 'reflect', 'book2'] },
+  { label: 'The research',                ids: ['research'] },
+];
 
 function libraryAllowed() {
   const ent = state.entitlement || { plan: 'free' };
@@ -9658,13 +9687,25 @@ function renderLibrary() {
   const items = LIBRARY_ITEMS.filter(i => allowed.includes(i.id));
   // A flagged item is a future book: it shows as a row with its status and no
   // download until it publishes. Status text comes from the item; NO DATE, ever.
-  wrap.innerHTML = items.map(i =>
-    i.flag
-      ? '<div class="settings-row"><span class="settings-row-label">' + i.title +
-        '<span style="display:block;font-size:11px;color:var(--text-light);font-weight:400">Free when it publishes \u2014 ' + i.flag + '</span></span></div>'
-      : '<div class="settings-row"><span class="settings-row-label">' + i.title + '</span>' +
-        '<span class="settings-row-action" style="color:var(--orange);font-weight:600" onclick="downloadLibraryItem(\'' + i.id + '\', this)">Download</span></div>'
-  ).join('');
+  const row = i => i.flag
+    ? '<div class="settings-row"><span class="settings-row-label">' + i.title +
+      '<span style="display:block;font-size:11px;color:var(--text-light);font-weight:400">Free when it publishes \u2014 ' + i.flag + '</span></span></div>'
+    : '<div class="settings-row"><span class="settings-row-label">' + i.title + '</span>' +
+      '<span class="settings-row-action" style="color:var(--orange);font-weight:600" onclick="downloadLibraryItem(\'' + i.id + '\', this)">Download</span></div>';
+  // Job 3b (11 Aug): presentation only — no entitlement, no tier list, no
+  // endpoint change. A flat list hid the fact that the Starter Workbook is the
+  // doorway into a nine-book series; grouped, the library shows what it is.
+  // A heading is written only when its group has a row THIS account can see,
+  // so a free account never sees an empty heading. Order within each group is
+  // LIB_GROUPS' order, which puts the Starter Workbook first in the series and
+  // the flag row at its foot.
+  const html = LIB_GROUPS.map(g => {
+    const rows = g.ids.map(id => items.find(i => i.id === id)).filter(Boolean);
+    if (!rows.length) return '';
+    return '<div style="font-size:11px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;color:var(--navy);margin:14px 0 2px">' +
+      g.label + '</div>' + rows.map(row).join('');
+  }).join('');
+  wrap.innerHTML = html;
 }
 
 async function downloadLibraryItem(item, el) {
