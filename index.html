@@ -5790,7 +5790,30 @@ function voiceCreateTask(text, t) {
     // letterless phrase FIRST fixes it at source. The matcher above is deliberately
     // untouched: it must stay specific, or "add a priority task" files under band A.
     // With no letter spoken the task still lands in band C, as the manual states.
-    let clean = text.replace(/^add\s*/i,'').replace(/\bas an?\s+priority\b/i,'').replace(/\bas an?\s+[abc]\s+priority\b/i,'').replace(/\bas an?\s+[abc]\b/i,'').replace(/\b[abc]\s+priority\b/i,'').replace(/\s{2,}/g,' ').replace(/\s+[.,;:!?]+$/,'').replace(/\s+\bas\b\s*$/i,'').trim();
+    // Job 8c (11 Aug): the same orphan reached through "is" — sometimes ordinary
+    // English ("pay the bill is a priority"), sometimes speech-to-text hearing
+    // "is" for "as" (repeatedly, on iPhone). The user cannot tell them apart, so
+    // both are cleaned. The is-rules are deliberately TIGHTER than the as-rules:
+    // "is" is a far more common word, so the letterless/priority forms are
+    // removed anywhere, but the bare "is a/an <letter>" form only at the END of
+    // the sentence — otherwise "check whether the invoice is a duplicate" would
+    // lose its middle. No trailing bare-"is" sweep either, so "find out what
+    // this is" survives whole — only a trailing "is a/an", which is never a
+    // finished thought, is swept. \bis\b cannot match inside "this". Matcher
+    // untouched: band behaviour is identical before and after, every phrasing.
+    let clean = text.replace(/^add\s*/i,'')
+      .replace(/\bas an?\s+priority\b/i,'')
+      .replace(/\bas an?\s+[abc]\s+priority\b/i,'')
+      .replace(/\bas an?\s+[abc]\b/i,'')
+      .replace(/\bis an?\s+priority\b/i,'')
+      .replace(/\bis an?\s+[abc]\s+priority\b/i,'')
+      .replace(/\s+\bis an?\s+[abc]\s*$/i,'')
+      .replace(/\s+\bis an?\s*$/i,'')
+      .replace(/\b[abc]\s+priority\b/i,'')
+      .replace(/\s{2,}/g,' ')
+      .replace(/\s+[.,;:!?]+$/,'')
+      .replace(/\s+\bas\b\s*$/i,'')
+      .trim();
 
     // Parse date from voice
     const numWords = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, a:1, an:1 };
