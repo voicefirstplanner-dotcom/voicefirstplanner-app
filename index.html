@@ -2506,6 +2506,22 @@ body.pv #pv-slot-notes .note-tags { display: none; }
 body.pv #pv-slot-notes .checklist-item { min-height: var(--pv-line); }
 body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 
+/* ---- DEMO BANNER (9 Aug) — standard notice treatment: informative, not a
+   warning. Full width, below the header, above the planner content. ---- */
+#demo-banner {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: 6px 12px; padding: 10px 14px; background: #EAF2FB;
+  border-bottom: 1px solid #C7D9EC; color: var(--navy);
+  font-size: 13.5px; line-height: 1.4; text-align: center;
+}
+#demo-banner strong { font-weight: 800; }
+#demo-banner button {
+  background: var(--orange); color: #fff; border: none; border-radius: 20px;
+  padding: 7px 16px; font-family: var(--font); font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+body.pv #demo-banner { position: relative; z-index: 3; }
+
 /* ---- GLOBAL SEARCH (Job 2, 9 Aug) — one field, grouped results, tap-to-land ---- */
 .search-field-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .search-field-row input { flex: 1; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: var(--font); font-size: 15px; color: var(--text); box-sizing: border-box; }
@@ -2567,6 +2583,14 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
     </button>
     <div class="voice-hint" id="voice-hint">Say: "Add review the proposal as an A priority"</div>
     <div id="pv-slot-ai-top"></div>
+  </div>
+
+  <!-- DEMO BANNER — guest sessions only. Persistent by design: not dismissible,
+       not a toast, still there on a later visit. The behaviour (nothing saved)
+       is honest; this is the app saying so. -->
+  <div id="demo-banner" style="display:none">
+    <span><strong>You're in the demo — nothing here is saved.</strong> Create a free account to keep your plan.</span>
+    <button onclick="demoToSignUp()">Create free account →</button>
   </div>
 
   <!-- NAV -->
@@ -4399,6 +4423,22 @@ function demoMode() {
   isDemo = true;  // demo data lives only in this tab and is never saved
   state.user = { name: 'Guest', email: 'demo@voicefirstdayplanner.com' };
   launchApp();
+  applyDemoBanner();
+}
+
+// The banner is guest-only and permanent for the session — no dismiss control
+// exists, so a visitor who leaves and returns still sees why their plan is gone.
+// Driven from isDemo alone, so a signed-in user can never see it.
+function applyDemoBanner() {
+  const el = document.getElementById('demo-banner');
+  if (el) el.style.display = isDemo ? 'flex' : 'none';
+}
+
+// One tap from the banner to sign-up: end the guest session and open the auth
+// screen on the Create-account tab. Nothing is saved, so nothing is lost.
+function demoToSignUp() {
+  try { sessionStorage.setItem('vfp_open_signup', '1'); } catch (e) {}
+  location.href = location.pathname + '?signup=1';
 }
 
 async function signOut() {
@@ -4426,6 +4466,7 @@ function launchApp() {
   showGroup('daily-planning', ['daily','week','month','year'].includes(state.calLastView) ? state.calLastView : 'daily');
   applyViewMode();       // Planner view is persisted state too — applied after first paint, exactly like the theme
   try { addHelpChips(); } catch (e) {}
+  applyDemoBanner();     // guest-only notice; harmless and correct on every entry path
   loadEntitlement();
   handleCheckoutReturn();
 }
