@@ -74,7 +74,7 @@ async function getEntitlement(userId) {
   if (!userId) return null;
   const { data } = await supabase
     .from('entitlements')
-    .select('plan,source,status,founding_number')
+    .select('plan,source,status,founding_number,comp')
     .eq('user_id', userId)
     .maybeSingle();
   return data || null;
@@ -158,6 +158,14 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
   // plan='premium', source='lifetime'. NEVER to free. Any non-pro subscription
   // on a Lifetime account remains ignored exactly as before.
   const current = await getEntitlement(userId);
+  // ⛔ COMP ACCOUNTS ARE UNTOUCHABLE BY STRIPE. A comp holds no Stripe objects,
+  // so in principle no branch can reach it — but "in principle" is what cost two
+  // founding entitlements in Job 6. This is explicit: if the account is comped,
+  // no subscription state may rewrite it, in any event order.
+  if (current?.comp === true) {
+    console.log('Comp account', userId, '— subscription', sub.id, sub.status, 'ignored for entitlement');
+    return;
+  }
   if (current?.source === 'lifetime') {
     if (planFromPrice(price) === 'pro') {
       await upsertEntitlement({
@@ -321,11 +329,14 @@ async function sendEmail({ to, subject, html, idemKey }) {
 // purchase path stays readable. Claims the send, sends, rolls back + rethrows on
 // failure so the whole event 500s and Stripe retries (entitlement writes above
 // are idempotent, so a retry is harmless).
-async function fireLifetimeWelcome(session, userId) {
-  const to = session.customer_details?.email || session.customer_email;
-  if (!to) { console.warn('No email on Lifetime session', session.id, '— welcome email skipped'); return; }
-  const rawName = session.customer_details?.name || '';
-  const firstName = rawName.trim().split(/\s+/)[0] || '';
+// Comp accounts (14 Aug): this takes SCALARS, not a Stripe session, so the exact
+// same function — same template, same token, same idempotency claim — serves both
+// the paid path and a comp grant. One design, one source: there is no second
+// template to drift when this one is edited. The webhook passes what it always
+// read off the session; api/comp-welcome.js passes what it read off the account.
+export async function fireLifetimeWelcome(userId, to, firstName) {
+  if (!to) { console.warn('No email for Lifetime welcome, user', userId, '— skipped'); return; }
+  firstName = String(firstName || '').trim().split(/\s+/)[0] || '';
 
   const won = await claimWelcomeEmailSend(userId);
   if (!won) { console.log('Welcome email already sent/claimed for', userId, '— skipping'); return; }
@@ -570,7 +581,12 @@ export default async function handler(req, res) {
           console.log('Lifetime purchase user=%s founding_number=%s session=%s', userId, n, session.id);
 
           // Member is fully provisioned — now deliver their files by email.
-          await fireLifetimeWelcome(session, userId);
+          // The session's own fields, read here rather than inside the sender.
+          await fireLifetimeWelcome(
+            userId,
+            session.customer_details?.email || session.customer_email,
+            session.customer_details?.name || ''
+          );
         } else if (session.mode === 'subscription') {
           // Seed the row so the customer -> user mapping exists, then sync the
           // subscription's CURRENT state (premium/active when paid).
@@ -606,6 +622,10 @@ export default async function handler(req, res) {
         // plan='free' and strip the Premium (and, under the Library, the books) they
         // own outright.
         const held = await getEntitlement(userId);
+        if (held?.comp === true) {
+          console.log('Comp account', userId, '— subscription', sub.id, 'cancelled; entitlement untouched');
+          break;
+        }
         if (held?.source === 'lifetime') {
           // Job 6 (10 Aug): a founding member cancelling the Pro add-on falls
           // back to Lifetime Premium — the entitlement they bought outright —
@@ -673,6 +693,11 @@ export default async function handler(req, res) {
         // subscription.deleted owns subscription state and nothing here can
         // contradict it. Belt: a description beginning "Subscription" is
         // subscription billing regardless.
+        const comped = await getEntitlement(userId);
+        if (comped?.comp === true) {
+          console.log('Comp account', userId, '— refund on charge', charge.id, 'ignored; entitlement untouched');
+          break;
+        }
         const isLifetimeOneOff = !!uidFromPI && !String(charge.description || '').startsWith('Subscription');
         if (!isLifetimeOneOff) {
           console.log('Refund on non-one-off charge', charge.id, 'user', userId,
