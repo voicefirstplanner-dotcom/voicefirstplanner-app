@@ -2547,9 +2547,14 @@ body.pv #demo-banner { position: relative; z-index: 3; }
 #schedule-grid,
 #schedule-grid .appt-seg-title,
 #schedule-grid .appt-seg-time {
-  -webkit-text-size-adjust: 100%;
-  -moz-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  /* AMEND 4: `none`, not `100%`. Measured on the failing devices rather than
+     reasoned from iOS history: with the 100% rule live, an inline 12px still
+     computed 18px on Mac Chrome AND on the iPad; setting `none` on the same
+     span snapped it to 12px instantly, repeatably. Both platforms answered the
+     same way, so both prefixed and unprefixed forms carry `none`. */
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 /* ---- CALENDAR IMPORT REVIEW (15 Aug) ---- */
@@ -7537,9 +7542,11 @@ function fitApptLabel(apptEl, wasTwoLine) {
 // One hour of the day-view schedule, in pixels. Named because the short-block
 // label sizing below reasons about it: a 15-minute block is a quarter of this.
 const SCHED_HOUR_PX = 72;
+let pendingLabelFits = [];
 function renderScheduleGrid() {
   const grid = document.getElementById('schedule-grid');
   if (!grid) return;
+  pendingLabelFits = [];
   // Full date header so you always know which day you're working in
   const dateEl = document.getElementById('schedule-date');
   if (dateEl) {
@@ -7684,11 +7691,15 @@ function renderScheduleGrid() {
           : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0;line-height:${lineH}">${titleSpan}${timeSpan}</div>`
           ;
         apptEl.innerHTML += `<div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
-        // And then STOP TRUSTING THE ARITHMETIC. Whatever the model says, the
-        // painted result is measured after layout and stepped down until it
-        // genuinely fits: two lines -> one line -> smaller. The screen is the
-        // source of truth, so the code asks the screen.
-        fitApptLabel(apptEl, snug);
+        // ⛔ MEASURED LATER, NOT HERE. The A2 backstop was called at this point,
+        // before the block is appended and before its row joins the grid — so
+        // clientHeight read 0, the guard treated that as "no layout engine" and
+        // returned, and the backstop never ran once on a real device. It is now
+        // queued and run at the end of renderScheduleGrid(), when every block is
+        // actually in the document and can be measured. Deferring it also means
+        // it corrects ANY inflation, including a browser's own, whatever a
+        // stylesheet does or fails to do.
+        pendingLabelFits.push([apptEl, snug]);
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
@@ -7704,7 +7715,14 @@ function renderScheduleGrid() {
     row.appendChild(timeLabel);
     row.appendChild(slotContent);
     grid.appendChild(row);
-  });
+  })
+
+  // Now that every block is in the document, measure what was actually painted
+  // and step any overflowing label down until it genuinely fits. This is the
+  // guard that does not care WHY a label is too tall — our own arithmetic, a
+  // font substitution, a zoom level, or the browser inflating the text itself.
+  pendingLabelFits.forEach(([el, wasTwoLine]) => fitApptLabel(el, wasTwoLine));
+  pendingLabelFits = [];
 
   // Show unscheduled tasks below the grid
   if (tasks.length > 0) {
