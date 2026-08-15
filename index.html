@@ -2522,6 +2522,16 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 }
 body.pv #demo-banner { position: relative; z-index: 3; }
 
+/* ---- CALENDAR IMPORT REVIEW (15 Aug) ---- */
+.cal-imp-row { display:flex; align-items:flex-start; gap:10px; padding:10px 4px; border-bottom:0.5px solid var(--border); }
+.cal-imp-row input[type=checkbox] { width:20px; height:20px; accent-color:var(--orange); flex-shrink:0; margin-top:1px; }
+.cal-imp-main { flex:1; min-width:0; }
+.cal-imp-title { font-size:14.5px; color:var(--text); font-weight:600; }
+.cal-imp-meta { font-size:12px; color:var(--text-light); margin-top:1px; }
+.cal-imp-dates { font-size:11.5px; color:var(--text-mid); margin-top:4px; display:none; }
+.cal-imp-more { font-size:11.5px; color:var(--navy-mid); cursor:pointer; margin-top:2px; }
+#cal-import-history .settings-row-action { color: var(--red, #C0392B); }
+
 /* ---- GLOBAL SEARCH (Job 2, 9 Aug) — one field, grouped results, tap-to-land ---- */
 .search-field-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .search-field-row input { flex: 1; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: var(--font); font-size: 15px; color: var(--text); box-sizing: border-box; }
@@ -3266,6 +3276,15 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div style="font-size:12px;color:var(--text-mid);padding:6px 2px 8px">Download your appointments as a standard calendar file (.ics) you can open in Google Calendar, Apple Calendar or Outlook. Your data is yours.</div>
         <div class="settings-row"><span class="settings-row-label">Calendar file (.ics)</span><span class="settings-row-action" onclick="downloadICS()">Download</span></div>
       </div>
+      <!-- CALENDAR IMPORT (15 Aug). One-way, manual, on-demand. The file is read
+           on this device and never uploaded. Copy below is fixed by the brief. -->
+      <div class="settings-section">
+        <div class="settings-section-title">Bring in your work calendar</div>
+        <div style="font-size:12px;color:var(--text-mid);padding:6px 2px 8px">Export a calendar file (.ics) from Outlook, Google or Apple and bring your commitments into your planner. One-way &mdash; nothing you do here ever changes your work calendar. Appointments only, for the next 90 days. Import again whenever you like; anything already here is skipped.</div>
+        <div class="settings-row"><span class="settings-row-label">Calendar file (.ics)</span><span class="settings-row-action" onclick="document.getElementById('cal-import-file').click()">Choose file</span></div>
+        <input type="file" id="cal-import-file" accept=".ics,text/calendar" style="display:none" onchange="handleCalFile(this)">
+        <div id="cal-import-history"></div>
+      </div>
       <div class="settings-section">
         <div class="settings-section-title">App</div>
         <div class="settings-row"><span class="settings-row-label">VoiceFirstPlanner</span><span class="settings-row-value">v1.0.0</span></div>
@@ -3391,6 +3410,22 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     </div>
     <div id="search-results"><div class="search-empty">Type a word or two — results appear as you type.</div></div>
     <button class="modal-close-btn" onclick="closeSearch()">Close</button>
+  </div>
+</div>
+
+<!-- CALENDAR IMPORT REVIEW (15 Aug). The gate: nothing is written until the
+     person accepts. The unit of decision is the MEETING, not the occurrence —
+     reviewing 180 rows one by one is theatre, and a review nobody performs is
+     not a gate. Cancel leaves the planner untouched, with no trace. -->
+<div class="modal-overlay" id="cal-import-modal" onclick="if(event.target===this)closeCalImport()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Bring in your calendar</div>
+    <div class="modal-sub" id="cal-import-summary"></div>
+    <div id="cal-import-groups" style="max-height:46vh;overflow-y:auto"></div>
+    <div id="cal-import-skipped" style="font-size:12px;color:var(--text-mid);padding:8px 2px 2px"></div>
+    <button class="modal-cta" id="cal-import-accept" onclick="commitCalImport()">Add to my planner</button>
+    <button class="modal-close-btn" onclick="closeCalImport()">Cancel</button>
   </div>
 </div>
 
@@ -3602,7 +3637,8 @@ let isDemo = false;      // demo mode = nothing persists
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
-                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode'];
+                    'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode',
+                    'calImports'];   // calendar import log — what each import added, for undo
 
 function serializeState() {
   const out = {};
@@ -9543,7 +9579,8 @@ function registerAiInterest() {
 // ============================================================
 // SETTINGS
 // ============================================================
-function openSettings() { document.getElementById('settings-overlay').classList.add('open'); const sr = document.getElementById('set-rem-sound'); if (sr) sr.checked = state.reminderSound !== false; renderLibrary(); }
+function openSettings() {
+  try { renderCalImportHistory(); } catch (e) {} document.getElementById('settings-overlay').classList.add('open'); const sr = document.getElementById('set-rem-sound'); if (sr) sr.checked = state.reminderSound !== false; renderLibrary(); }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
 
 // ============================================================
@@ -9901,6 +9938,651 @@ async function submitFeedback() {
 // background where the browser allows it.
 // ============================================================
 let reminderTimer = null;
+
+// ============================================================================
+// CALENDAR IMPORT (.ics) v1 — SESSION 1: parse, expand, convert, de-duplicate.
+// 15 Aug 2026. Client-side only: the file never leaves the person's device.
+// One-way and manual by construction — there is no code here that writes
+// anywhere except the in-memory preview this returns. Nothing is committed;
+// Session 2's review gate does that, after the person accepts.
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// UNFOLDING AND LINE SPLITTING
+// RFC 5545 folds long lines with CRLF + a single space or tab. Real files
+// arrive with CRLF, bare LF (seen in the 15 Aug Google file — 156 LF, zero
+// CRLF, stripped somewhere in transfer), or bare CR. All three are accepted:
+// a parser that only knows CRLF fails on a file a person actually has.
+// ---------------------------------------------------------------------------
+function icsUnfold(text) {
+  return String(text || '')
+    .replace(/\r\n/g, '\n').replace(/\r/g, '\n')   // normalise every line ending
+    .replace(/\n[ \t]/g, '')                        // unfold continuations
+    .split('\n');
+}
+
+// One content line -> { name, params, value }. Params are uppercased on the key
+// only; TZID values are case-sensitive IANA names and must survive intact.
+function icsParseLine(line) {
+  const colon = indexOfUnquoted(line, ':');
+  if (colon < 0) return null;
+  const left = line.slice(0, colon);
+  const value = line.slice(colon + 1);
+  const parts = splitUnquoted(left, ';');
+  const name = (parts.shift() || '').toUpperCase().trim();
+  const params = {};
+  parts.forEach(p => {
+    const eq = p.indexOf('=');
+    if (eq < 0) return;
+    params[p.slice(0, eq).toUpperCase().trim()] = stripQuotes(p.slice(eq + 1).trim());
+  });
+  return name ? { name, params, value } : null;
+}
+function stripQuotes(v) { return v.replace(/^"(.*)"$/, '$1'); }
+// A colon inside a quoted parameter value is not the value separator —
+// e.g. TZID="GMT+12:00" (Outlook writes zone names with colons in them).
+function indexOfUnquoted(s, ch) {
+  let q = false;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '"') q = !q;
+    else if (!q && s[i] === ch) return i;
+  }
+  return -1;
+}
+function splitUnquoted(s, ch) {
+  const out = []; let cur = '', q = false;
+  for (const c of s) {
+    if (c === '"') { q = !q; cur += c; }
+    else if (!q && c === ch) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+// RFC 5545 text unescaping — the inverse of the export's icsEscape.
+function icsUnescape(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\n/gi, '\n').replace(/\\,/g, ',')
+    .replace(/\\;/g, ';').replace(/\\\\/g, '\\');
+}
+
+// ---------------------------------------------------------------------------
+// TIME — THE PART THAT HAS TO BE RIGHT
+// The planner stores wall clock only: a date key and HH:MM. So every instant in
+// the file must be converted to the person's LOCAL wall clock AT THE MOMENT THE
+// EVENT OCCURS, which means honouring DST inside the window rather than one
+// fixed offset. Three input shapes exist and they are genuinely different:
+//   1. VALUE=DATE           -> a calendar date, no time, no zone. Use as-is.
+//   2. ...Z                 -> a UTC instant. Convert.
+//   3. TZID=Zone            -> wall clock IN that zone. Resolve to an instant,
+//                              then convert. NOT the same as floating.
+//   4. neither              -> floating: whatever clock the reader is on, which
+//                              per RFC means the person's own. Use as-is.
+// ---------------------------------------------------------------------------
+
+// The offset (minutes east of UTC) that `zone` was on at instant `utcMs`.
+// Derived by asking Intl what that instant's wall clock reads in the zone —
+// which is DST-correct for any date, with no table and no library.
+function zoneOffsetMinutes(zone, utcMs) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const p = {};
+  for (const { type, value } of dtf.formatToParts(new Date(utcMs))) p[type] = value;
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +(p.hour === '24' ? '00' : p.hour), +p.minute, +p.second);
+  return Math.round((asUTC - utcMs) / 60000);
+}
+
+// A wall clock in `zone` -> the UTC instant it denotes. Two passes: guess with
+// the offset at the naive instant, then re-derive at the corrected instant, so
+// a time that sits near a DST boundary resolves to the right side of it.
+function zonedWallToUtcMs(y, mo, d, h, mi, zone) {
+  const naive = Date.UTC(y, mo - 1, d, h, mi, 0);
+  let off = zoneOffsetMinutes(zone, naive);
+  let ms = naive - off * 60000;
+  const off2 = zoneOffsetMinutes(zone, ms);
+  if (off2 !== off) ms = naive - off2 * 60000;
+  return ms;
+}
+
+// A UTC instant -> { date:'YYYY-MM-DD', time:'HH:MM' } on the LOCAL clock.
+// Uses the same local-parts approach as the app's own dateKey(), never
+// toISOString(), which rolls the date back a day for anyone east of UTC.
+function utcMsToLocalWall(ms) {
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return {
+    date: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()),
+    time: p(d.getHours()) + ':' + p(d.getMinutes()),
+  };
+}
+
+// Parse a DTSTART/DTEND/EXDATE value with its params into a normalised form.
+// Returns { allDay, date, time, utcMs } or null when unusable.
+function parseIcsDateTime(value, params, localZone) {
+  const v = String(value || '').trim();
+  const p = n => String(n).padStart(2, '0');
+
+  // Shape 1: a plain date.
+  if ((params.VALUE || '').toUpperCase() === 'DATE' || /^\d{8}$/.test(v)) {
+    const m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (!m) return null;
+    return { allDay: true, date: `${m[1]}-${m[2]}-${m[3]}`, time: null, utcMs: null };
+  }
+
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/);
+  if (!m) return null;
+  const [, Y, MO, D, H, MI, , Z] = m;
+  const y = +Y, mo = +MO, dd = +D, hh = +H, mi = +MI;
+
+  // Shape 2: a UTC instant.
+  if (Z) {
+    const ms = Date.UTC(y, mo - 1, dd, hh, mi, 0);
+    return { allDay: false, ...utcMsToLocalWall(ms), utcMs: ms };
+  }
+
+  // Shape 3: wall clock in a named zone.
+  if (params.TZID) {
+    const zone = normaliseTzid(params.TZID);
+    if (zone) {
+      const ms = zonedWallToUtcMs(y, mo, dd, hh, mi, zone);
+      return { allDay: false, ...utcMsToLocalWall(ms), utcMs: ms };
+    }
+    // Unknown zone name: treat as floating rather than guessing an offset.
+    // Guessing is how a meeting silently lands an hour out.
+  }
+
+  // Shape 4: floating — the person's own clock, used as written.
+  const msLocal = new Date(y, mo - 1, dd, hh, mi, 0).getTime();
+  return { allDay: false, date: `${Y}-${MO}-${D}`, time: `${p(hh)}:${p(mi)}`, utcMs: msLocal };
+}
+
+// Outlook writes Windows zone names ("New Zealand Standard Time") where Google
+// and Apple write IANA ("Pacific/Auckland"). Intl only knows IANA. This maps the
+// common ones and returns null for anything unrecognised, so an unknown zone
+// falls through to floating rather than to a wrong offset.
+const WINDOWS_TZ = {
+  'NEW ZEALAND STANDARD TIME': 'Pacific/Auckland',
+  'AUS EASTERN STANDARD TIME': 'Australia/Sydney',
+  'AUS CENTRAL STANDARD TIME': 'Australia/Darwin',
+  'W. AUSTRALIA STANDARD TIME': 'Australia/Perth',
+  'GMT STANDARD TIME': 'Europe/London',
+  'GREENWICH STANDARD TIME': 'Atlantic/Reykjavik',
+  'W. EUROPE STANDARD TIME': 'Europe/Berlin',
+  'CENTRAL EUROPE STANDARD TIME': 'Europe/Budapest',
+  'ROMANCE STANDARD TIME': 'Europe/Paris',
+  'EASTERN STANDARD TIME': 'America/New_York',
+  'CENTRAL STANDARD TIME': 'America/Chicago',
+  'MOUNTAIN STANDARD TIME': 'America/Denver',
+  'PACIFIC STANDARD TIME': 'America/Los_Angeles',
+  'UTC': 'UTC',
+  'SINGAPORE STANDARD TIME': 'Asia/Singapore',
+  'TOKYO STANDARD TIME': 'Asia/Tokyo',
+  'INDIA STANDARD TIME': 'Asia/Kolkata',
+  'SOUTH AFRICA STANDARD TIME': 'Africa/Johannesburg',
+};
+function normaliseTzid(tzid) {
+  const raw = stripQuotes(String(tzid || '').trim());
+  if (!raw) return null;
+  // Google sometimes prefixes its own zone ids.
+  const cleaned = raw.replace(/^\/+/, '').replace(/^[A-Za-z0-9.]+\/(?=[A-Za-z]+\/)/, '');
+  if (isKnownZone(cleaned)) return cleaned;
+  const win = WINDOWS_TZ[raw.toUpperCase()];
+  if (win && isKnownZone(win)) return win;
+  return null;
+}
+function isKnownZone(z) {
+  try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; }
+  catch (e) { return false; }
+}
+
+// ---------------------------------------------------------------------------
+// RECURRENCE EXPANSION
+// The planner's own rule model can only express daily / weekdays / weekly-on-
+// one-day, so imported recurrences are NOT stored as rules — they are expanded
+// to individual occurrences inside the window and stored as a RULELESS series.
+// That is deliberate twice over: it sidesteps a rule model that cannot describe
+// a fortnightly or monthly meeting, and it keeps topUpRecurringSeries() away
+// from imported rows, so nothing of ours ever "extends" an imported series.
+// ---------------------------------------------------------------------------
+const DAY_INDEX = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+
+function parseRRule(v) {
+  const out = {};
+  String(v || '').split(';').forEach(part => {
+    const eq = part.indexOf('=');
+    if (eq < 0) return;
+    out[part.slice(0, eq).toUpperCase()] = part.slice(eq + 1);
+  });
+  return out;
+}
+
+// Expand one event's recurrence into local date keys within [fromKey, toKey].
+// Returns { dates, unsupported } — `unsupported` means we could not expand it
+// faithfully, and the caller SKIPS AND COUNTS rather than importing something
+// wrong. A meeting on the wrong days is worse than a meeting we admit we
+// couldn't read.
+function expandOccurrences(ev, fromKey, toKey, localZone) {
+  const start = ev.start;                 // normalised DTSTART
+  if (!start) return { dates: [], unsupported: true };
+  if (!ev.rrule) {
+    return { dates: (start.date >= fromKey && start.date <= toKey) ? [start.date] : [], unsupported: false };
+  }
+  const r = parseRRule(ev.rrule);
+  const freq = (r.FREQ || '').toUpperCase();
+  const interval = Math.max(1, parseInt(r.INTERVAL || '1', 10));
+  const count = r.COUNT ? parseInt(r.COUNT, 10) : null;
+
+  // UNTIL is an instant (often UTC) — compare on the local date it falls on.
+  let untilKey = null;
+  if (r.UNTIL) {
+    const u = parseIcsDateTime(r.UNTIL, {}, localZone);
+    if (u) untilKey = u.date;
+  }
+
+  const byDay = (r.BYDAY || '').split(',').map(s => s.trim()).filter(Boolean);
+  // BYSETPOS and ordinal BYDAY ("1SU", "-1MO") describe patterns like "first
+  // Monday of the month". Expandable in principle; deliberately NOT guessed at
+  // in v1 — declared unsupported, skipped, and counted.
+  if (r.BYSETPOS || byDay.some(d => /^[+-]?\d/.test(d))) return { dates: [], unsupported: true };
+  if (!['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(freq)) return { dates: [], unsupported: true };
+  if (freq === 'MONTHLY' && r.BYMONTHDAY && r.BYMONTHDAY.includes(',')) return { dates: [], unsupported: true };
+
+  const exdates = new Set((ev.exdates || []).map(x => x.date));
+  const dates = [];
+  const cursor = new Date(start.date + 'T12:00:00');   // midday: immune to DST edges
+  const startDow = cursor.getDay();
+  const wanted = byDay.length ? byDay.map(d => DAY_INDEX[d]).filter(n => n !== undefined) : null;
+
+  let produced = 0;
+  for (let guard = 0; guard < 2000; guard++) {
+    const key = fmtKey(cursor);
+    if (key > toKey) break;
+    if (untilKey && key > untilKey) break;
+    if (count && produced >= count) break;
+
+    let hit = false;
+    if (freq === 'DAILY') hit = true;
+    else if (freq === 'WEEKLY') hit = wanted ? wanted.includes(cursor.getDay()) : cursor.getDay() === startDow;
+    else if (freq === 'MONTHLY') hit = cursor.getDate() === new Date(start.date + 'T12:00:00').getDate();
+    else if (freq === 'YEARLY') hit = cursor.getDate() === new Date(start.date + 'T12:00:00').getDate()
+                                   && cursor.getMonth() === new Date(start.date + 'T12:00:00').getMonth();
+
+    // WEEKLY with an interval: the occurrence must also fall in an "on" week.
+    // Weeks are counted from the week CONTAINING DTSTART, with Monday as the
+    // week start (RFC 5545's default WKST), so a Mon+Thu fortnightly pair stays
+    // in the same week rather than drifting apart. This is a condition on the
+    // hit, not on the stepping — stepping day by day is what keeps BYDAY sets
+    // honest, and the earlier attempt to do it by skipping steps dropped every
+    // second occurrence (caught by the fortnightly harness case).
+    if (hit && freq === 'WEEKLY' && interval > 1) {
+      const weeksOut = Math.round((weekStartDayNum(cursor) - weekStartDayNum(new Date(start.date + 'T12:00:00'))) / 7);
+      if (weeksOut % interval !== 0) hit = false;
+    }
+    if (hit) {
+      produced++;                                       // COUNT counts occurrences, window or not
+      if (key >= fromKey && !exdates.has(key)) dates.push(key);
+    }
+    if (freq === 'WEEKLY') {
+      cursor.setDate(cursor.getDate() + 1);
+    } else if (freq === 'DAILY') {
+      cursor.setDate(cursor.getDate() + interval);
+    } else if (freq === 'MONTHLY') {
+      cursor.setMonth(cursor.getMonth() + interval);
+    } else if (freq === 'YEARLY') {
+      cursor.setFullYear(cursor.getFullYear() + interval);
+    } else {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  return { dates, unsupported: false };
+}
+// The Monday of the week containing `d`, as a DAY NUMBER (days since epoch),
+// not a millisecond timestamp. Milliseconds are not DST-proof: across a spring
+// transition two dates six weeks apart are 6 weeks MINUS an hour apart in ms,
+// which floors to five and silently drops every occurrence after the change.
+// Counting whole days via Date.UTC of the local Y/M/D removes the offset from
+// the arithmetic entirely. (Caught by the fortnightly harness case spanning
+// the 27 September NZDT change.)
+function weekStartDayNum(d) {
+  const c = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+  const dow = (c.getDay() + 6) % 7;                     // Monday = 0
+  c.setDate(c.getDate() - dow);
+  return Math.round(Date.UTC(c.getFullYear(), c.getMonth(), c.getDate()) / 86400000);
+}
+function fmtKey(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// ---------------------------------------------------------------------------
+// THE PARSE — returns a PREVIEW, never a write.
+// The whole file is read before anything is proposed, so a structural failure
+// aborts with zero rows and a half-import is impossible by construction.
+// ---------------------------------------------------------------------------
+function parseIcsToPreview(text, opts) {
+  const o = opts || {};
+  const todayKey = o.todayKey;
+  const windowDays = o.windowDays == null ? 90 : o.windowDays;
+  const localZone = o.localZone || (Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const existingUids = new Set(o.existingUids || []);
+  const defaultMinutes = o.defaultMinutes == null ? 60 : o.defaultMinutes;
+
+  const raw = String(text || '');
+  if (!/BEGIN:VCALENDAR/i.test(raw)) {
+    return { ok: false, error: "That doesn't look like a calendar file. Export a .ics file from your calendar and try again.", groups: [], counts: null };
+  }
+
+  const toDate = new Date(todayKey + 'T12:00:00');
+  toDate.setDate(toDate.getDate() + windowDays);
+  const toKey = fmtKey(toDate);
+
+  const lines = icsUnfold(raw);
+  const events = [];
+  let cur = null, depth = 0, inTimezone = false;
+
+  for (const line of lines) {
+    const p = icsParseLine(line);
+    if (!p) continue;
+    if (p.name === 'BEGIN' && /^VTIMEZONE$/i.test(p.value)) { inTimezone = true; continue; }
+    if (p.name === 'END' && /^VTIMEZONE$/i.test(p.value)) { inTimezone = false; continue; }
+    if (inTimezone) continue;                       // VTIMEZONE's own RRULEs are not events
+    if (p.name === 'BEGIN' && /^VEVENT$/i.test(p.value)) { cur = { exdates: [] }; depth++; continue; }
+    if (p.name === 'END' && /^VEVENT$/i.test(p.value)) { if (cur) events.push(cur); cur = null; depth--; continue; }
+    if (!cur) continue;
+
+    switch (p.name) {
+      case 'UID':          cur.uid = p.value.trim(); break;
+      case 'SUMMARY':      cur.summary = icsUnescape(p.value); break;
+      case 'LOCATION':     cur.location = icsUnescape(p.value); break;
+      case 'DESCRIPTION':  cur.description = icsUnescape(p.value); break;
+      case 'DTSTART':      cur.start = parseIcsDateTime(p.value, p.params, localZone); break;
+      case 'DTEND':        cur.end = parseIcsDateTime(p.value, p.params, localZone); break;
+      case 'DURATION':     cur.duration = p.value.trim(); break;
+      case 'RRULE':        cur.rrule = p.value.trim(); break;
+      case 'STATUS':       cur.status = p.value.trim().toUpperCase(); break;
+      case 'RECURRENCE-ID': cur.recurrenceId = parseIcsDateTime(p.value, p.params, localZone); break;
+      case 'EXDATE':
+        splitUnquoted(p.value, ',').forEach(v => {
+          const d = parseIcsDateTime(v.trim(), p.params, localZone);
+          if (d) cur.exdates.push(d);
+        });
+        break;
+      default: break;                               // X- properties and the rest: read and ignore
+    }
+  }
+
+  // ⛔ MOVED OCCURRENCES. An event carrying RECURRENCE-ID is an override: "this
+  // one instance of the series moved." Outlook (and Exchange) emit NO EXDATE for
+  // it — the override IS the exclusion — so the parent series must be told to
+  // skip that date, or the moved meeting imports twice: a phantom on the old day
+  // and the real one on the new. Proved against a real Outlook file, 15 Aug: a
+  // Project review moved from Wed 26 to Thu 27 August produced both.
+  // Deleted instances are different and DO carry EXDATE; that path already worked.
+  const overrideDates = {};                      // parent UID -> Set of date keys it must skip
+  events.forEach(ev => {
+    if (ev.recurrenceId && ev.uid) {
+      (overrideDates[ev.uid] = overrideDates[ev.uid] || new Set()).add(ev.recurrenceId.date);
+    }
+  });
+
+  const counts = {
+    eventsInFile: events.length,
+    recurringMeetings: 0, oneOffs: 0, occurrences: 0,
+    skippedNoStart: 0, skippedCancelled: 0, skippedUnsupportedRule: 0,
+    skippedOutOfWindow: 0, skippedDuplicate: 0,
+  };
+  const groups = [];
+
+  events.forEach((ev, i) => {
+    if (ev.status === 'CANCELLED') { counts.skippedCancelled++; return; }
+    if (!ev.start) { counts.skippedNoStart++; return; }
+
+    // The parent series suppresses any date one of its own overrides has taken.
+    const evForExpand = (!ev.recurrenceId && ev.uid && overrideDates[ev.uid])
+      ? { ...ev, exdates: (ev.exdates || []).concat([...overrideDates[ev.uid]].map(d => ({ date: d }))) }
+      : ev;
+    const { dates, unsupported } = expandOccurrences(evForExpand, todayKey, toKey, localZone);
+    if (unsupported) { counts.skippedUnsupportedRule++; return; }
+    if (!dates.length) { counts.skippedOutOfWindow++; return; }
+
+    // An override shares its parent's UID, so it needs its own key or the two
+    // collide in de-duplication and only one of them ever imports.
+    const uid = ev.recurrenceId && ev.uid
+      ? ev.uid + '#' + ev.recurrenceId.date
+      : (ev.uid || ('vfp-noUid-' + i + '-' + (ev.summary || '')));
+    if (existingUids.has(uid)) { counts.skippedDuplicate++; return; }
+
+    // Times. An event with no DTEND and no DURATION gets a default length —
+    // 60 minutes, stated rather than assumed silently.
+    const allDay = !!ev.start.allDay;
+    let timeStart = allDay ? '' : ev.start.time;
+    let timeEnd = '';
+    if (!allDay) {
+      if (ev.end && ev.end.time && ev.end.utcMs > ev.start.utcMs) {
+        // Multi-day timed events: the planner has one date per row, so the end
+        // time is clamped to the start day rather than inventing extra rows.
+        timeEnd = (ev.end.date === ev.start.date) ? ev.end.time : '23:59';
+      } else if (ev.duration) {
+        timeEnd = addMinutes(ev.start.time, durationToMinutes(ev.duration) || defaultMinutes);
+      } else {
+        timeEnd = addMinutes(ev.start.time, defaultMinutes);
+      }
+    }
+
+    const isRecurring = !!ev.rrule || dates.length > 1;
+    if (isRecurring) counts.recurringMeetings++; else counts.oneOffs++;
+    counts.occurrences += dates.length;
+
+    groups.push({
+      uid,
+      title: (ev.summary || 'Appointment').trim(),
+      location: ev.location || '',
+      notes: ev.description || '',
+      allDay, timeStart, timeEnd,
+      recurring: isRecurring,
+      patternLabel: describePattern(ev.rrule, dates.length),
+      dates,
+      selected: true,                         // opt-OUT: the person unticks what they don't want
+    });
+  });
+
+  return { ok: true, error: null, groups, counts, windowTo: toKey };
+}
+
+function durationToMinutes(v) {
+  const m = String(v || '').match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/i);
+  if (!m) return null;
+  return (+(m[1] || 0)) * 1440 + (+(m[2] || 0)) * 60 + (+(m[3] || 0));
+}
+function addMinutes(hhmm, mins) {
+  const [h, m] = String(hhmm || '00:00').split(':').map(Number);
+  let t = h * 60 + m + mins;
+  if (t >= 1440) t = 1439;                   // clamp inside the day, never roll over
+  const p = n => String(n).padStart(2, '0');
+  return p(Math.floor(t / 60)) + ':' + p(t % 60);
+}
+// Plain-language pattern label for the review list. No jargon, and the banned
+// word cannot appear here: these are the only strings this file produces.
+function describePattern(rrule, n) {
+  if (!rrule) return n > 1 ? n + ' dates' : 'One-off';
+  const r = parseRRule(rrule);
+  const freq = (r.FREQ || '').toUpperCase();
+  const iv = Math.max(1, parseInt(r.INTERVAL || '1', 10));
+  const byDay = (r.BYDAY || '').split(',').filter(Boolean);
+  if (freq === 'WEEKLY' && byDay.length === 5 && ['MO','TU','WE','TH','FR'].every(d => byDay.includes(d))) return 'Every weekday';
+  if (freq === 'DAILY') return iv === 1 ? 'Every day' : 'Every ' + iv + ' days';
+  if (freq === 'WEEKLY') return iv === 1 ? 'Weekly' : (iv === 2 ? 'Fortnightly' : 'Every ' + iv + ' weeks');
+  if (freq === 'MONTHLY') return iv === 1 ? 'Monthly' : 'Every ' + iv + ' months';
+  if (freq === 'YEARLY') return 'Yearly';
+  return 'Repeating';
+}
+
+// ============================================================================
+// CALENDAR IMPORT — SESSION 2 (15 Aug): the review gate, the commit, the undo.
+// The parser above returns a preview and cannot write; everything that DOES
+// write lives here, behind one accept. Cancel leaves the planner untouched.
+// ============================================================================
+let calImportPreview = null;      // the pending preview, discarded on cancel
+
+// Everything printed in the review comes from a file someone else wrote, so it
+// is escaped without exception. The app's only other escaper is scoped inside
+// the AI review renderer and does not escape ' or >, so this is its own — a
+// meeting titled with a script tag must render as text, not run.
+function calEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function handleCalFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';                                  // allow re-picking the same file
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => showToast("Couldn't read that file");
+  reader.onload = () => {
+    let p;
+    try {
+      p = parseIcsToPreview(String(reader.result || ''), {
+        todayKey: dateKey(today),
+        windowDays: 90,
+        localZone: (Intl.DateTimeFormat().resolvedOptions().timeZone),
+        existingUids: (state.appointments || []).map(a => a.srcUid).filter(Boolean),
+      });
+    } catch (e) {
+      console.warn('Calendar import parse failed:', e.message);
+      showToast("That file couldn't be read \u2014 nothing was added");
+      return;
+    }
+    // Fail loudly, import nothing. A structural failure never reaches a preview.
+    if (!p.ok) { showToast(p.error); return; }
+    if (!p.groups.length) {
+      showToast(p.counts.skippedDuplicate ? 'Everything in that file is already in your planner' : 'Nothing to bring in from that file');
+      return;
+    }
+    calImportPreview = p;
+    renderCalImport();
+    document.getElementById('cal-import-modal').classList.add('open');
+  };
+  reader.readAsText(file);
+}
+
+function renderCalImport() {
+  const p = calImportPreview; if (!p) return;
+  const c = p.counts;
+  const sel = p.groups.filter(g => g.selected);
+  const occ = sel.reduce((n, g) => n + g.dates.length, 0);
+  const rec = sel.filter(g => g.recurring).length, one = sel.length - rec;
+  const bit = (n, s, pl) => n + ' ' + (n === 1 ? s : (pl || s + 's'));
+  document.getElementById('cal-import-summary').textContent =
+    'Found ' + bit(rec, 'repeating meeting') + ' and ' + bit(one, 'one-off appointment') +
+    ' \u2014 ' + bit(occ, 'date') + ' across the next 90 days.';
+
+  document.getElementById('cal-import-groups').innerHTML = p.groups.map((g, i) => {
+    const when = g.allDay ? 'All day' : (g.timeStart + (g.timeEnd ? '\u2013' + g.timeEnd : ''));
+    const shown = g.dates.slice(0, 8).map(prettyImportDate).join(' \u00b7 ');
+    const more = g.dates.length > 8 ? ' \u00b7 +' + (g.dates.length - 8) + ' more' : '';
+    return '<div class="cal-imp-row">' +
+      '<input type="checkbox" ' + (g.selected ? 'checked' : '') + ' onchange="toggleCalGroup(' + i + ', this.checked)">' +
+      '<div class="cal-imp-main">' +
+        '<div class="cal-imp-title">' + calEsc(g.title) + '</div>' +
+        '<div class="cal-imp-meta">' + calEsc(g.patternLabel) + ' \u00b7 ' + calEsc(when) + ' \u00b7 ' + g.dates.length + (g.dates.length === 1 ? ' date' : ' dates') + '</div>' +
+        '<div class="cal-imp-more" onclick="toggleCalDates(' + i + ')">See dates</div>' +
+        '<div class="cal-imp-dates" id="cal-imp-dates-' + i + '">' + calEsc(shown + more) + '</div>' +
+      '</div></div>';
+  }).join('');
+
+  // Every skip reason, named. Silence about skipped events is the dishonest outcome.
+  const parts = [];
+  if (c.skippedDuplicate) parts.push(c.skippedDuplicate + ' already in your planner');
+  if (c.skippedOutOfWindow) parts.push(c.skippedOutOfWindow + ' outside the next 90 days');
+  if (c.skippedUnsupportedRule) parts.push(c.skippedUnsupportedRule + ' with a repeat pattern we can\u2019t read yet');
+  if (c.skippedCancelled) parts.push(c.skippedCancelled + ' cancelled');
+  if (c.skippedNoStart) parts.push(c.skippedNoStart + ' with no start time');
+  document.getElementById('cal-import-skipped').textContent = parts.length ? 'Skipped: ' + parts.join(' \u00b7 ') + '.' : '';
+
+  const btn = document.getElementById('cal-import-accept');
+  btn.textContent = occ ? 'Add ' + bit(occ, 'appointment') + ' to my planner' : 'Nothing selected';
+  btn.disabled = !occ;
+  btn.style.opacity = occ ? '' : '0.5';
+}
+function prettyImportDate(dk) {
+  const d = new Date(dk + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+function toggleCalGroup(i, on) {
+  if (!calImportPreview) return;
+  calImportPreview.groups[i].selected = !!on;
+  renderCalImport();
+}
+function toggleCalDates(i) {
+  const el = document.getElementById('cal-imp-dates-' + i);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+function closeCalImport() {
+  // Cancel: the preview is dropped and nothing was ever written.
+  calImportPreview = null;
+  document.getElementById('cal-import-modal').classList.remove('open');
+}
+
+// The ONE write. Imported occurrences form a RULELESS series: they share a
+// seriesId and carry recurring:true, but get NO recurRules entry — which keeps
+// topUpRecurringSeries() away from them, so an imported fortnightly meeting is
+// never extended into a weekly one by our own top-up logic.
+function commitCalImport() {
+  const p = calImportPreview; if (!p) return;
+  const sel = p.groups.filter(g => g.selected && g.dates.length);
+  if (!sel.length) return;
+  const importId = 'imp' + Date.now();
+  let added = 0;
+  sel.forEach((g, gi) => {
+    const many = g.dates.length > 1;
+    const seriesId = many ? importId + '-s' + gi : null;
+    g.dates.forEach((dk, di) => {
+      state.appointments.push({
+        id: Date.now() + added * 7 + di,
+        title: g.title, timeStart: g.allDay ? '' : g.timeStart, timeEnd: g.allDay ? '' : g.timeEnd,
+        date: dk, location: g.location || '', with: '', notes: g.notes || '',
+        allDay: !!g.allDay, done: false,
+        recurring: many, seriesId: seriesId || undefined,
+        srcUid: g.uid,        // stable identity from the file — what re-import checks
+        importId,             // which import brought it in — what undo removes
+      });
+      added++;
+    });
+  });
+  state.calImports = state.calImports || [];
+  state.calImports.push({ id: importId, at: Date.now(), count: added, meetings: sel.length });
+  closeCalImport();
+  renderAppointments(); renderScheduleGrid(); renderCalStrip(); renderCalImportHistory();
+  try { persistNow(); } catch (e) {}
+  showToast(added + (added === 1 ? ' appointment added' : ' appointments added'));
+}
+
+// Undo-this-import: removes exactly the rows one import added, and nothing else.
+function renderCalImportHistory() {
+  const el = document.getElementById('cal-import-history');
+  if (!el) return;
+  const list = (state.calImports || []).slice().reverse();
+  el.innerHTML = list.map(im => {
+    const when = new Date(im.at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    return '<div class="settings-row"><span class="settings-row-label">Imported ' + im.count +
+      (im.count === 1 ? ' appointment' : ' appointments') + ' \u00b7 ' + when +
+      '</span><span class="settings-row-action" onclick="undoCalImport(\'' + im.id + '\')">Undo</span></div>';
+  }).join('');
+}
+function undoCalImport(importId) {
+  const before = (state.appointments || []).length;
+  state.appointments = (state.appointments || []).filter(a => a.importId !== importId);
+  const removed = before - state.appointments.length;
+  state.calImports = (state.calImports || []).filter(im => im.id !== importId);
+  renderAppointments(); renderScheduleGrid(); renderCalStrip(); renderCalImportHistory();
+  try { persistNow(); } catch (e) {}
+  showToast(removed + (removed === 1 ? ' appointment removed' : ' appointments removed'));
+}
 
 // ============================================================================
 // Stage 3 (30 Jul): iCAL EXPORT. Client-side, download only, appointments only.
