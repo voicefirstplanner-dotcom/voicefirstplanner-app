@@ -7467,6 +7467,43 @@ function renderAppointments() {
 // ============================================================
 // SCHEDULE GRID (Franklin-style hourly timeline)
 // ============================================================
+// AMEND 2: read the painted result instead of predicting it. Called after the
+// block is in the document, it compares the label's real scrollHeight with the
+// block's real clientHeight and steps the layout down until nothing overflows.
+// Every step keeps BOTH the title and the time — only the layout and the size
+// give. No-ops harmlessly where there is no layout engine (heights read 0).
+function fitApptLabel(apptEl, wasTwoLine) {
+  const wrap = apptEl.firstElementChild;
+  if (!wrap) return;
+  const fits = () => {
+    const inner = apptEl.clientHeight - (parseFloat(getComputedStyle(apptEl).paddingTop) || 0) * 2;
+    if (!inner || !wrap.scrollHeight) return true;          // no layout engine: leave as built
+    return wrap.scrollHeight <= inner + 0.5;
+  };
+  if (fits()) return;
+  const title = wrap.querySelector('.appt-seg-title');
+  const time = wrap.querySelector('.appt-seg-time');
+  if (!title || !time) return;
+  // Step 1: two lines -> one line. Recovers a whole line box.
+  if (wasTwoLine) {
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'baseline';
+    wrap.style.gap = '6px';
+    time.style.display = '';
+    time.style.lineHeight = '1';
+    if (fits()) return;
+  }
+  // Step 2 and 3: shrink both lines, tightest last. The time keeps its
+  // guaranteed slot throughout; the title is what ellipsises.
+  for (const [tPx, mPx, lh] of [[11, 10, 1.05], [10, 9, 1]]) {
+    title.style.fontSize = tPx + 'px'; title.style.lineHeight = lh;
+    time.style.fontSize = mPx + 'px'; time.style.lineHeight = lh;
+    wrap.style.lineHeight = lh;
+    apptEl.style.paddingTop = '0px'; apptEl.style.paddingBottom = '0px';
+    if (fits()) return;
+  }
+}
+
 // One hour of the day-view schedule, in pixels. Named because the short-block
 // label sizing below reasons about it: a 15-minute block is a quarter of this.
 const SCHED_HOUR_PX = 72;
@@ -7598,15 +7635,30 @@ function renderScheduleGrid() {
         const timeTxt = (tight || snug) ? fmt12(a.timeStart) : rangeTxt;
         const timePx = tight ? 10 : 11;
         apptEl.title = `${a.title} \u00b7 ${rangeTxt}`;   // full range, on hover and on tap
+        // ⛔ AMEND 2 (15 Aug): the two-line 30-minute block clipped its second
+        // line on the device while the arithmetic said it fitted by 5.6px. The
+        // cause was not rounding: the time span was an INLINE box in a block
+        // that inherits the app's base line-height, so its painted line box is
+        // the inherited STRUT (~22px), not the 12.65px its own line-height
+        // implies. A line box is never shorter than its containing block's
+        // strut — the model measured the span and the browser painted the
+        // strut. Both spans are now display:block with their own line-height,
+        // and the wrapper sets line-height too, so every line box is exactly
+        // what it says it is.
         const titleSpan = `<span class="appt-seg-title" style="font-size:${titlePx}px;font-weight:600;color:var(--text);line-height:${lineH};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
-        const timeSpan = `<span class="appt-seg-time" style="font-size:${timePx}px;color:var(--appt-text);line-height:${lineH};white-space:nowrap;flex-shrink:0">${timeTxt}</span>`;
+        const timeSpan = `<span class="appt-seg-time" style="font-size:${timePx}px;color:var(--appt-text);line-height:${snug ? lineH : 1};white-space:nowrap;flex-shrink:0;${snug ? 'display:block' : ''}">${timeTxt}</span>`;
         apptEl.innerHTML = snug
           // Two lines: the title owns the first, so it never competes for width.
-          ? `<div style="padding-right:${tight?12:16}px;min-width:0">${titleSpan}${timeSpan}</div>`
+          ? `<div style="padding-right:${tight?12:16}px;min-width:0;line-height:${lineH}">${titleSpan}${timeSpan}</div>`
           // One line: the time never shrinks, the title ellipsises if it must.
-          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0">${titleSpan}${timeSpan}</div>`
+          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0;line-height:${lineH}">${titleSpan}${timeSpan}</div>`
           ;
         apptEl.innerHTML += `<div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
+        // And then STOP TRUSTING THE ARITHMETIC. Whatever the model says, the
+        // painted result is measured after layout and stepped down until it
+        // genuinely fits: two lines -> one line -> smaller. The screen is the
+        // source of truth, so the code asks the screen.
+        fitApptLabel(apptEl, snug);
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
