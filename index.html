@@ -7525,7 +7525,7 @@ function fitApptLabel(apptEl, wasTwoLine) {
     wrap.style.alignItems = 'baseline';
     wrap.style.gap = '6px';
     time.style.display = '';
-    time.style.lineHeight = '1';
+    time.style.lineHeight = APPT_TIME_LH + 'px';   // stays absolute, or the autosizer takes it again
     if (fits()) return;
   }
   // Step 2: give back the padding. LAYOUT ONLY — the type spec is never
@@ -7552,7 +7552,25 @@ const APPT_TITLE_PX = 12;
 const APPT_TITLE_WEIGHT = 600;
 const APPT_TIME_PX = 11;
 const APPT_TIME_WEIGHT = 500;
-const APPT_LINE_H = 1.15;
+// ⛔ LINE-HEIGHTS ARE ABSOLUTE PX, AND THAT IS THE POINT (16 Aug).
+// Measured live on the failing device: of every element on the page, exactly
+// FIVE were being inflated — the appointment block's own title, time and
+// chevron. Everything else, including the 10px hour labels beside them, was
+// untouched. The block is absolutely positioned, so Blink treats it as its own
+// text-autosizing cluster and boosts it x1.5 — and it ignored
+// `text-size-adjust: none` both inline and in the stylesheet (computed read
+// 100% regardless). It boosted one block's time and not the other's, which is
+// why two spans both declaring 11px painted at different sizes.
+//
+// Tested on the device, not modelled: block-level levers (explicit width,
+// height, flex, contain, inline-block, nowrap) all failed. Span-level absolute
+// line-height stopped it dead — the autosizer will not scale text whose line
+// box is pinned in absolute units. It is also exactly what the type spec wants
+// for its own sake: a line box that is precisely what it declares, which is the
+// thing the strut fix was reaching for. One property, both problems.
+const APPT_TITLE_LH = 14;   // px — 12px type on a 14px line
+const APPT_TIME_LH  = 13;   // px — 11px type on a 13px line
+const APPT_LINE_H = 1.15;   // retained only for the wrapper's fallback
 const APPT_PAD_Y = 1;
 
 // One hour of the day-view schedule, in pixels. Named because the short-block
@@ -7677,8 +7695,8 @@ function renderScheduleGrid() {
       // ========================================================================
       const segMin = Math.round((segBot - segTop) * 60);
       const segPx = SCHED_HOUR_PX * (segBot - segTop);
-      const titleBox = APPT_TITLE_PX * APPT_LINE_H;
-      const timeBox = APPT_TIME_PX * APPT_LINE_H;
+      const titleBox = APPT_TITLE_LH;
+      const timeBox = APPT_TIME_LH;
       // Two lines when the block can genuinely hold both; one line otherwise.
       const twoLine = (titleBox + timeBox) <= (segPx - APPT_PAD_Y * 2);
       const apptEl = document.createElement('div');
@@ -7693,14 +7711,14 @@ function renderScheduleGrid() {
         // box is exactly the height it declares — a line box is never shorter
         // than its containing block's strut, and an inline span would inherit
         // the app's (amend 2).
-        const titleSpan = `<span class="appt-seg-title" style="${NO_BOOST}font-size:${APPT_TITLE_PX}px;font-weight:${APPT_TITLE_WEIGHT};color:var(--text);line-height:${APPT_LINE_H};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
-        const timeSpan = `<span class="appt-seg-time" style="${NO_BOOST}font-size:${APPT_TIME_PX}px;font-weight:${APPT_TIME_WEIGHT};color:var(--appt-text);line-height:${APPT_LINE_H};white-space:nowrap;flex-shrink:0;display:block">${timeTxt}</span>`;
+        const titleSpan = `<span class="appt-seg-title" style="${NO_BOOST}font-size:${APPT_TITLE_PX}px;font-weight:${APPT_TITLE_WEIGHT};color:var(--text);line-height:${APPT_TITLE_LH}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
+        const timeSpan = `<span class="appt-seg-time" style="${NO_BOOST}font-size:${APPT_TIME_PX}px;font-weight:${APPT_TIME_WEIGHT};color:var(--appt-text);line-height:${APPT_TIME_LH}px;white-space:nowrap;flex-shrink:0;display:block">${timeTxt}</span>`;
         apptEl.innerHTML = twoLine
           // Two lines: the title owns the first, so it never competes for width.
-          ? `<div style="padding-right:16px;min-width:0;line-height:${APPT_LINE_H}">${titleSpan}${timeSpan}</div>`
+          ? `<div style="padding-right:16px;min-width:0;font-size:${APPT_TITLE_PX}px;line-height:${APPT_TITLE_LH}px">${titleSpan}${timeSpan}</div>`
           // One line: the time keeps its slot, the title takes the ellipsis.
-          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:14px;min-width:0;line-height:${APPT_LINE_H}">${titleSpan}${timeSpan}</div>`;
-        apptEl.innerHTML += `<div style="position:absolute;top:${APPT_PAD_Y}px;right:6px;font-size:13px;line-height:${APPT_LINE_H};color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
+          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:14px;min-width:0;font-size:${APPT_TITLE_PX}px;line-height:${APPT_TITLE_LH}px">${titleSpan}${timeSpan}</div>`;
+        apptEl.innerHTML += `<div style="position:absolute;top:${APPT_PAD_Y}px;right:6px;font-size:13px;line-height:15px;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
         // Measured after the whole grid is in the document (amend 4), where
         // clientHeight is a real number. It only ever changes LAYOUT now —
         // never type — because type is the thing this spec fixes.
