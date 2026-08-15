@@ -7528,16 +7528,26 @@ function fitApptLabel(apptEl, wasTwoLine) {
     time.style.lineHeight = '1';
     if (fits()) return;
   }
-  // Step 2 and 3: shrink both lines, tightest last. The time keeps its
-  // guaranteed slot throughout; the title is what ellipsises.
-  for (const [tPx, mPx, lh] of [[11, 10, 1.05], [10, 9, 1]]) {
-    title.style.fontSize = tPx + 'px'; title.style.lineHeight = lh;
-    time.style.fontSize = mPx + 'px'; time.style.lineHeight = lh;
-    wrap.style.lineHeight = lh;
-    apptEl.style.paddingTop = '0px'; apptEl.style.paddingBottom = '0px';
-    if (fits()) return;
-  }
+  // Step 2: give back the padding. LAYOUT ONLY — the type spec is never
+  // altered here. A block that still cannot hold one line of 12px type ellipsises
+  // its title, which is the spec's own last resort, rather than quietly wearing
+  // a different size from the block beside it. That inconsistency is the exact
+  // fault this spec exists to prevent, and a safety net must not reintroduce it.
+  apptEl.style.paddingTop = '0px';
+  apptEl.style.paddingBottom = '0px';
 }
+
+// THE APPOINTMENT BLOCK TYPE SPEC — one title style, one time style, used by
+// every block at every duration in both columns. Declared once so there is
+// exactly one place these numbers exist and no per-duration variant can drift
+// back in. Chosen against the tightest case: 12 x 1.15 = 13.8px paints inside
+// an 18px fifteen-minute block, and 13.8 + 12.65 = 26.5px fits a 36px one.
+const APPT_TITLE_PX = 12;
+const APPT_TITLE_WEIGHT = 600;
+const APPT_TIME_PX = 11;
+const APPT_TIME_WEIGHT = 500;
+const APPT_LINE_H = 1.15;
+const APPT_PAD_Y = 1;
 
 // One hour of the day-view schedule, in pixels. Named because the short-block
 // label sizing below reasons about it: a 15-minute block is a quarter of this.
@@ -7643,63 +7653,52 @@ function renderScheduleGrid() {
       // blocks the time chip is dropped as well — the row's own hour label and
       // the tap-through popup both still carry it — which gives the title the
       // full width and turns "UK supplie…" back into the whole thing.
-      // AMEND 1 (15 Aug): the time is not the part that gives. A block with no
-      // visible time reads as a mistake, and a tooltip is nothing at all on a
-      // touchscreen. So the time is ALWAYS rendered, and the layout changes
-      // instead, keyed off the segment's own minutes:
-      //   ~15 min  one line, too short for two: the time takes the guaranteed
-      //            slot (never shrinks) and the title ellipsises if it must —
-      //            a truncated title with a visible time is honest; the reverse
-      //            is not. Start time only, which is what the column can hold.
-      //   ~30 min  36px fits TWO 12px lines comfortably (27.6px), so the title
-      //            gets a whole line to itself and the time sits under it. That
-      //            is what stops "UK supplier call" ellipsising in the narrow
-      //            Planner-View column — it is not competing for width at all.
-      //   longer   unchanged: title and the full range on one line.
+      // ========================================================================
+      // APPOINTMENT BLOCK TYPE SPEC (15 Aug) — supersedes the per-duration
+      // sizing of amends 1–4, which each fixed the fault in front of it and
+      // together produced blocks wearing different type side by side.
+      //
+      //   ONE title style and ONE time style on every block, every duration,
+      //   both columns. When a block is short the LAYOUT changes; the TYPE
+      //   never does.
+      //
+      // The pair is chosen by the tightest case: a 15-minute block is 18px, and
+      // APPT_TITLE_PX at APPT_LINE_H paints 13.8px, which clears 18px minus the
+      // 2px of padding with room to spare — under A4's boosting protection,
+      // which is what makes "declared" and "painted" the same number.
+      // Two lines need 26.5px, so they are used wherever the block can hold
+      // them and a single line is used where it cannot. Nothing else varies.
+      // ========================================================================
       const segMin = Math.round((segBot - segTop) * 60);
-      const tight = segMin <= 20;                    // ~15-minute blocks
-      const snug  = !tight && segMin <= 35;          // ~30-minute blocks
-      const padY = tight ? 0 : (snug ? 2 : 3);
-      const titlePx = tight ? 10.5 : (snug ? 12 : 13);
-      const lineH = tight ? 1.05 : (snug ? 1.15 : 1.25);
+      const segPx = SCHED_HOUR_PX * (segBot - segTop);
+      const titleBox = APPT_TITLE_PX * APPT_LINE_H;
+      const timeBox = APPT_TIME_PX * APPT_LINE_H;
+      // Two lines when the block can genuinely hold both; one line otherwise.
+      const twoLine = (titleBox + timeBox) <= (segPx - APPT_PAD_Y * 2);
       const apptEl = document.createElement('div');
-      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${padY}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
+      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${APPT_PAD_Y}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
         const rangeTxt = `${fmt12(a.timeStart)}${a.timeEnd ? '\u2013'+fmt12(a.timeEnd) : ''}`;
-        // Short blocks show the START time only — the range costs roughly the
-        // width of the title again, and the end time is on the popup and in the
-        // tooltip. Longer blocks keep the full range as before.
-        const timeTxt = (tight || snug) ? fmt12(a.timeStart) : rangeTxt;
-        const timePx = tight ? 10 : 11;
-        apptEl.title = `${a.title} \u00b7 ${rangeTxt}`;   // full range, on hover and on tap
-        // ⛔ AMEND 2 (15 Aug): the two-line 30-minute block clipped its second
-        // line on the device while the arithmetic said it fitted by 5.6px. The
-        // cause was not rounding: the time span was an INLINE box in a block
-        // that inherits the app's base line-height, so its painted line box is
-        // the inherited STRUT (~22px), not the 12.65px its own line-height
-        // implies. A line box is never shorter than its containing block's
-        // strut — the model measured the span and the browser painted the
-        // strut. Both spans are now display:block with their own line-height,
-        // and the wrapper sets line-height too, so every line box is exactly
-        // what it says it is.
-        const titleSpan = `<span class="appt-seg-title" style="font-size:${titlePx}px;font-weight:600;color:var(--text);line-height:${lineH};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
-        const timeSpan = `<span class="appt-seg-time" style="font-size:${timePx}px;color:var(--appt-text);line-height:${snug ? lineH : 1};white-space:nowrap;flex-shrink:0;${snug ? 'display:block' : ''}">${timeTxt}</span>`;
-        apptEl.innerHTML = snug
+        // Content adapts, type does not: on its own line the time has room for
+        // the full range; sharing a line with the title it shows the start only.
+        const timeTxt = twoLine ? rangeTxt : fmt12(a.timeStart);
+        apptEl.title = `${a.title} \u00b7 ${rangeTxt}`;
+        // Both spans are display:block with their own line-height so each line
+        // box is exactly the height it declares — a line box is never shorter
+        // than its containing block's strut, and an inline span would inherit
+        // the app's (amend 2).
+        const titleSpan = `<span class="appt-seg-title" style="font-size:${APPT_TITLE_PX}px;font-weight:${APPT_TITLE_WEIGHT};color:var(--text);line-height:${APPT_LINE_H};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
+        const timeSpan = `<span class="appt-seg-time" style="font-size:${APPT_TIME_PX}px;font-weight:${APPT_TIME_WEIGHT};color:var(--appt-text);line-height:${APPT_LINE_H};white-space:nowrap;flex-shrink:0;display:block">${timeTxt}</span>`;
+        apptEl.innerHTML = twoLine
           // Two lines: the title owns the first, so it never competes for width.
-          ? `<div style="padding-right:${tight?12:16}px;min-width:0;line-height:${lineH}">${titleSpan}${timeSpan}</div>`
-          // One line: the time never shrinks, the title ellipsises if it must.
-          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0;line-height:${lineH}">${titleSpan}${timeSpan}</div>`
-          ;
-        apptEl.innerHTML += `<div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
-        // ⛔ MEASURED LATER, NOT HERE. The A2 backstop was called at this point,
-        // before the block is appended and before its row joins the grid — so
-        // clientHeight read 0, the guard treated that as "no layout engine" and
-        // returned, and the backstop never ran once on a real device. It is now
-        // queued and run at the end of renderScheduleGrid(), when every block is
-        // actually in the document and can be measured. Deferring it also means
-        // it corrects ANY inflation, including a browser's own, whatever a
-        // stylesheet does or fails to do.
-        pendingLabelFits.push([apptEl, snug]);
+          ? `<div style="padding-right:16px;min-width:0;line-height:${APPT_LINE_H}">${titleSpan}${timeSpan}</div>`
+          // One line: the time keeps its slot, the title takes the ellipsis.
+          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:14px;min-width:0;line-height:${APPT_LINE_H}">${titleSpan}${timeSpan}</div>`;
+        apptEl.innerHTML += `<div style="position:absolute;top:${APPT_PAD_Y}px;right:6px;font-size:13px;line-height:${APPT_LINE_H};color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
+        // Measured after the whole grid is in the document (amend 4), where
+        // clientHeight is a real number. It only ever changes LAYOUT now —
+        // never type — because type is the thing this spec fixes.
+        pendingLabelFits.push([apptEl, twoLine]);
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
