@@ -7467,6 +7467,9 @@ function renderAppointments() {
 // ============================================================
 // SCHEDULE GRID (Franklin-style hourly timeline)
 // ============================================================
+// One hour of the day-view schedule, in pixels. Named because the short-block
+// label sizing below reasons about it: a 15-minute block is a quarter of this.
+const SCHED_HOUR_PX = 72;
 function renderScheduleGrid() {
   const grid = document.getElementById('schedule-grid');
   if (!grid) return;
@@ -7504,7 +7507,7 @@ function renderScheduleGrid() {
     });
 
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:72px;position:relative;cursor:pointer';
+    row.style.cssText = `display:flex;align-items:flex-start;gap:8px;min-height:${SCHED_HOUR_PX}px;position:relative;cursor:pointer`;
     row.onclick = () => quickAddAppt(h);
     // Planner view (2 Aug): an empty hour line is writable — write the
     // appointment's name on the line (pen, Scribble or keys) and lifting off
@@ -7517,7 +7520,7 @@ function renderScheduleGrid() {
     timeLabel.textContent = h === 12 ? '12pm' : h < 12 ? h + 'am' : (h-12) + 'pm';
 
     const slotContent = document.createElement('div');
-    slotContent.style.cssText = 'flex:1;border-top:1px solid var(--border);padding:4px 0;min-height:72px;position:relative';
+    slotContent.style.cssText = `flex:1;border-top:1px solid var(--border);padding:4px 0;min-height:${SCHED_HOUR_PX}px;position:relative`;
     // Dotted 30-minute line, sitting where the hour line sits — the half-hour
     // mark the doubled slot height exists to make readable. Purely visual:
     // pointer-events off so tap-to-add on the hour row is untouched.
@@ -7557,10 +7560,27 @@ function renderScheduleGrid() {
       const isEnd = endM <= (h + 1) * 60;
       const segTop = (Math.max(startM, h * 60) - h * 60) / 60;      // 0..1 within this hour
       const segBot = (Math.min(endM, (h + 1) * 60) - h * 60) / 60;  // 0..1 within this hour
+      // SHORT BLOCKS (15 Aug): the block's height is honest to its time span —
+      // an hour row is SCHED_HOUR_PX tall, so a 15-minute meeting is ~18px and a
+      // 13px label on a 1.25 line-height plus 6px of padding did not fit: the
+      // text was sliced through its descenders by overflow:hidden ("Daily hud").
+      // The label is scaled to the block instead of the block to the label, so
+      // position and height stay exactly as the time says. On the shortest
+      // blocks the time chip is dropped as well — the row's own hour label and
+      // the tap-through popup both still carry it — which gives the title the
+      // full width and turns "UK supplie…" back into the whole thing.
+      const segMin = Math.round((segBot - segTop) * 60);
+      const tight = segMin <= 20;                    // ~15-minute blocks
+      const snug  = !tight && segMin <= 35;          // ~30-minute blocks
+      const padY = tight ? 0 : (snug ? 2 : 3);
+      const titlePx = tight ? 10.5 : (snug ? 12 : 13);
+      const lineH = tight ? 1.05 : (snug ? 1.15 : 1.25);
       const apptEl = document.createElement('div');
-      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:3px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
+      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${padY}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
-        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:16px;min-width:0"><span style="font-size:13px;font-weight:600;color:var(--text);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span><span style="font-size:11px;color:var(--appt-text);white-space:nowrap;flex-shrink:0">${fmt12(a.timeStart)}${a.timeEnd ? '–'+fmt12(a.timeEnd) : ''}</span></div><div style="position:absolute;top:3px;right:6px;font-size:14px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">›</div>`;
+        const timeTxt = `${fmt12(a.timeStart)}${a.timeEnd ? '\u2013'+fmt12(a.timeEnd) : ''}`;
+        apptEl.title = `${a.title} \u00b7 ${timeTxt}`;   // full text always reachable on hover, as well as on tap
+        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0"><span class="appt-seg-title" style="font-size:${titlePx}px;font-weight:600;color:var(--text);line-height:${lineH};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span>${tight ? '' : `<span style="font-size:11px;color:var(--appt-text);white-space:nowrap;flex-shrink:0">${timeTxt}</span>`}</div><div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
