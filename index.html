@@ -2522,6 +2522,36 @@ body.pv #pv-slot-notes .cl-add-row { opacity: 0.55; }
 }
 body.pv #demo-banner { position: relative; z-index: 3; }
 
+/* ---- SCHEDULE LABELS: OPT OUT OF BROWSER FONT BOOSTING (15 Aug, amend 3) ----
+   Chrome and iOS WebKit silently inflate text they judge too small — "font
+   boosting" / text autosizing — which `text-size-adjust: auto` permits. On the
+   live device the schedule's declared 12px title computed at 18px and the 11px
+   time at 17px: everything x1.5, with no stylesheet, zoom or transform in
+   between. That is what clipped the two-line block through three deliveries,
+   and it is invisible in a harness DOM because a synthetic document never
+   boosts. Management proved the mechanism live: setting this property on the
+   failing span snapped 18px straight back to 12px.
+
+   VALUE: 100%, not `none`. iOS has historically honoured `100%` reliably where
+   `none` is ignored or quirky; 100% means "render text at the size I declared",
+   which is exactly the requirement.
+
+   SCOPE: the schedule grid only, and deliberately so. text-size-adjust exists
+   for accessibility, and switching it off page-wide would be a real cost to
+   anyone who benefits from boosting. The schedule is the one place in the app
+   where a label's height is dictated by something other than the text — the
+   appointment's own duration — so it is the one place where the browser
+   growing the text can only clip it. Everywhere else (the week-ahead rows, the
+   import review's group rows, notes, tasks) the container flows to fit its
+   text, so boosting there is harmless and is left alone on purpose. ---- */
+#schedule-grid,
+#schedule-grid .appt-seg-title,
+#schedule-grid .appt-seg-time {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 /* ---- CALENDAR IMPORT REVIEW (15 Aug) ---- */
 .cal-imp-row { display:flex; align-items:flex-start; gap:10px; padding:10px 4px; border-bottom:0.5px solid var(--border); }
 .cal-imp-row input[type=checkbox] { width:20px; height:20px; accent-color:var(--orange); flex-shrink:0; margin-top:1px; }
