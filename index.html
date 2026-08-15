@@ -7542,6 +7542,12 @@ function fitApptLabel(apptEl, wasTwoLine) {
 // exactly one place these numbers exist and no per-duration variant can drift
 // back in. Chosen against the tightest case: 12 x 1.15 = 13.8px paints inside
 // an 18px fifteen-minute block, and 13.8 + 12.65 = 26.5px fits a 36px one.
+// Inline, on every span, because that is where it was PROVEN to work on the
+// device — the stylesheet rule was not reaching these spans, and two spans both
+// declaring 11px were painting at different sizes because the browser was still
+// boosting them by different factors. An inline declaration cannot be missed by
+// a selector. The scoped stylesheet rule stays as well.
+const NO_BOOST = '-webkit-text-size-adjust:none;text-size-adjust:none;';
 const APPT_TITLE_PX = 12;
 const APPT_TITLE_WEIGHT = 600;
 const APPT_TIME_PX = 11;
@@ -7676,7 +7682,7 @@ function renderScheduleGrid() {
       // Two lines when the block can genuinely hold both; one line otherwise.
       const twoLine = (titleBox + timeBox) <= (segPx - APPT_PAD_Y * 2);
       const apptEl = document.createElement('div');
-      apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${APPT_PAD_Y}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
+      apptEl.style.cssText = `${NO_BOOST}position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${APPT_PAD_Y}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
         const rangeTxt = `${fmt12(a.timeStart)}${a.timeEnd ? '\u2013'+fmt12(a.timeEnd) : ''}`;
         // Content adapts, type does not: on its own line the time has room for
@@ -7687,8 +7693,8 @@ function renderScheduleGrid() {
         // box is exactly the height it declares — a line box is never shorter
         // than its containing block's strut, and an inline span would inherit
         // the app's (amend 2).
-        const titleSpan = `<span class="appt-seg-title" style="font-size:${APPT_TITLE_PX}px;font-weight:${APPT_TITLE_WEIGHT};color:var(--text);line-height:${APPT_LINE_H};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
-        const timeSpan = `<span class="appt-seg-time" style="font-size:${APPT_TIME_PX}px;font-weight:${APPT_TIME_WEIGHT};color:var(--appt-text);line-height:${APPT_LINE_H};white-space:nowrap;flex-shrink:0;display:block">${timeTxt}</span>`;
+        const titleSpan = `<span class="appt-seg-title" style="${NO_BOOST}font-size:${APPT_TITLE_PX}px;font-weight:${APPT_TITLE_WEIGHT};color:var(--text);line-height:${APPT_LINE_H};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
+        const timeSpan = `<span class="appt-seg-time" style="${NO_BOOST}font-size:${APPT_TIME_PX}px;font-weight:${APPT_TIME_WEIGHT};color:var(--appt-text);line-height:${APPT_LINE_H};white-space:nowrap;flex-shrink:0;display:block">${timeTxt}</span>`;
         apptEl.innerHTML = twoLine
           // Two lines: the title owns the first, so it never competes for width.
           ? `<div style="padding-right:16px;min-width:0;line-height:${APPT_LINE_H}">${titleSpan}${timeSpan}</div>`
