@@ -7569,6 +7569,19 @@ function renderScheduleGrid() {
       // blocks the time chip is dropped as well — the row's own hour label and
       // the tap-through popup both still carry it — which gives the title the
       // full width and turns "UK supplie…" back into the whole thing.
+      // AMEND 1 (15 Aug): the time is not the part that gives. A block with no
+      // visible time reads as a mistake, and a tooltip is nothing at all on a
+      // touchscreen. So the time is ALWAYS rendered, and the layout changes
+      // instead, keyed off the segment's own minutes:
+      //   ~15 min  one line, too short for two: the time takes the guaranteed
+      //            slot (never shrinks) and the title ellipsises if it must —
+      //            a truncated title with a visible time is honest; the reverse
+      //            is not. Start time only, which is what the column can hold.
+      //   ~30 min  36px fits TWO 12px lines comfortably (27.6px), so the title
+      //            gets a whole line to itself and the time sits under it. That
+      //            is what stops "UK supplier call" ellipsising in the narrow
+      //            Planner-View column — it is not competing for width at all.
+      //   longer   unchanged: title and the full range on one line.
       const segMin = Math.round((segBot - segTop) * 60);
       const tight = segMin <= 20;                    // ~15-minute blocks
       const snug  = !tight && segMin <= 35;          // ~30-minute blocks
@@ -7578,9 +7591,22 @@ function renderScheduleGrid() {
       const apptEl = document.createElement('div');
       apptEl.style.cssText = `position:absolute;left:0;right:0;top:${(segTop*100).toFixed(1)}%;bottom:${((1-segBot)*100).toFixed(1)}%;background:color-mix(in srgb, var(--appt) 18%, transparent);border-left:3px solid var(--appt);${isStart?'border-top-right-radius:6px;':''}${isEnd?'border-bottom-right-radius:6px;':''}padding:${padY}px 8px;box-sizing:border-box;overflow:hidden;cursor:pointer;z-index:1`;
       if (isStart) {
-        const timeTxt = `${fmt12(a.timeStart)}${a.timeEnd ? '\u2013'+fmt12(a.timeEnd) : ''}`;
-        apptEl.title = `${a.title} \u00b7 ${timeTxt}`;   // full text always reachable on hover, as well as on tap
-        apptEl.innerHTML = `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0"><span class="appt-seg-title" style="font-size:${titlePx}px;font-weight:600;color:var(--text);line-height:${lineH};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${a.title}</span>${tight ? '' : `<span style="font-size:11px;color:var(--appt-text);white-space:nowrap;flex-shrink:0">${timeTxt}</span>`}</div><div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
+        const rangeTxt = `${fmt12(a.timeStart)}${a.timeEnd ? '\u2013'+fmt12(a.timeEnd) : ''}`;
+        // Short blocks show the START time only — the range costs roughly the
+        // width of the title again, and the end time is on the popup and in the
+        // tooltip. Longer blocks keep the full range as before.
+        const timeTxt = (tight || snug) ? fmt12(a.timeStart) : rangeTxt;
+        const timePx = tight ? 10 : 11;
+        apptEl.title = `${a.title} \u00b7 ${rangeTxt}`;   // full range, on hover and on tap
+        const titleSpan = `<span class="appt-seg-title" style="font-size:${titlePx}px;font-weight:600;color:var(--text);line-height:${lineH};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:block">${a.title}</span>`;
+        const timeSpan = `<span class="appt-seg-time" style="font-size:${timePx}px;color:var(--appt-text);line-height:${lineH};white-space:nowrap;flex-shrink:0">${timeTxt}</span>`;
+        apptEl.innerHTML = snug
+          // Two lines: the title owns the first, so it never competes for width.
+          ? `<div style="padding-right:${tight?12:16}px;min-width:0">${titleSpan}${timeSpan}</div>`
+          // One line: the time never shrinks, the title ellipsises if it must.
+          : `<div style="display:flex;align-items:baseline;gap:6px;padding-right:${tight?12:16}px;min-width:0">${titleSpan}${timeSpan}</div>`
+          ;
+        apptEl.innerHTML += `<div style="position:absolute;top:${tight?0:3}px;right:6px;font-size:${tight?12:14}px;line-height:1;color:var(--appt);opacity:0.8;pointer-events:none">\u203a</div>`;
       }
       apptEl.onclick = (e) => {
         e.stopPropagation();
