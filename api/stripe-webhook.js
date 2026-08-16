@@ -245,7 +245,7 @@ function renderWelcomeHtml(firstName, token) {
   const dl = (doc) => downloadUrl(DL_BASE, token, doc);
   return `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#F0F5FB;">
-<div style="display:none;max-height:0;overflow:hidden;">Your Lifetime access, all eight workbooks, and the research — all in this email.</div>
+<div style="display:none;max-height:0;overflow:hidden;">Your Lifetime access, your three books, all eight workbooks, and the research — all in this email.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0F5FB;padding:24px 0;">
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#2C2C2A;">
@@ -260,10 +260,11 @@ function renderWelcomeHtml(firstName, token) {
 
     <p style="font-size:14px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;">Every file below downloads straight from this email — no login needed. They also live in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a> any time, under Settings. <em>(Download links in this email stay live for 30 days; after that, grab anything from your Library.)</em></p>
 
-    <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your two starter books</p>
+    <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your three books</p>
     <ul style="font-size:16px;line-height:1.5;margin:0 0 20px;padding-left:20px;">
-      ${fileRow('The Workbook', dl('workbook'))}
-      ${fileRow('The Voice Command Guide', dl('guide'))}
+      ${fileRow('The VoiceFirstPlanner Instruction Manual', dl('manual'))}
+      ${fileRow('The VoiceFirstPlanner Voice Command Guide', dl('guide'))}
+      ${fileRow('The Voice First Life Planning System \u2014 Starter Workbook', dl('workbook'))}
     </ul>
 
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">The full Voice-First Life Planning System — all eight workbooks</p>
@@ -384,10 +385,11 @@ function renderAnnualHtml(firstName, token) {
     <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">You're on <strong>Premium Annual</strong> — every planning feature, all year. Thank you.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 20px;">Annual comes with more than the app. Here are the books that come with it — they download straight from this email, no login. They also live in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a> under Settings. <em>(Links stay live for 30 days.)</em></p>
 
-    <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your two starter books</p>
+    <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your three books</p>
     <ul style="font-size:16px;line-height:1.5;margin:0 0 20px;padding-left:20px;">
-      ${fileRow('The Workbook', dl('workbook'))}
-      ${fileRow('The Voice Command Guide', dl('guide'))}
+      ${fileRow('The VoiceFirstPlanner Instruction Manual', dl('manual'))}
+      ${fileRow('The VoiceFirstPlanner Voice Command Guide', dl('guide'))}
+      ${fileRow('The Voice First Life Planning System \u2014 Starter Workbook', dl('workbook'))}
     </ul>
 
     <p style="font-size:16px;font-weight:700;color:#0C447C;margin:0 0 4px;">Your Annual workbooks</p>
@@ -429,7 +431,7 @@ function renderMonthlyHtml(firstName) {
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td style="border-radius:8px;background:#0C447C;">
       <a href="https://app.voicefirstdayplanner.com" style="display:inline-block;padding:14px 28px;color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;">Open the app &rarr;</a>
     </td></tr></table>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Your two starter books are already in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a>, under Settings, whenever you want them.</p>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Your three books are already in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a>, under Settings, whenever you want them.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Any questions, just reply — it comes to me.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 4px;">Dave</p>
     <p style="font-size:13px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;"><em>When you're organized, the stress goes out of your day.</em></p>
@@ -456,7 +458,7 @@ function renderProHtml(firstName) {
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td style="border-radius:8px;background:#0C447C;">
       <a href="https://app.voicefirstdayplanner.com" style="display:inline-block;padding:14px 28px;color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;">Open the app &rarr;</a>
     </td></tr></table>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Look for the sparkle button under your Daily Focus. Your two starter books are in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a>, under Settings.</p>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Look for the sparkle button under your Daily Focus. Your three books are in your <a href="${esc(APP_LIBRARY_URL)}" style="color:#0C447C;font-weight:600;">Library</a>, under Settings.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">Any questions, just reply — it comes to me.</p>
     <p style="font-size:16px;line-height:1.5;margin:0 0 4px;">Dave</p>
     <p style="font-size:13px;line-height:1.5;color:#6b6b6b;margin:0 0 24px;"><em>When you're organized, the stress goes out of your day.</em></p>
