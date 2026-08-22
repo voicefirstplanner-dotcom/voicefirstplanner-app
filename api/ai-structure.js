@@ -24,9 +24,6 @@
 // with token usage for the cost band. Pro entitlement is checked against the
 // entitlements table — Lifetime is Premium, NOT Pro, and does not pass.
 //
-// AI_TEST_USER_IDS (env, comma-separated Supabase user ids): lets named
-// accounts through the Pro gate before Pro checkout exists — the live-confirm
-// path. Remove or empty it once Pro is purchasable.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -65,8 +62,6 @@ async function identify(req) {
 
 // ---- Pro gate ---------------------------------------------------------------
 async function isPro(userId) {
-  const testIds = (process.env.AI_TEST_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (testIds.includes(userId)) return true;
   if (!admin) return false;
   const { data: ent } = await admin
     .from('entitlements')
