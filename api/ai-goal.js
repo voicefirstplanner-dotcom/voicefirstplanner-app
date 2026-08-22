@@ -19,7 +19,7 @@
 //          shown on the review sheet, never committed to state }
 //
 // Security model, rate limits (transcribe_usage kind='ai' — shared AI ceiling),
-// Pro gate, AI_TEST_USER_IDS: all cloned verbatim from /api/ai-structure.
+// Pro gate: all cloned verbatim from /api/ai-structure.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -59,8 +59,6 @@ async function identify(req) {
 
 // ---- Pro gate ---------------------------------------------------------------
 async function isPro(userId) {
-  const testIds = (process.env.AI_TEST_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (testIds.includes(userId)) return true;
   if (!admin) return false;
   const { data: ent } = await admin
     .from('entitlements')
