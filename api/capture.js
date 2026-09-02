@@ -22,7 +22,7 @@ const admin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM = process.env.RESEND_FROM || 'Dave <dave@voicefirstdayplanner.com>';
 const ALLOWED_ORIGIN = process.env.CAPTURE_ALLOWED_ORIGIN || 'https://voicefirstdayplanner.com';
-const RESEND_AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID || '';
+const audienceId = () => process.env.RESEND_AUDIENCE_ID || '';   // read at call time
 const APP_BASE = 'https://app.voicefirstdayplanner.com';
 const SITE = 'voicefirstdayplanner.com';
 
@@ -95,35 +95,49 @@ async function rateLimited(actor) {
 async function upsertContact(email, source, capturedAt) {
   const headers = { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' };
   const properties = { source, captured_at: capturedAt };
+  const read = async r => { try { return (await r.text()).slice(0, 300); } catch (e) { return ''; } };
 
+  // First live capture (2 Sep): POST /contacts answered a validation error, the
+  // code misread it as "already exists" and PATCHed a contact that was never
+  // created, which 404'd. Two corrections. (1) Only 409 means exists; anything
+  // else is a refusal and its body is logged verbatim so the record says why.
+  // (2) Custom properties must be defined in Resend > Audience > Properties
+  // before the API will accept them. If they are refused, the contact is
+  // stored again WITHOUT them, so rung one is always counted in Resend and the
+  // properties are best effort until Dave defines them.
   let r = await fetch('https://api.resend.com/contacts', {
-    method: 'POST', headers,
-    body: JSON.stringify({ email, unsubscribed: false, properties }),
+    method: 'POST', headers, body: JSON.stringify({ email, unsubscribed: false, properties }),
   });
+  if (r.ok) return { ok: true, model: 'contacts', action: 'created', properties: true };
 
-  // Already there: update rather than error, so a second submit is harmless.
-  if (r.status === 409 || r.status === 422) {
+  if (r.status === 409) {
     const u = await fetch(`https://api.resend.com/contacts/${encodeURIComponent(email)}`, {
-      method: 'PATCH', headers,
-      body: JSON.stringify({ unsubscribed: false, properties }),
+      method: 'PATCH', headers, body: JSON.stringify({ unsubscribed: false, properties }),
     });
-    if (u.ok) return { ok: true, model: 'contacts', action: 'updated' };
-    return { ok: false, model: 'contacts', status: u.status, body: (await u.text()).slice(0, 300) };
+    if (u.ok) return { ok: true, model: 'contacts', action: 'updated', properties: true };
+    return { ok: false, model: 'contacts', step: 'patch', status: u.status, body: await read(u) };
   }
-
-  if (r.ok) return { ok: true, model: 'contacts', action: 'created' };
 
   // Not migrated: the global endpoint does not exist on this account.
-  if (r.status === 404 && RESEND_AUDIENCE_ID) {
-    const a = await fetch(`https://api.resend.com/audiences/${RESEND_AUDIENCE_ID}/contacts`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ email, unsubscribed: false }),
+  if (r.status === 404 && audienceId()) {
+    const a = await fetch(`https://api.resend.com/audiences/${audienceId()}/contacts`, {
+      method: 'POST', headers, body: JSON.stringify({ email, unsubscribed: false }),
     });
-    if (a.ok || a.status === 409) return { ok: true, model: 'audiences', action: a.ok ? 'created' : 'existed' };
-    return { ok: false, model: 'audiences', status: a.status, body: (await a.text()).slice(0, 300) };
+    if (a.ok || a.status === 409) return { ok: true, model: 'audiences', action: a.ok ? 'created' : 'existed', properties: false };
+    return { ok: false, model: 'audiences', step: 'post', status: a.status, body: await read(a) };
   }
 
-  return { ok: false, model: 'contacts', status: r.status, body: (await r.text()).slice(0, 300) };
+  // Refused with properties: keep the reason, then store the contact without them.
+  const firstBody = await read(r);
+  const bare = await fetch('https://api.resend.com/contacts', {
+    method: 'POST', headers, body: JSON.stringify({ email, unsubscribed: false }),
+  });
+  if (bare.ok || bare.status === 409) {
+    return { ok: true, model: 'contacts', action: bare.ok ? 'created' : 'existed', properties: false,
+             propertiesRefused: { status: r.status, body: firstBody } };
+  }
+  return { ok: false, model: 'contacts', step: 'post', status: r.status, body: firstBody,
+           bareStatus: bare.status, bareBody: await read(bare) };
 }
 
 function esc(s) {
