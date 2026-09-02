@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { mintToken } from './_lib/token.js';
+import { mintToken, verifyToken } from './_lib/token.js';
 
 const admin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -167,6 +167,93 @@ function deliveryHtml(downloadLink) {
 </body></html>`;
 }
 
+// ---------------------------------------------------------------------------
+// THE DOWNLOAD, FOLDED IN (2 Sep 2026)
+//
+// This was api/workbook-download.js, its own file, exactly as briefed. Vercel's
+// Hobby plan allows 12 serverless functions per deployment and api/ already
+// held 11, so two new files made 13 and every deploy failed. Rather than drop a
+// requirement or ask for a paid plan mid-walk, the two endpoints share one
+// function and the briefed URL is preserved by a rewrite in vercel.json:
+// /api/workbook-download still resolves, so the link inside every email sent is
+// unchanged and will keep working forever.
+//
+// The two paths stay strictly separate in behaviour: POST captures, GET serves
+// the one free file. Nothing about the entitlement separation changes.
+// ---------------------------------------------------------------------------
+
+const BUCKET = 'lifetime-library';
+const OBJECT_KEY = 'workbook.pdf';
+const SIGNED_URL_SECONDS = 60;
+
+// One page for every failure. Plain, no blame, and it tells the reader exactly
+// what to do next rather than leaving them at a dead end.
+function expiredPage(res, status = 200) {
+  const html = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>That link has expired</title>
+</head>
+<body style="margin:0;background:#F0F5FB;font-family:Georgia,'Times New Roman',serif;color:#1a2a3a;">
+  <div style="max-width:520px;margin:12vh auto;padding:28px 26px;background:#fff;border-radius:10px;">
+    <h1 style="font-size:20px;color:#0C447C;margin:0 0 12px;">That link has expired</h1>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 18px;">Download links stay live for 30 days. Ask for the workbook again and a fresh link comes straight back.</p>
+    <p style="font-size:16px;line-height:1.5;margin:0;"><a href="https://${SITE}/start" style="color:#0C447C;font-weight:700;">${SITE}/start</a></p>
+  </div>
+</body></html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(status).send(html);
+}
+
+async function handleDownload(req, res) {
+  // No token, bad signature, wrong shape, expired: all the same answer.
+  const raw = req.query?.t;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  const claim = token ? verifyToken(token) : null;
+  if (!claim) return expiredPage(res);
+
+  // The subject must be one of ours. A validly signed token for something else
+  //: a library token for a real user id, say , does not open this file.
+  if (!String(claim.uid || '').startsWith('wb:')) {
+    console.warn('workbook-download: valid token, wrong subject scope');
+    return expiredPage(res);
+  }
+
+  if (!admin) {
+    console.error('workbook-download: no admin client');
+    return expiredPage(res);
+  }
+
+  try {
+    const { data, error } = await admin.storage
+      .from(BUCKET)
+      .createSignedUrl(OBJECT_KEY, SIGNED_URL_SECONDS);
+
+    if (error || !data?.signedUrl) {
+      console.error('workbook-download: signing failed:', error?.message);
+      return expiredPage(res);
+    }
+
+    // Best effort, never blocking: note that this subject downloaded. The
+    // subject hash is stored on the row at capture time, which is the only way
+    // back to it: the address itself is not recoverable from the token.
+    try {
+      await admin.from('captures')
+        .update({ last_download_at: new Date().toISOString() })
+        .eq('subject_hash', claim.uid);
+    } catch (e) {
+      console.warn('workbook-download: last_download_at not updated:', e.message);
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.redirect(302, data.signedUrl);
+  } catch (e) {
+    console.error('workbook-download failed:', e.message);
+    return expiredPage(res);
+  }
+}
+
 export default async function handler(req, res) {
   // CORS: the marketing site only. Nothing else may call this from a browser.
   const origin = req.headers.origin || '';
@@ -180,8 +267,10 @@ export default async function handler(req, res) {
     // A preflight from anywhere else gets no allow header, so the browser stops it.
     return res.status(origin === ALLOWED_ORIGIN ? 204 : 403).end();
   }
+  // GET is the workbook download (see the note above). POST is the capture.
+  if (req.method === 'GET') return handleDownload(req, res);
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
   if (origin && origin !== ALLOWED_ORIGIN) {
