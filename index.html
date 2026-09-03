@@ -5762,10 +5762,23 @@ function processVoice(text) {
       .replace(/^\s*(?:shopping|grocery|groceries)\s+list\b[:\s]*/i, '')
       .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
       .trim();
-    var _shTgt = null; var _mL = t.match(/(?:to|on|onto|in)\s+(?:my|the)\s+([a-z0-9][a-z0-9 ]*?)\s+list\b/i);
-    if (_mL) { var _nm = _mL[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').trim(); if (_nm) _shTgt = _nm; }
+    // Which list? Three cases, and the middle one was wrong (3 Sep 2026):
+    //   "to my hardware list"  -> the list NAMED hardware (created if Premium)
+    //   "to my shopping list"  -> the list NAMED Shopping, the default one.
+    //                             Previously the word "shopping" was stripped as
+    //                             generic, no target survived, and the items went
+    //                             to WHICHEVER LIST TAB WAS OPEN. Invisible with one
+    //                             list; with three, "add coffee to my shopping list"
+    //                             landed on Hardware. Dave hit it twice.
+    //   no list named at all   -> the open list, which is what you are looking at.
+    var _shTgt = null, _shDefault = false;
+    var _mL = t.match(/(?:to|on|onto|in)\s+(?:my|the)\s+([a-z0-9][a-z0-9 ]*?)\s+list\b/i);
+    if (_mL) {
+      var _nm = _mL[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').trim();
+      if (_nm) _shTgt = _nm; else _shDefault = true;
+    }
     items = items.replace(/\b(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/gi, '').replace(/\s{2,}/g, ' ').trim();
-    const n = addShoppingItems(items, _shTgt ? { listName: _shTgt } : null);
+    const n = addShoppingItems(items, _shTgt ? { listName: _shTgt } : (_shDefault ? { defaultList: true } : null));
     showTab('shopping', null);
     if (!n) showToast('Tell me what to add — e.g. "add milk to my shopping list"');
     return;
@@ -9409,7 +9422,13 @@ function addShoppingItems(raw, opts) {
   const items = parseShoppingItems(raw);
   if (!items.length) return 0;
   var list = activeShopList();
-  if (opts && opts.listName) {
+  if (opts && opts.defaultList) {
+    // "my shopping list" said out loud means the Shopping list — the one named
+    // Shopping if it still exists, else the first list, which is the original
+    // default. Never the tab that happens to be open, and never a new list.
+    var dflt = findShopListByName('Shopping') || shopLists()[0];
+    if (dflt) { list = dflt; state.activeShopId = dflt.id; }
+  } else if (opts && opts.listName) {
     var found = findShopListByName(opts.listName);
     if (found) { list = found; state.activeShopId = found.id; }
     else if (isPremium()) { var _nl = addShopList(opts.listName, { silent: true }); if (_nl) list = _nl; }
