@@ -4493,8 +4493,107 @@ function signInApple() {
 function demoMode() {
   isDemo = true;  // demo data lives only in this tab and is never saved
   state.user = { name: 'Guest', email: 'demo@voicefirstdayplanner.com' };
+  seedDemoWeek();
   launchApp();
   applyDemoBanner();
+}
+
+// DEMO SEED (4 Sep 2026). A visitor tapping "Take a look around first" lands
+// in a week that has already been lived in, not a blank planner. This is an
+// OVERLAY applied only here, never in the default state literal: the literal
+// is also what a brand-new real account starts from, and a real person must
+// not open their first day to someone else's dentist appointment. Every date
+// is computed from today, so the week is always this week. Nothing here
+// persists (isDemo), so it costs nothing and never leaks. Content and voice
+// are Management's; the room only placed it.
+function seedDemoWeek() {
+  const dk = n => { const d = new Date(today); d.setDate(d.getDate() + n); return dateKey(d); };
+  const T = dk(0), T1 = dk(1), T2 = dk(2), T3 = dk(3), Y = dk(-1), Y2 = dk(-2), Y3 = dk(-3);
+
+  state.focusByDate[T] = 'Get the supplier proposal out the door';
+  state.focus = state.focusByDate[T];
+
+  state.tasks = [
+    { id: 9001, text: 'Finish the supplier proposal', p: 'A', done: false, date: T },
+    { id: 9002, text: 'Call the dentist to move Thursday', p: 'B', done: false, date: T },
+    { id: 9003, text: 'Book the car service', p: 'B', done: false, date: T },
+    { id: 9004, text: 'Reply to Sam about the offsite', p: 'C', done: true, date: T },
+    { id: 9005, text: 'Pick up the dry cleaning', p: 'C', done: false, date: T },
+    { id: 9006, text: 'Send the invoice to Harbour Print', p: 'A', done: false, date: T1 },
+    { id: 9007, text: 'Draft the Q4 plan', p: 'B', done: false, date: T2 },
+  ];
+
+  state.appointments = [
+    { id: 9101, title: 'Team stand-up', timeStart: '09:00', timeEnd: '09:15', date: T, location: '', with: '', notes: '', allDay: false, done: false },
+    { id: 9102, title: 'Supplier call', timeStart: '11:00', timeEnd: '11:45', date: T, location: 'Zoom', with: 'Priya', notes: '', allDay: false, done: false },
+    { id: 9103, title: 'School pickup', timeStart: '15:00', timeEnd: '15:30', date: T, location: '', with: '', notes: '', allDay: false, done: false },
+    { id: 9104, title: 'Gym', timeStart: '17:30', timeEnd: '18:30', date: T, location: '', with: '', notes: '', allDay: false, done: false },
+    { id: 9105, title: 'Dentist', timeStart: '10:00', timeEnd: '10:45', date: T3, location: 'Hillcrest Dental', with: '', notes: '', allDay: false, done: false },
+    { id: 9106, title: 'One-to-one with Sam', timeStart: '14:00', timeEnd: '14:30', date: T1, location: '', with: 'Sam', notes: '', allDay: false, done: false },
+    { id: 9107, title: 'Dinner with the Nguyens', timeStart: '19:00', timeEnd: '21:00', date: T2, location: 'Their place', with: '', notes: '', allDay: false, done: false },
+  ];
+
+  state.notes = [
+    { id: 9201, created: Date.now() - 3600e3 * 26, title: 'Supplier call prep', body: 'Ask about the 60-day terms. Their lead time on the 3mm stock was 4 weeks last time. Priya wants a decision by Friday.', tags: ['work'], checklist: null },
+    { id: 9202, created: Date.now() - 3600e3 * 50, title: 'Weekend', body: '', tags: ['personal'], checklist: [
+      { text: 'Fix the gate latch', done: false },
+      { text: 'Return the library books', done: true },
+      { text: 'Plant the tomatoes', done: false },
+    ] },
+  ];
+
+  state.goals = [
+    { id: 9301, name: 'Run a half-marathon', cur: 8, tot: 21, unit: 'km', role: 'Health' },
+    { id: 9302, name: 'Read 24 books this year', cur: 9, tot: 24, unit: 'books', role: 'Learner' },
+    { id: 9303, name: 'Get the workshop finished', cur: 3, tot: 10, unit: 'weekends', role: 'Home' },
+  ];
+
+  // Three habits, one on a nine-day streak: the last nine days ticked, ending
+  // yesterday, so the streak reads as live and today is there to be kept.
+  state.habits = [ { id: 9401, name: 'Morning walk' }, { id: 9402, name: 'No phone before 8' }, { id: 9403, name: 'Read 20 minutes' } ];
+  state.habitLog = {};
+  for (let n = 1; n <= 9; n++) {
+    const d = new Date(today); d.setDate(d.getDate() - n);
+    state.habitLog[weekKeyFor(d) + '-9401-' + ((d.getDay() + 6) % 7)] = true;
+  }
+  for (let n = 1; n <= 3; n++) {
+    const d = new Date(today); d.setDate(d.getDate() - n);
+    state.habitLog[weekKeyFor(d) + '-9403-' + ((d.getDay() + 6) % 7)] = true;
+  }
+  state.habitMaxStreak = 9;
+
+  state.shoppingLists = [
+    { id: 'demo_shop', name: 'Shopping', items: [
+      { id: 1, text: 'Milk', done: false }, { id: 2, text: 'Eggs', done: false },
+      { id: 3, text: 'Coffee', done: false }, { id: 4, text: 'Bread', done: true } ] },
+    { id: 'demo_hw', name: 'Hardware', items: [
+      { id: 1, text: 'Gate latch', done: false }, { id: 2, text: 'Wood screws 40mm', done: false } ] },
+  ];
+  state.activeShopId = 'demo_shop';
+
+  state.values = ['Family', 'Health', 'Growth'];
+  state.selectedValues = new Set(['Family', 'Health', 'Growth']);
+  state.roles = [
+    { name: 'Parent', icon: 'ti-home', def: 'Present, patient, and supportive' },
+    { name: 'Professional', icon: 'ti-briefcase', def: 'Skilled, reliable, and growth-focused' },
+    { name: 'Health', icon: 'ti-heart', def: 'Strong, rested, and moving every day' },
+    { name: 'Learner', icon: 'ti-book', def: 'Curious, reading, always a little further on' },
+  ];
+
+  state.bucket = [
+    { id: 9501, text: 'Walk the Milford Track', done: false },
+    { id: 9502, text: 'Learn to sail', done: false },
+    { id: 9503, text: 'See the southern lights', done: true },
+  ];
+
+  state.reflections = [
+    { date: Y, well: 'Got the proposal outline done before lunch.', improve: 'Left the dentist call again.', grateful: 'A clear evening with the kids.', intention: 'Ship the proposal.' },
+  ];
+  state.happenedLog = [
+    { date: Y,  text: 'Proposal outline done. Long stand-up. Walked at lunch.' },
+    { date: Y2, text: 'Supplier chased the terms. Gym after work.' },
+    { date: Y3, text: 'Quiet day. Read on the deck for an hour.' },
+  ];
 }
 
 // The banner is guest-only and permanent for the session — no dismiss control
