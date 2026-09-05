@@ -112,7 +112,9 @@ async function addToSegment(email, headers) {
 async function upsertContact(email, source, capturedAt) {
   const headers = { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' };
   const properties = { source, captured_at: capturedAt };
-  const segments = segmentId() ? [segmentId()] : undefined;   // (1) the field on the contact
+  // (1) the field on the contact. Resend's answer on 5 Sep, 22:31, to an array of
+  // strings: 422 "Invalid input: expected object, received string". So: objects.
+  const segments = segmentId() ? [{ id: segmentId() }] : undefined;
   const read = async r => { try { return (await r.text()).slice(0, 300); } catch (e) { return ''; } };
 
   // First live capture (2 Sep): POST /contacts answered a validation error, the
