@@ -1,5 +1,10 @@
 {
   "rewrites": [
-    { "source": "/api/workbook-download", "destination": "/api/capture" }
+    { "source": "/api/workbook-download", "destination": "/api/capture" },
+    { "source": "/api/quote-daily",       "destination": "/api/capture?job=quote" },
+    { "source": "/api/capture-stats",     "destination": "/api/capture?job=stats" }
+  ],
+  "crons": [
+    { "path": "/api/quote-daily", "schedule": "0 19 * * *" }
   ]
 }
