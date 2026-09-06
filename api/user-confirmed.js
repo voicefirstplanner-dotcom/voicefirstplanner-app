@@ -257,6 +257,53 @@ async function claimConfirmSend(userId) {
   return Array.isArray(data) && data.length === 1;
 }
 
+// Job 12 (7 Sep 2026, Management rulings): after Welcome 0 is sent, the
+// signup becomes a Resend contact (source = account, captured_at = the
+// confirmation time, no segment: the Workbook List is for captures) and the
+// event the enabled automation is configured on is fired, so Welcomes 1 to 5
+// follow on their delays. Event name read from the automation's trigger node
+// on 7 Sep: 'user.email.confirmed'. Neither step can fail the handler: Welcome
+// 0 has already gone and the claim row exists, so a 500 here would only mean
+// a retry that skips. Failures are logged verbatim and reported in the JSON.
+const CONFIRM_EVENT = process.env.CONFIRM_EVENT_NAME || 'user.email.confirmed';
+
+async function upsertAccountContact(email, confirmedAt) {
+  const headers = { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' };
+  const properties = { source: 'account', captured_at: confirmedAt };
+  const read = async r => { try { return (await r.text()).slice(0, 300); } catch (e) { return ''; } };
+  // Same rules capture.js learned live: only 409 means "exists"; anything else
+  // is a refusal whose body is kept, then the contact is stored bare.
+  let r = await fetch('https://api.resend.com/contacts', {
+    method: 'POST', headers, body: JSON.stringify({ email, unsubscribed: false, properties }),
+  });
+  if (r.ok) return { ok: true, action: 'created', properties: true };
+  if (r.status === 409) {
+    const u = await fetch(`https://api.resend.com/contacts/${encodeURIComponent(email)}`, {
+      method: 'PATCH', headers, body: JSON.stringify({ properties }),
+    });
+    if (u.ok) return { ok: true, action: 'updated', properties: true };
+    return { ok: false, step: 'patch', status: u.status, body: await read(u) };
+  }
+  const firstBody = await read(r);
+  const bare = await fetch('https://api.resend.com/contacts', {
+    method: 'POST', headers, body: JSON.stringify({ email, unsubscribed: false }),
+  });
+  if (bare.ok || bare.status === 409) {
+    return { ok: true, action: bare.ok ? 'created' : 'existed', properties: false, propertiesRefused: { status: r.status, body: firstBody } };
+  }
+  return { ok: false, step: 'post', status: r.status, body: firstBody, bareStatus: bare.status, bareBody: await read(bare) };
+}
+
+async function fireConfirmEvent(email) {
+  const r = await fetch('https://api.resend.com/events/send', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: CONFIRM_EVENT, email }),
+  });
+  if (r.ok) return { ok: true, status: r.status, event: CONFIRM_EVENT };
+  return { ok: false, status: r.status, event: CONFIRM_EVENT, body: (await r.text().catch(() => '')).slice(0, 300) };
+}
+
 async function releaseConfirmClaim(userId) {
   const { error } = await supabase.from('welcome_confirm_sends').delete().eq('user_id', userId);
   if (error) console.error('confirm claim rollback failed:', error.message);
@@ -332,7 +379,19 @@ export default async function handler(req, res) {
     }
 
     console.log('Welcome0 sent to', to, 'user=', userId, 'mode=', mode);
-    return res.status(200).json({ ok: true, mode });
+
+    // Job 12: contact first (so the event lands on a contact carrying
+    // source = account), then the event that starts Welcomes 1 to 5.
+    let contact, event;
+    try { contact = await upsertAccountContact(to, record.email_confirmed_at); }
+    catch (e) { contact = { ok: false, step: 'exception', body: String(e && e.message || e) }; }
+    if (!contact.ok) console.error('Contact upsert failed for', userId, JSON.stringify(contact));
+    try { event = await fireConfirmEvent(to); }
+    catch (e) { event = { ok: false, event: CONFIRM_EVENT, body: String(e && e.message || e) }; }
+    if (!event.ok) console.error('Event send failed for', userId, JSON.stringify(event));
+    console.log('Confirm follow-up for', userId, 'contact=', contact.ok ? contact.action : 'FAILED', 'event=', event.ok ? 'sent' : 'FAILED');
+
+    return res.status(200).json({ ok: true, mode, contact, event });
   } catch (err) {
     console.error('user-confirmed error:', err);
     return res.status(500).json({ error: 'Handler error' });
