@@ -2994,6 +2994,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
           <label class="bud-cur">Currency <select id="budget-currency" onchange="budgetSetCurrency(this.value)"></select></label>
         </div>
         <p style="font-size:12px;color:var(--navy-light);margin-bottom:4px;line-height:1.5">One page. What is left in each envelope this week. Set each line's weekly amount; enter what you spend as you go. The week closes Sunday night and whatever is left carries forward.</p>
+        <div id="budget-capture-row" style="display:flex;gap:8px;margin:8px 0 4px">
+          <input id="budget-capture-input" type="text" placeholder="Record spending: 40 on petrol, or twelve fifty to pet expenses" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:13px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')budgetTypedCapture()" />
+          <button class="field-mic" onclick="dictateInto('budget-capture-input',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
+          <button class="save-btn" style="width:auto;padding:0 16px;margin:0;flex-shrink:0" onclick="budgetTypedCapture()">Record</button>
+        </div>
         <div id="budget-body"></div>
       </div>
     </div>
@@ -3713,6 +3718,25 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <textarea id="budget-reflect-ta" rows="3" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);resize:vertical" placeholder="A sentence is enough"></textarea>
     <button class="modal-cta" onclick="saveBudgetReflect()">Keep it with the week</button>
     <button class="modal-close-btn" onclick="closeBudgetReflect()">Skip</button>
+  </div>
+</div>
+
+<!-- Budget spend confirmation (delivery three, 7 Sep 2026). Nothing is written
+     until Add; Cancel writes nothing. Line, amount and week all editable. -->
+<div class="modal-overlay" id="budget-capture-modal" onclick="if(event.target===this)closeBudgetCapture()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add to a budget line?</div>
+    <div class="modal-sub" id="budcap-heard" style="margin-bottom:6px"></div>
+    <div id="budcap-reason" style="display:none;font-size:13px;color:#B42318;margin-bottom:8px"></div>
+    <label style="display:block;font-size:11px;font-weight:700;color:var(--navy);margin:8px 0 4px">Line</label>
+    <select id="budcap-line" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);background:var(--card)"></select>
+    <label style="display:block;font-size:11px;font-weight:700;color:var(--navy);margin:10px 0 4px">Amount</label>
+    <input id="budcap-amount" type="number" step="0.01" inputmode="decimal" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:16px;color:var(--text)" />
+    <label style="display:block;font-size:11px;font-weight:700;color:var(--navy);margin:10px 0 4px">Week</label>
+    <select id="budcap-week" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);background:var(--card)"></select>
+    <button class="modal-cta" onclick="confirmBudgetCapture()">Add</button>
+    <button class="modal-close-btn" onclick="closeBudgetCapture()">Cancel</button>
   </div>
 </div>
 
@@ -5283,6 +5307,191 @@ function renderBudgetYear(host, esc) {
   host.innerHTML = h;
 }
 
+// ---- delivery three (7 Sep 2026): spending capture, typed and spoken, through a
+// confirmation sheet ----------------------------------------------------------
+// Nothing is written until it is confirmed. The utterance is parsed into a
+// line, an amount and a week; a sheet shows all three, editable, with Add and
+// Cancel. Cancel writes nothing. Unmatched or ambiguous: the sheet opens with
+// the line empty and says which part could not be placed. The router branch
+// sits before shopping and fires only when an amount is present.
+const BUD_NUM_WORDS = { zero:0, a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10,
+  eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19,
+  twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90 };
+
+// Turn a run of number words into one or more numeric groups. "forty" -> [40];
+// "twelve fifty" -> [12, 50]; "a hundred and forty five fifty" -> [145, 50];
+// "two thousand" -> [2000]. A new group starts when a smaller unit follows a
+// completed tens+units pair (the spoken-cents shape).
+function budWordsToGroups(words) {
+  const groups = []; let cur = null; let lastWasUnit = false; let lastWasTens = false;
+  const push = () => { if (cur !== null) groups.push(cur); cur = null; lastWasUnit = false; lastWasTens = false; };
+  for (const w0 of words) {
+    const w = w0.replace(/[,.]$/, '');
+    if (w === 'and' || w === 'point') continue;
+    if (w === 'hundred') { const base = cur === null ? 0 : cur; const rem = base % 1000; cur = (base - rem) + (rem === 0 ? 1 : rem) * 100; lastWasUnit = false; lastWasTens = false; continue; }
+    if (w === 'thousand') { cur = (cur === null ? 1 : cur) * 1000; lastWasUnit = false; lastWasTens = false; continue; }
+    if (!(w in BUD_NUM_WORDS)) { push(); continue; }
+    const v = BUD_NUM_WORDS[w];
+    if (cur === null) { cur = v; lastWasUnit = v < 10; lastWasTens = v >= 20; continue; }
+    if (v >= 20) {            // a tens word
+      if (lastWasTens || lastWasUnit || (cur % 100) !== 0) { push(); cur = v; lastWasTens = true; continue; }
+      cur += v; lastWasTens = true; lastWasUnit = false; continue;
+    }
+    if (v >= 10) {            // a teen
+      if ((cur % 100) !== 0 || lastWasUnit) { push(); cur = v; continue; }
+      cur += v; lastWasUnit = false; lastWasTens = false; continue;
+    }
+    // a unit
+    if (lastWasUnit || (cur % 10) !== 0 && cur < 20) { push(); cur = v; lastWasUnit = true; continue; }
+    cur += v; lastWasUnit = true; lastWasTens = false;
+  }
+  push();
+  return groups;
+}
+
+// Amount out of an utterance. Digits win ("$40", "12.50", "145.50", "40 dollars",
+// "12 dollars 50"); then number words ("forty dollars", "twelve fifty",
+// "a hundred and forty five fifty"). Returns { amount, matched } or null.
+function budgetParseAmount(text) {
+  const t = String(text || '').toLowerCase();
+  // moneyShape: the amount reads as money on its own (a symbol, a decimal, a
+  // currency word, or the spoken-cents shape), which lets an unmatched line
+  // still reach the sheet instead of being lost as a task.
+  let m = t.match(/(?:\$|nz\$|a\$|us\$|\u00a3|\u20ac)\s*(\d[\d,]*(?:\.\d{1,2})?)/);
+  if (m) return { amount: Number(m[1].replace(/,/g, '')), matched: m[0], moneyShape: true };
+  m = t.match(/\b(\d[\d,]*)\s*(?:dollars?|bucks)(?:\s+(?:and\s+)?(\d{1,2})(?:\s*cents?)?)?\b/);
+  if (m) return { amount: Number(m[1].replace(/,/g, '')) + (m[2] ? Number(m[2]) / 100 : 0), matched: m[0], moneyShape: true };
+  m = t.match(/\b(\d[\d,]*\.\d{1,2})\b/);
+  if (m) return { amount: Number(m[1].replace(/,/g, '')), matched: m[0], moneyShape: true };
+  m = t.match(/\b(\d[\d,]*)\b/);
+  if (m) return { amount: Number(m[1].replace(/,/g, '')), matched: m[0], moneyShape: false };
+  // number words: take the longest run of number words in the text
+  const tokens = t.replace(/[^a-z0-9$.,' -]/g, ' ').split(/\s+/);
+  let best = null, run = [], start = -1;
+  const isNum = w => (w.replace(/[,.]$/, '') in BUD_NUM_WORDS) || /^(hundred|thousand|and|point|dollars?|cents?)$/.test(w.replace(/[,.]$/, ''));
+  for (let i = 0; i <= tokens.length; i++) {
+    const w = tokens[i];
+    if (w !== undefined && isNum(w)) { if (start < 0) start = i; run.push(w); continue; }
+    if (run.length) {
+      const core = run.filter(x => !/^(and|point|dollars?|cents?)$/.test(x.replace(/[,.]$/, '')));
+      if (core.length && !(core.length === 1 && /^(a|an)$/.test(core[0]))) {
+        if (!best || core.length > best.core.length) best = { core, run, start, end: i };
+      }
+      run = []; start = -1;
+    }
+  }
+  if (!best) return null;
+  const groups = budWordsToGroups(best.core);
+  if (!groups.length) return null;
+  let amount = groups[0];
+  const saidDollars = best.run.some(x => /^dollars?$/.test(x.replace(/[,.]$/, '')));
+  const saidCents = best.run.some(x => /^cents?$/.test(x.replace(/[,.]$/, '')));
+  if (groups.length >= 2 && groups[0] % 1000 === 0 && groups[1] >= 100 && groups[1] < 1000) amount = groups[0] + groups[1];   // "a thousand two hundred"
+  else if (groups.length >= 2 && groups[1] < 100) amount = groups[0] + groups[1] / 100;   // "twelve fifty", "40 dollars 50"
+  else if (groups.length >= 2) amount = Number(groups.join(''));                          // unusual; the sheet shows it
+  if (saidCents && groups.length === 1 && !saidDollars) amount = groups[0] / 100;
+  return { amount: Math.round(amount * 100) / 100, matched: best.run.join(' '), moneyShape: saidDollars || saidCents || (groups.length >= 2 && groups[1] < 100) };
+}
+
+// The line named in the utterance. Exactly one match -> that line; none or
+// several -> null with a reason the sheet shows.
+function budgetMatchLine(text, amountMatched) {
+  const lines = budLines('expense');
+  let s = String(text || '').toLowerCase();
+  if (amountMatched) s = s.replace(amountMatched.toLowerCase(), ' ');
+  s = s.replace(/\b(?:i|we|just|spent|spend|paid|pay|put|add|added|record|log|bought|cost|costs|on|for|to|at|in|the|my|our|a|an|of|dollars?|bucks|cents?|and|please)\b/g, ' ')
+       .replace(/[^a-z0-9/ ]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) return { line: null, phrase: '', reason: 'no line named' };
+  const norm = x => String(x).toLowerCase().replace(/[^a-z0-9/ ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const exact = lines.filter(l => norm(l.name) === s);
+  if (exact.length === 1) return { line: exact[0], phrase: s, reason: '' };
+  const words = s.split(' ').filter(Boolean);
+  const scored = lines.map(l => {
+    const n = norm(l.name); const nw = n.split(' ').filter(Boolean);
+    let score = 0;
+    if (n.includes(s) || s.includes(n)) score += 3;
+    words.forEach(w => { if (w.length >= 3 && nw.some(x => x === w || (w.length >= 4 && x.startsWith(w)) || (x.length >= 4 && w.startsWith(x)))) score += 1; });
+    return { l, score };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  if (scored.length === 1 || (scored.length > 1 && scored[0].score > scored[1].score)) return { line: scored[0].l, phrase: s, reason: '' };
+  if (scored.length > 1) return { line: null, phrase: s, reason: `"${s}" could be ${scored.slice(0, 3).map(x => x.l.name).join(' or ')}` };
+  return { line: null, phrase: s, reason: `"${s}" is not one of your budget lines` };
+}
+
+// Router test: an amount is present, and either a line matches or the words
+// say spending. Without an amount this is never true, so "Groceries, milk and
+// bread" keeps reaching the shopping list.
+function budgetCaptureIntent(t) {
+  if (!budget.loaded) return false;
+  if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+[a-z0-9 ]*?\blist\b/.test(t)) return false;
+  const amt = budgetParseAmount(t);
+  if (!amt || !(amt.amount > 0)) return false;
+  if (/\b(?:spent|spend|paid|pay|bought|cost|costs)\b/.test(t)) return true;
+  if (/\bbudget\b/.test(t)) return true;
+  if (budgetMatchLine(t, amt.matched).line) return true;
+  return !!amt.moneyShape;   // "Groceries, a hundred and forty five fifty": money, no line yet
+}
+
+// ---- the sheet ----------------------------------------------------------------
+let budCapture = null;   // { amount, lineId, weekStart, reason }
+function budgetOpenCapture(text, source) {
+  const amt = budgetParseAmount(text);
+  const match = amt ? budgetMatchLine(text, amt.matched) : { line: null, phrase: '', reason: 'no line named' };
+  budCapture = { amount: amt ? amt.amount : 0, lineId: match.line ? match.line.id : '', weekStart: budget.weekStart, reason: amt ? match.reason : 'no amount heard', source: source || 'voice', text };
+  const m = document.getElementById('budget-capture-modal');
+  const sel = document.getElementById('budcap-line');
+  sel.innerHTML = `<option value="">Choose a line</option>` + budLines('expense').map(l => `<option value="${l.id}">${String(l.name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')}</option>`).join('');
+  sel.value = budCapture.lineId;
+  document.getElementById('budcap-amount').value = budCapture.amount ? String(budCapture.amount) : '';
+  const wk = document.getElementById('budcap-week');
+  const weeks = []; let w = state.budgetOpenWeek || budget.weekStart; const cur = budgetWeekStart(new Date());
+  while (w && w <= cur && weeks.length < 8) { weeks.push(w); w = budAddDays(w, 7); }
+  wk.innerHTML = weeks.map(ws => { const d = new Date(ws + 'T12:00:00'); const e = new Date(d); e.setDate(e.getDate() + 6); const f = x => x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); return `<option value="${ws}">${ws === cur ? 'This week, ' : ''}${f(d)} to ${f(e)}</option>`; }).join('');
+  wk.value = cur;
+  const heard = document.getElementById('budcap-heard'); heard.textContent = text ? `Heard: "${text}"` : '';
+  const why = document.getElementById('budcap-reason');
+  why.textContent = budCapture.reason ? `Could not place: ${budCapture.reason}. Choose it below.` : '';
+  why.style.display = budCapture.reason ? 'block' : 'none';
+  m.classList.add('open');
+  setTimeout(() => { try { (budCapture.lineId ? document.getElementById('budcap-amount') : sel).focus(); } catch (e) {} }, 60);
+}
+function closeBudgetCapture() { document.getElementById('budget-capture-modal').classList.remove('open'); budCapture = null; }
+
+async function confirmBudgetCapture() {
+  const lineId = document.getElementById('budcap-line').value;
+  const amount = Math.round((Number(document.getElementById('budcap-amount').value) || 0) * 100) / 100;
+  const weekStart = document.getElementById('budcap-week').value;
+  if (!lineId) { showToast('Choose a budget line first'); return; }
+  if (!(amount > 0)) { showToast('Enter an amount'); return; }
+  const l = budget.lines.find(x => String(x.id) === lineId);
+  if (!l) { showToast('That line is gone'); return; }
+  closeBudgetCapture();
+  const cur = budgetWeekStart(new Date());
+  budget.liveAll = budget.liveAll || {};
+  const bag = weekStart === cur ? budget.live : (budget.liveAll[weekStart] = budget.liveAll[weekStart] || {});
+  const r = bag[lineId] || { user_id: authUserId, line_id: lineId, week_start: weekStart, carried: 0, spent: 0 };
+  r.spent = Math.round(((Number(r.spent) || 0) + amount) * 100) / 100;
+  bag[lineId] = r;
+  renderBudget();
+  if (sb && authUserId && !String(lineId).startsWith('local-')) {
+    const { error } = await sb.from('budget_live').upsert(
+      { user_id: authUserId, line_id: lineId, week_start: weekStart, carried: r.carried || 0, spent: r.spent, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,line_id,week_start' });
+    if (error) { console.warn('budget capture save', error); showToast('Could not save that spend \u2014 try again'); return; }
+  }
+  const left = weekStart === cur ? budLeft(l) : null;
+  showToast(`${fmtMoney(amount)} added to ${l.name}` + (left === null ? '' : ` \u00b7 ${fmtMoney(left)} left`));
+}
+
+// Typed capture from the Budget page: same parse, same sheet.
+function budgetTypedCapture() {
+  const inp = document.getElementById('budget-capture-input');
+  const text = (inp.value || '').trim();
+  if (!text) { showToast('Say or type what you spent, e.g. "40 on petrol"'); return; }
+  inp.value = '';
+  budgetOpenCapture(text, 'typed');
+}
+
 // ============================================================
 // GLOBAL SEARCH  (Job 2, 9 Aug 2026)
 // ============================================================
@@ -6326,6 +6535,12 @@ function processVoice(text) {
     showTab('daily', null);
     showToast(`Appointment added: "${clean}" at ${fmt12(timeStart)}`);
     return;
+  } else if (typeof budgetCaptureIntent === 'function' && budgetCaptureIntent(t)) {
+    // Budget spend (delivery three, 7 Sep 2026): an amount plus a budget line
+    // or a spending word. Sits before shopping so "Groceries, 145.50" is money,
+    // while "Groceries, milk and bread" (no amount) still reaches the list.
+    // Nothing is written here: the confirmation sheet does the writing.
+    budgetOpenCapture(text, 'voice');
   } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
     // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
     let items = text
