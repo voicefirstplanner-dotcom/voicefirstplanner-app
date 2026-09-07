@@ -645,6 +645,34 @@ html, body {
 .content::-webkit-scrollbar { width: 3px; }
 .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .sec { display: none; }
+/* Budget page (7 Sep 2026) */
+.bud-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.bud-week { font-size:13px; font-weight:700; color:var(--navy); }
+.bud-cur { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-mid); }
+.bud-cur select { font-family:var(--font); font-size:12px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); }
+.bud-block { margin-top:14px; }
+.bud-block-title { font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--navy); margin-bottom:6px; }
+.bud-muted { font-weight:500; text-transform:none; letter-spacing:0; color:var(--text-light); margin-left:6px; }
+.bud-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.bud-table { width:100%; border-collapse:collapse; font-size:13px; }
+.bud-table th { text-align:left; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-light); padding:4px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.bud-table td { padding:3px 6px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.bud-table tfoot td { font-weight:800; border-bottom:none; border-top:2px solid var(--navy); padding-top:6px; }
+.bud-table .bud-n { text-align:right; white-space:nowrap; }
+.bud-table .bud-x { width:22px; text-align:center; }
+.bud-inp { width:100%; box-sizing:border-box; font-family:var(--font); font-size:13px; color:var(--text); background:transparent; border:1px solid transparent; border-radius:6px; padding:5px 6px; }
+.bud-inp:focus { outline:none; border-color:var(--navy-light); background:var(--card); }
+.bud-num { text-align:right; min-width:86px; -moz-appearance:textfield; }
+.bud-num::-webkit-outer-spin-button, .bud-num::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.bud-name { min-width:150px; }
+.bud-when { min-width:90px; color:var(--text-mid); }
+.bud-ro { color:var(--text-mid); }
+.bud-total { color:var(--navy); }
+.bud-neg { color:#B42318; }
+.bud-del { background:none; border:none; color:var(--text-light); font-size:16px; line-height:1; cursor:pointer; padding:2px 4px; }
+.bud-del:hover { color:#B42318; }
+.bud-add { margin-top:8px; background:none; border:1px dashed var(--border); border-radius:8px; padding:6px 12px; font-family:var(--font); font-size:12px; font-weight:600; color:var(--navy); cursor:pointer; }
+.bud-income { max-width:520px; }
 .sec.active { display: block; }
 
 /* ============================================================
@@ -2651,6 +2679,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('projects',this)"><i class="ti ti-folders"></i>Projects</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('notes',this)"><i class="ti ti-notes"></i>Notes</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('shopping',this)"><i class="ti ti-shopping-cart"></i>Shopping</button>
+    <button class="nav-btn" data-group="daily-planning" onclick="showTab('budget',this)"><i class="ti ti-wallet"></i>Budget</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('values',this)"><i class="ti ti-heart"></i>Values</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('goals',this)"><i class="ti ti-target"></i>Goals</button>
     <button class="nav-btn" data-group="life-planning" onclick="showTab('bucket',this)"><i class="ti ti-flag"></i>Bucket List</button>
@@ -2943,6 +2972,19 @@ body.pv #demo-banner { position: relative; z-index: 3; }
       </div>
     </div>
 
+    <!-- BUDGET TAB (7 Sep 2026, delivery one) -->
+    <div class="sec" id="sec-budget">
+      <div class="card" id="budget-card">
+        <div class="card-label">Budget</div>
+        <div class="bud-head">
+          <div class="bud-week" id="budget-week-label"></div>
+          <label class="bud-cur">Currency <select id="budget-currency" onchange="budgetSetCurrency(this.value)"></select></label>
+        </div>
+        <p style="font-size:12px;color:var(--navy-light);margin-bottom:4px;line-height:1.5">One page. What is left in each envelope this week. Set each line's weekly amount; enter what you spend as you go. The week closes Sunday night and whatever is left carries forward.</p>
+        <div id="budget-body"></div>
+      </div>
+    </div>
+
     <!-- REFLECT TAB -->
     <div class="sec" id="sec-reflect">
       <!-- Each reflection question lives in its own box (26 Jul) — the photo
@@ -3076,6 +3118,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
         <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
         <button class="pv-stab" data-tab="projects" onclick="showTab('projects')">Projects</button>
+        <button class="pv-stab" data-tab="budget" onclick="showTab('budget')">Budget</button>
         <button class="pv-stab pv-stab-group" data-tab="life-group" onclick="showTab('values')">Life Planning</button>
         <button class="pv-stab" data-tab="values" onclick="showTab('values')">Values</button>
         <button class="pv-stab" data-tab="goals" onclick="showTab('goals')">Goals</button>
@@ -3628,21 +3671,6 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <button class="modal-cta" id="pro-modal-btn-monthly" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
     <button class="modal-cta" id="pro-modal-btn-annual" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
     <button class="modal-close-btn" onclick="closeProUpgrade()">Not now</button>
-  </div>
-</div>
-
-<!-- Lifetime post-purchase Pro ask (Management brief 7 Sep 2026). Shown once,
-     to a buyer whose entitlement has just landed as source='lifetime' and
-     plan!='pro'. The button is the served Settings route (openProModal), which
-     already carries the founding prices and the source='lifetime' gate. -->
-<div class="modal-overlay" id="lifetime-pro-ask-modal" onclick="if(event.target===this)closeLifetimeProAsk()">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">One thing Lifetime does not include: the AI layer.</div>
-    <div class="modal-sub">Lifetime is Premium for life. Pro is the AI layer: say the mess and approve the plan, and a goal broken into a week of tasks. Founding members add it for <strong>$1.85 a month, billed annually at $22.25</strong>, or $3.25 month to month. The same 75% off, applied to Pro.</div>
-    <button class="modal-cta" id="lifetime-pro-ask-btn" onclick="lifetimeProAskGo()">Add Pro at the founding rate</button>
-    <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.5">You can add it any time from Settings. Cancelling it later leaves your Lifetime exactly as it is.</div>
-    <button class="modal-close-btn" onclick="closeLifetimeProAsk()">Not now</button>
   </div>
 </div>
 
@@ -4570,7 +4598,7 @@ function launchApp() {
   applyViewMode();       // Planner view is persisted state too — applied after first paint, exactly like the theme
   try { addHelpChips(); } catch (e) {}
   applyDemoBanner();     // guest-only notice; harmless and correct on every entry path
-  loadEntitlement();
+  loadEntitlement().then(() => { try { loadBudget(); } catch (e) { console.warn('budget', e); } });
   handleCheckoutReturn();
 }
 
@@ -4692,7 +4720,7 @@ function skipOnboarding() {
 // NAVIGATION
 // ============================================================
 // Maps each content tab to its parent group
-const TAB_GROUP = { daily:'daily-planning', week:'daily-planning', month:'daily-planning', year:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning',
+const TAB_GROUP = { daily:'daily-planning', week:'daily-planning', month:'daily-planning', year:'daily-planning', projects:'daily-planning', notes:'daily-planning', shopping:'daily-planning', budget:'daily-planning',
                     goals:'life-planning', values:'life-planning', bucket:'life-planning', habits:'life-planning', reflect:'life-planning' };
 
 function showGroup(group, activeTab) {
@@ -4722,6 +4750,7 @@ function showTab(name, btn, skipGroupSync) {
   if (name === 'week') renderWeek();
   if (name === 'month') renderMonth();
   if (name === 'year') renderYear();
+  if (name === 'budget') renderBudget();
   updateAtmosphere(name);
   // One control, four options — remember the last-used calendar view so the
   // app reopens where the user lives (persisted; survives reload).
@@ -4740,6 +4769,239 @@ function showTab(name, btn, skipGroupSync) {
     }
   }
   if (typeof pvAfterShowTab === 'function' && document.body.classList.contains('pv')) pvAfterShowTab(name);
+}
+
+// ============================================================
+// BUDGET — delivery one (7 Sep 2026, Management brief v2 + rulings v2)
+// ============================================================
+// A weekly envelope budget on one page. Carried forward + this week − spent =
+// left. Lines, the open week and closed weeks live in their own Supabase
+// tables under RLS (never in planner_state), because the free taste is
+// enforced in the database: three expense lines, one income line, one
+// account. Delivery two adds the Sunday close, carry-forward, Month and Year;
+// delivery three adds typed and spoken capture through a confirmation sheet.
+// Only the thirty line names come from the source sheet; every amount starts
+// empty.
+const BUDGET_START_EXPENSE = [
+  'Rent or Mortgage', 'Electricity, Gas and Water', 'Phone / Internet', 'Mobile phone',
+  'Lawns / Garden / Property maintenance', 'Food', 'Petrol', 'Car finance', 'Vehicle registration',
+  'Vehicle WOF / servicing / tyres', 'Vehicle insurance', 'Contents insurance', 'Life / Medical insurance',
+  'Fitness / Gym', 'Dentist / Medical', 'Hairdresser', 'Clothes', 'Concerts', 'Entertainment / weekend trips',
+  'General / coffees etc', 'Subscriptions', 'Pet expenses', 'Gifts', 'Bank fees and tax', 'Hire purchase',
+  'Lotto', 'Holidays / Travel: Wish list 1', 'Holidays / Travel: Wish list 2', 'Shares', 'Kids expenses',
+];
+const BUDGET_START_INCOME = ['Salary', 'Other income'];
+const FREE_BUDGET_CAP = { expense: 3, income: 1, account: 1 };   // mirrors public.budget_free_cap
+const BUDGET_CURRENCIES = ['$', 'NZ$', 'A$', 'US$', 'C$', 'S$', '\u00a3', '\u20ac', '\u00a5', '\u20b9', 'R', 'kr', 'CHF'];
+let budget = { lines: [], live: {}, weekStart: null, loaded: false };
+
+// Monday of the local week that holds d, as a dateKey. The week is Monday to
+// Sunday, local time; the close (delivery two) fires on the first run after
+// the Sunday, on the same date boundary checkCarryForward() uses.
+function budgetWeekStart(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+  const dow = (x.getDay() + 6) % 7;   // Monday = 0
+  x.setDate(x.getDate() - dow);
+  return dateKey(x);
+}
+function budCur() { return state.budgetCurrency || '$'; }
+function fmtMoney(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const s = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (v < 0 ? '\u2212' : '') + budCur() + s;
+}
+function budLines(kind) { return budget.lines.filter(l => l.kind === kind && !l.removed_at); }
+function budLive(lineId) { return budget.live[lineId] || { carried: 0, spent: 0 }; }
+function budLeft(l) { const r = budLive(l.id); return (Number(r.carried) || 0) + (Number(l.allocation) || 0) - (Number(r.spent) || 0); }
+function budCapReached(kind) { return !isPremium() && budLines(kind).length >= FREE_BUDGET_CAP[kind]; }
+function budCapToast(kind) {
+  const n = FREE_BUDGET_CAP[kind];
+  showToast(`Free plan: up to ${n} budget ${kind} line${n === 1 ? '' : 's'} \u2014 upgrade for unlimited`);
+  showUpgrade();
+}
+function budIsRlsRefusal(err) {
+  return !!err && (err.code === '42501' || /row-level security|free plan/i.test(err.message || ''));
+}
+
+async function loadBudget() {
+  budget.weekStart = budgetWeekStart(new Date());
+  if (!sb || !authUserId) {
+    // Demo / signed-out: the page works in memory only; nothing persists.
+    budget.lines = budgetSeedRows(isPremium());
+    budget.live = {}; budget.loaded = true; renderBudget(); return;
+  }
+  const { data: lines, error } = await sb.from('budget_lines').select('*')
+    .is('removed_at', null).order('sort', { ascending: true }).order('created_at', { ascending: true });
+  if (error) { console.warn('budget lines load failed', error); return; }
+  if (!lines || !lines.length) {
+    await budgetSeed();
+  } else {
+    budget.lines = lines;
+  }
+  const { data: live } = await sb.from('budget_live').select('*').eq('week_start', budget.weekStart);
+  budget.live = {};
+  (live || []).forEach(r => { budget.live[r.line_id] = r; });
+  budget.loaded = true;
+  renderBudget();
+}
+
+// Starting rows: paid gets all thirty expense lines and two income lines;
+// the free taste gets the first three expense lines and the first income
+// line, in the sheet's order. Amounts empty. One insert per row on purpose:
+// the database cap is per row and the seed must never outrun it.
+function budgetSeedRows(paid) {
+  const ex = paid ? BUDGET_START_EXPENSE : BUDGET_START_EXPENSE.slice(0, FREE_BUDGET_CAP.expense);
+  const inc = paid ? BUDGET_START_INCOME : BUDGET_START_INCOME.slice(0, FREE_BUDGET_CAP.income);
+  const rows = [];
+  inc.forEach((name, i) => rows.push({ id: 'local-i' + i, kind: 'income', name, when_note: 'weekly', allocation: 0, sort: i, removed_at: null }));
+  ex.forEach((name, i) => rows.push({ id: 'local-e' + i, kind: 'expense', name, when_note: '', allocation: 0, sort: i, removed_at: null }));
+  return rows;
+}
+async function budgetSeed() {
+  const rows = budgetSeedRows(isPremium());
+  budget.lines = [];
+  for (const r of rows) {
+    const { data, error } = await sb.from('budget_lines')
+      .insert({ user_id: authUserId, kind: r.kind, name: r.name, when_note: r.when_note, allocation: 0, sort: r.sort })
+      .select().single();
+    if (error) { if (!budIsRlsRefusal(error)) console.warn('budget seed', error); break; }
+    budget.lines.push(data);
+  }
+}
+
+// ---- rendering -------------------------------------------------------------
+function renderBudget() {
+  const host = document.getElementById('budget-body');
+  if (!host) return;
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const num = v => (Number(v) || 0) === 0 ? '' : String(Math.round(Number(v) * 100) / 100);
+  const ws = budget.weekStart || budgetWeekStart(new Date());
+  const wsd = new Date(ws + 'T12:00:00'); const wed = new Date(wsd); wed.setDate(wed.getDate() + 6);
+  const fmtD = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  document.getElementById('budget-week-label').textContent = `Week of ${fmtD(wsd)} to ${fmtD(wed)}`;
+  const curSel = document.getElementById('budget-currency');
+  if (curSel && curSel.options.length === 0) {
+    curSel.innerHTML = BUDGET_CURRENCIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+  if (curSel) curSel.value = BUDGET_CURRENCIES.includes(budCur()) ? budCur() : '$';
+
+  const income = budLines('income'), expense = budLines('expense'), accounts = budLines('account');
+  const sum = (arr, f) => arr.reduce((a, l) => a + (Number(f(l)) || 0), 0);
+  const incomeTotal = sum(income, l => l.allocation);
+  let h = '';
+
+  // Income block
+  h += `<div class="bud-block"><div class="bud-block-title">Income <span class="bud-muted">weekly</span></div>`;
+  h += `<table class="bud-table bud-income"><thead><tr><th>Line</th><th class="bud-n">This week</th><th></th></tr></thead><tbody>`;
+  income.forEach(l => {
+    h += `<tr><td><input class="bud-inp bud-name" value="${esc(l.name)}" onchange="budgetEdit('${l.id}','name',this.value)"></td>`
+      + `<td class="bud-n"><input class="bud-inp bud-num" type="number" step="0.01" inputmode="decimal" value="${num(l.allocation)}" placeholder="0.00" onchange="budgetEdit('${l.id}','allocation',this.value)"></td>`
+      + `<td class="bud-x"><button class="bud-del" title="Remove line" onclick="budgetRemove('${l.id}')">&times;</button></td></tr>`;
+  });
+  h += `</tbody><tfoot><tr><td>Total income</td><td class="bud-n bud-total">${fmtMoney(incomeTotal)}</td><td></td></tr></tfoot></table>`;
+  h += `<button class="bud-add" onclick="budgetAdd('income')">+ Income line</button></div>`;
+
+  // Expense table
+  const cf = sum(expense, l => budLive(l.id).carried), tw = sum(expense, l => l.allocation), sp = sum(expense, l => budLive(l.id).spent), lf = sum(expense, l => budLeft(l));
+  h += `<div class="bud-block"><div class="bud-block-title">Envelopes <span class="bud-muted">carried forward + this week \u2212 spent = left</span></div>`;
+  h += `<div class="bud-scroll"><table class="bud-table"><thead><tr><th>Line</th><th>When</th><th class="bud-n">Carried forward</th><th class="bud-n">This week</th><th class="bud-n">Spent</th><th class="bud-n">Left</th><th></th></tr></thead><tbody>`;
+  expense.forEach(l => {
+    const r = budLive(l.id); const left = budLeft(l);
+    h += `<tr><td><input class="bud-inp bud-name" value="${esc(l.name)}" onchange="budgetEdit('${l.id}','name',this.value)"></td>`
+      + `<td><input class="bud-inp bud-when" value="${esc(l.when_note)}" placeholder="weekly" onchange="budgetEdit('${l.id}','when_note',this.value)"></td>`
+      + `<td class="bud-n bud-ro">${fmtMoney(r.carried)}</td>`
+      + `<td class="bud-n"><input class="bud-inp bud-num" type="number" step="0.01" inputmode="decimal" value="${num(l.allocation)}" placeholder="0.00" onchange="budgetEdit('${l.id}','allocation',this.value)"></td>`
+      + `<td class="bud-n"><input class="bud-inp bud-num" type="number" step="0.01" inputmode="decimal" value="${num(r.spent)}" placeholder="0.00" onchange="budgetEdit('${l.id}','spent',this.value)"></td>`
+      + `<td class="bud-n bud-ro ${left < 0 ? 'bud-neg' : ''}">${fmtMoney(left)}</td>`
+      + `<td class="bud-x"><button class="bud-del" title="Remove line" onclick="budgetRemove('${l.id}')">&times;</button></td></tr>`;
+  });
+  h += `</tbody><tfoot><tr><td>Totals</td><td></td><td class="bud-n bud-total">${fmtMoney(cf)}</td><td class="bud-n bud-total">${fmtMoney(tw)}</td><td class="bud-n bud-total">${fmtMoney(sp)}</td><td class="bud-n bud-total ${lf < 0 ? 'bud-neg' : ''}">${fmtMoney(lf)}</td><td></td></tr></tfoot></table></div>`;
+  h += `<button class="bud-add" onclick="budgetAdd('expense')">+ Line</button></div>`;
+
+  // Account balances
+  const accTotal = sum(accounts, l => l.allocation);
+  h += `<div class="bud-block"><div class="bud-block-title">Account balances <span class="bud-muted">entered by you, no bank connection</span></div>`;
+  h += `<table class="bud-table bud-income"><thead><tr><th>Account</th><th class="bud-n">Balance</th><th></th></tr></thead><tbody>`;
+  accounts.forEach(l => {
+    h += `<tr><td><input class="bud-inp bud-name" value="${esc(l.name)}" onchange="budgetEdit('${l.id}','name',this.value)"></td>`
+      + `<td class="bud-n"><input class="bud-inp bud-num" type="number" step="0.01" inputmode="decimal" value="${num(l.allocation)}" placeholder="0.00" onchange="budgetEdit('${l.id}','allocation',this.value)"></td>`
+      + `<td class="bud-x"><button class="bud-del" title="Remove account" onclick="budgetRemove('${l.id}')">&times;</button></td></tr>`;
+  });
+  h += `</tbody><tfoot><tr><td>Total</td><td class="bud-n bud-total ${accTotal < 0 ? 'bud-neg' : ''}">${fmtMoney(accTotal)}</td><td></td></tr></tfoot></table>`;
+  h += `<button class="bud-add" onclick="budgetAdd('account')">+ Account</button></div>`;
+
+  host.innerHTML = h;
+}
+
+function budgetSetCurrency(v) {
+  state.budgetCurrency = BUDGET_CURRENCIES.includes(v) ? v : '$';
+  try { persistNow(); } catch (e) {}
+  renderBudget();
+}
+
+// ---- edits -----------------------------------------------------------------
+async function budgetEdit(lineId, field, value) {
+  const l = budget.lines.find(x => String(x.id) === String(lineId));
+  if (!l) return;
+  if (field === 'spent') {
+    const r = budget.live[lineId] || { user_id: authUserId, line_id: lineId, week_start: budget.weekStart, carried: 0, spent: 0 };
+    r.spent = Math.round((Number(value) || 0) * 100) / 100;
+    budget.live[lineId] = r;
+    renderBudget();
+    if (sb && authUserId) {
+      const { error } = await sb.from('budget_live').upsert(
+        { user_id: authUserId, line_id: lineId, week_start: budget.weekStart, carried: r.carried || 0, spent: r.spent, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,line_id,week_start' });
+      if (error) { console.warn('budget live save', error); showToast('Could not save that amount \u2014 try again'); }
+    }
+    return;
+  }
+  const patch = {};
+  if (field === 'name') { const nm = String(value || '').trim(); if (!nm) { renderBudget(); return; } patch.name = nm.slice(0, 80); }
+  else if (field === 'when_note') patch.when_note = String(value || '').trim().slice(0, 80);
+  else if (field === 'allocation') patch.allocation = Math.round((Number(value) || 0) * 100) / 100;
+  else return;
+  Object.assign(l, patch);
+  renderBudget();
+  if (sb && authUserId && !String(lineId).startsWith('local-')) {
+    const { error } = await sb.from('budget_lines').update(patch).eq('id', lineId).eq('user_id', authUserId);
+    if (error) { console.warn('budget line save', error); showToast('Could not save that change \u2014 try again'); }
+  }
+}
+
+async function budgetAdd(kind) {
+  if (budCapReached(kind)) { budCapToast(kind); return; }
+  const label = kind === 'account' ? 'Account name' : (kind === 'income' ? 'Income line' : 'Line name');
+  const name = (prompt(label) || '').trim();
+  if (!name) return;
+  const sort = budLines(kind).length;
+  if (!sb || !authUserId) {
+    budget.lines.push({ id: 'local-' + Date.now(), kind, name, when_note: kind === 'income' ? 'weekly' : '', allocation: 0, sort, removed_at: null });
+    renderBudget(); return;
+  }
+  const { data, error } = await sb.from('budget_lines')
+    .insert({ user_id: authUserId, kind, name: name.slice(0, 80), when_note: kind === 'income' ? 'weekly' : '', allocation: 0, sort })
+    .select().single();
+  if (error) {
+    // The database's word is final: a free cap refused here is shown as the
+    // same prompt the UI check gives, never as a generic failure.
+    if (budIsRlsRefusal(error)) budCapToast(kind); else { console.warn('budget add', error); showToast('Could not add that line \u2014 try again'); }
+    return;
+  }
+  budget.lines.push(data);
+  renderBudget();
+}
+
+async function budgetRemove(lineId) {
+  const l = budget.lines.find(x => String(x.id) === String(lineId));
+  if (!l) return;
+  if (!confirm(`Remove "${l.name}"? Its history is kept.`)) return;
+  l.removed_at = new Date().toISOString();
+  renderBudget();
+  if (sb && authUserId && !String(lineId).startsWith('local-')) {
+    const { error } = await sb.from('budget_lines').update({ removed_at: l.removed_at }).eq('id', lineId).eq('user_id', authUserId);
+    if (error) { console.warn('budget remove', error); l.removed_at = null; renderBudget(); showToast('Could not remove that line \u2014 try again'); }
+  }
 }
 
 // ============================================================
@@ -6666,6 +6928,7 @@ const PV_MOVES = [
   ['sec-week', 'pv-wide'], ['sec-month', 'pv-wide'], ['sec-year', 'pv-wide'],
   ['sec-projects', 'pv-wide'], ['sec-goals', 'pv-wide'], ['sec-values', 'pv-wide'],
   ['sec-bucket', 'pv-wide'], ['sec-habits', 'pv-wide'], ['sec-reflect', 'pv-wide'],
+  ['sec-budget', 'pv-wide'],
 ];
 
 // Offered only where the spread honestly fits (no phone; no letterbox windows).
@@ -7093,20 +7356,6 @@ function openAiDump() {
   document.getElementById('ai-dump-modal').classList.add('open');
 }
 function closeProUpgrade() { document.getElementById('pro-upgrade-modal').classList.remove('open'); }
-
-// Lifetime post-purchase Pro ask (7 Sep 2026). Opens only when the entitlement
-// just polled in is a Lifetime without Pro; the button hands off to the served
-// Settings route. No new price, endpoint or gate.
-function maybeShowLifetimeProAsk() {
-  const ent = state.entitlement || {};
-  if (ent.source !== 'lifetime' || ent.plan === 'pro') return false;
-  const m = document.getElementById('lifetime-pro-ask-modal');
-  if (!m) return false;
-  m.classList.add('open');
-  return true;
-}
-function closeLifetimeProAsk() { document.getElementById('lifetime-pro-ask-modal').classList.remove('open'); }
-function lifetimeProAskGo() { closeLifetimeProAsk(); openProModal(); }
 
 // Job 6: a Lifetime member sees the founding rate, never the standard prices.
 // Called every time the Go Pro modal opens; rewrites the price line and both
@@ -10099,11 +10348,7 @@ function handleCheckoutReturn() {
       await loadEntitlement();
       if (isPremium() || tries >= 5) {
         clearInterval(poll);
-        if (isPremium()) {
-          showToast("You're Premium — thank you!");
-          // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep).
-          maybeShowLifetimeProAsk();
-        }
+        if (isPremium()) showToast("You're Premium — thank you!");
       }
     }, 1500);
   }
