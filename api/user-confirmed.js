@@ -295,12 +295,20 @@ async function upsertAccountContact(email, confirmedAt) {
 }
 
 async function fireConfirmEvent(email) {
-  const r = await fetch('https://api.resend.com/events/send', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event: CONFIRM_EVENT, email }),
-  });
-  if (r.ok) return { ok: true, status: r.status, event: CONFIRM_EVENT };
+  // Resend allows 2 requests a second; Welcome 0, the contact and the event
+  // go out back to back, so the event can draw a 429 (seen live, 7 Sep, two
+  // of four). One retry after 1.2 s clears it.
+  let r;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise(res => setTimeout(res, 1200));
+    r = await fetch('https://api.resend.com/events/send', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: CONFIRM_EVENT, email }),
+    });
+    if (r.ok) return { ok: true, status: r.status, event: CONFIRM_EVENT, attempt: attempt + 1 };
+    if (r.status !== 429) break;
+  }
   return { ok: false, status: r.status, event: CONFIRM_EVENT, body: (await r.text().catch(() => '')).slice(0, 300) };
 }
 
@@ -330,6 +338,22 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
+
+    // Backfill path (7 Sep): { event_only: true, email, email_confirmed_at }.
+    // Same secret, no Welcome 0, no claim row: contact upsert + event only.
+    // Used to re-fire the automations for an existing account.
+    if (body.event_only === true) {
+      const email = String(body.email || '').trim().toLowerCase();
+      if (!email) return res.status(200).json({ skipped: 'event_only without email' });
+      let contact, event;
+      try { contact = await upsertAccountContact(email, body.email_confirmed_at || null); }
+      catch (e) { contact = { ok: false, step: 'exception', body: String(e && e.message || e) }; }
+      try { event = await fireConfirmEvent(email); }
+      catch (e) { event = { ok: false, event: CONFIRM_EVENT, body: String(e && e.message || e) }; }
+      console.log('event_only for', email, 'contact=', contact.ok ? contact.action : 'FAILED', 'event=', event.ok ? 'sent' : 'FAILED');
+      return res.status(200).json({ ok: contact.ok && event.ok, event_only: true, contact, event });
+    }
+
     const record = body.record || {};
     const oldRecord = body.old_record || {};
 
