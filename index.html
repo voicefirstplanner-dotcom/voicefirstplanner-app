@@ -673,6 +673,14 @@ html, body {
 .bud-del:hover { color:#B42318; }
 .bud-add { margin-top:8px; background:none; border:1px dashed var(--border); border-radius:8px; padding:6px 12px; font-family:var(--font); font-size:12px; font-weight:600; color:var(--navy); cursor:pointer; }
 .bud-income { max-width:520px; }
+.bud-views { display:flex; gap:4px; }
+.bud-view { background:none; border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:var(--font); font-size:12px; font-weight:700; color:var(--navy); cursor:pointer; }
+.bud-view.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+.bud-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.bud-tab { background:none; border:1px solid var(--border); border-radius:8px; padding:4px 10px; font-family:var(--font); font-size:12px; font-weight:600; color:var(--navy); cursor:pointer; }
+.bud-tab.active { background:var(--orange); color:#fff; border-color:var(--orange); }
+.bud-refl { padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.5; }
+.bud-refl-week { font-size:11px; font-weight:700; color:var(--navy); margin-bottom:2px; }
 .sec.active { display: block; }
 
 /* ============================================================
@@ -2978,6 +2986,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div class="card-label">Budget</div>
         <div class="bud-head">
           <div class="bud-week" id="budget-week-label"></div>
+          <div class="bud-views" id="budget-views">
+            <button class="bud-view active" data-view="week" onclick="budgetSetView('week')">Week</button>
+            <button class="bud-view" data-view="month" onclick="budgetSetView('month')">Month</button>
+            <button class="bud-view" data-view="year" onclick="budgetSetView('year')">Year</button>
+          </div>
           <label class="bud-cur">Currency <select id="budget-currency" onchange="budgetSetCurrency(this.value)"></select></label>
         </div>
         <p style="font-size:12px;color:var(--navy-light);margin-bottom:4px;line-height:1.5">One page. What is left in each envelope this week. Set each line's weekly amount; enter what you spend as you go. The week closes Sunday night and whatever is left carries forward.</p>
@@ -3671,6 +3684,35 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <button class="modal-cta" id="pro-modal-btn-monthly" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
     <button class="modal-cta" id="pro-modal-btn-annual" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
     <button class="modal-close-btn" onclick="closeProUpgrade()">Not now</button>
+  </div>
+</div>
+
+<!-- Lifetime post-purchase Pro ask (Management brief 7 Sep 2026). Shown once,
+     to a buyer whose entitlement has just landed as source='lifetime' and
+     plan!='pro'. The button is the served Settings route (openProModal), which
+     already carries the founding prices and the source='lifetime' gate. -->
+<div class="modal-overlay" id="lifetime-pro-ask-modal" onclick="if(event.target===this)closeLifetimeProAsk()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">One thing Lifetime does not include: the AI layer.</div>
+    <div class="modal-sub">Lifetime is Premium for life. Pro is the AI layer: say the mess and approve the plan, and a goal broken into a week of tasks. Founding members add it for <strong>$1.85 a month, billed annually at $22.25</strong>, or $3.25 month to month. The same 75% off, applied to Pro.</div>
+    <button class="modal-cta" id="lifetime-pro-ask-btn" onclick="lifetimeProAskGo()">Add Pro at the founding rate</button>
+    <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.5">You can add it any time from Settings. Cancelling it later leaves your Lifetime exactly as it is.</div>
+    <button class="modal-close-btn" onclick="closeLifetimeProAsk()">Not now</button>
+  </div>
+</div>
+
+<!-- Budget week-close reflection (delivery two, 7 Sep 2026). One question,
+     asked once for the most recent closed week, kept with that week. -->
+<div class="modal-overlay" id="budget-reflect-modal" onclick="if(event.target===this)closeBudgetReflect()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">The week has closed</div>
+    <div class="modal-sub" id="budget-reflect-week"></div>
+    <div style="font-size:15px;font-weight:700;color:var(--navy);margin:6px 0 8px" id="budget-reflect-q"></div>
+    <textarea id="budget-reflect-ta" rows="3" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);resize:vertical" placeholder="A sentence is enough"></textarea>
+    <button class="modal-cta" onclick="saveBudgetReflect()">Keep it with the week</button>
+    <button class="modal-close-btn" onclick="closeBudgetReflect()">Skip</button>
   </div>
 </div>
 
@@ -4841,8 +4883,10 @@ async function loadBudget() {
   const { data: live } = await sb.from('budget_live').select('*').eq('week_start', budget.weekStart);
   budget.live = {};
   (live || []).forEach(r => { budget.live[r.line_id] = r; });
+  await loadBudgetWeeks();
   budget.loaded = true;
   renderBudget();
+  try { await budgetCloseIfDue(); } catch (e) { console.warn('budget close', e); }
 }
 
 // Starting rows: paid gets all thirty expense lines and two income lines;
@@ -4874,6 +4918,9 @@ function renderBudget() {
   const host = document.getElementById('budget-body');
   if (!host) return;
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  document.querySelectorAll('#budget-views .bud-view').forEach(b => b.classList.toggle('active', b.dataset.view === (budget.view || 'week')));
+  if (budget.view === 'month') { renderBudgetMonth(host, esc); return; }
+  if (budget.view === 'year') { renderBudgetYear(host, esc); return; }
   const num = v => (Number(v) || 0) === 0 ? '' : String(Math.round(Number(v) * 100) / 100);
   const ws = budget.weekStart || budgetWeekStart(new Date());
   const wsd = new Date(ws + 'T12:00:00'); const wed = new Date(wsd); wed.setDate(wed.getDate() + 6);
@@ -5002,6 +5049,228 @@ async function budgetRemove(lineId) {
     const { error } = await sb.from('budget_lines').update({ removed_at: l.removed_at }).eq('id', lineId).eq('user_id', authUserId);
     if (error) { console.warn('budget remove', error); l.removed_at = null; renderBudget(); showToast('Could not remove that line \u2014 try again'); }
   }
+}
+
+// ---- delivery two (7 Sep 2026): the Sunday close, carry-forward, missed weeks,
+// the reflection question, Month and Year ---------------------------------------
+// The close attaches to the served date boundary: checkCarryForward() calls
+// budgetCloseIfDue() at its three sites (load, date check, day navigation).
+// No second clock. Weeks are Monday to Sunday, local. Every Left becomes next
+// week's Carried forward. Missed weeks close in order, oldest first, spent as
+// recorded (zero where nothing was entered), carried compounding. A closed
+// week is one insert-only document in budget_weeks; the reflection answer is
+// the only column that may be written afterwards, once, from null.
+const BUDGET_REFLECT_Q = 'What did money do this week that you did not expect?';
+let budgetClosing = false;
+budget.weeks = budget.weeks || [];     // closed weeks, oldest first
+budget.view = budget.view || 'week';   // week | month | year
+budget.monthPick = budget.monthPick || null;
+
+function budAddDays(key, n) { const d = new Date(key + 'T12:00:00'); d.setDate(d.getDate() + n); return dateKey(d); }
+function budMonthKey(weekStart) { return weekStart.slice(0, 7); }   // a week belongs to the month of its Monday
+function budR2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+// The open week: persisted in planner_state as state.budgetOpenWeek; before
+// that exists, the oldest live week without a closed record; else this week.
+function budgetOpenWeek() {
+  if (state.budgetOpenWeek) return state.budgetOpenWeek;
+  const closed = new Set((budget.weeks || []).map(w => w.week_start));
+  const liveWeeks = Object.values(budget.live).map(r => r.week_start).filter(w => w && !closed.has(w)).sort();
+  return liveWeeks[0] || budget.weekStart || budgetWeekStart(new Date());
+}
+
+// Build the closed-week document from the lines and the live rows of that week.
+function budgetSnapshotFor(weekStart) {
+  const liveFor = id => (budget.liveAll && budget.liveAll[weekStart] && budget.liveAll[weekStart][id]) || { carried: 0, spent: 0 };
+  const rows = budget.lines.filter(l => !l.removed_at).map(l => {
+    const r = liveFor(l.id);
+    const carried = l.kind === 'expense' ? budR2(r.carried) : 0;
+    const spent = l.kind === 'expense' ? budR2(r.spent) : 0;
+    const allocation = budR2(l.allocation);
+    const left = l.kind === 'expense' ? budR2(carried + allocation - spent) : 0;
+    return { line_id: l.id, kind: l.kind, name: l.name, when_note: l.when_note || '', carried, allocation, spent, left };
+  });
+  const ex = rows.filter(r => r.kind === 'expense');
+  const sum = (arr, k) => budR2(arr.reduce((a, r) => a + (Number(r[k]) || 0), 0));
+  const totals = {
+    income: sum(rows.filter(r => r.kind === 'income'), 'allocation'),
+    carried: sum(ex, 'carried'), allocation: sum(ex, 'allocation'), spent: sum(ex, 'spent'), left: sum(ex, 'left'),
+    accounts: sum(rows.filter(r => r.kind === 'account'), 'allocation'),
+  };
+  return { rows, totals };
+}
+
+// Close every week older than the current one, oldest first. Returns the
+// week_starts closed in this run. Safe to call often; no-op until loaded.
+async function budgetCloseIfDue() {
+  if (!budget.loaded || budgetClosing) return [];
+  const current = budgetWeekStart(new Date());
+  let open = budgetOpenWeek();
+  if (open >= current) { budget.weekStart = current; return []; }
+  budgetClosing = true;
+  const closedNow = [];
+  try {
+    budget.liveAll = budget.liveAll || {};
+    budget.liveAll[current] = Object.assign({}, budget.liveAll[current] || {}, budget.live || {});
+    // Live rows for the open week may not be in memory if it is not the current week.
+    if (sb && authUserId) {
+      const { data } = await sb.from('budget_live').select('*').gte('week_start', open).lt('week_start', current);
+      (data || []).forEach(r => { (budget.liveAll[r.week_start] = budget.liveAll[r.week_start] || {})[r.line_id] = r; });
+    } else {
+      // No database: every live row already carries its own week_start.
+      Object.values(budget.live || {}).forEach(r => { if (r.week_start) (budget.liveAll[r.week_start] = budget.liveAll[r.week_start] || {})[r.line_id] = r; });
+    }
+    while (open < current) {
+      const doc = budgetSnapshotFor(open);
+      const next = budAddDays(open, 7);
+      // 1 · the closed week, whole. PK conflict = already closed by another tab; move on.
+      if (sb && authUserId) {
+        const { error } = await sb.from('budget_weeks').insert({ user_id: authUserId, week_start: open, snapshot: doc.rows, totals: doc.totals, reflection: null });
+        if (error && error.code !== '23505') { console.warn('budget close', open, error); break; }
+      }
+      budget.weeks = budget.weeks.filter(w => w.week_start !== open).concat([{ week_start: open, snapshot: doc.rows, totals: doc.totals, reflection: null, closed_at: new Date().toISOString() }]);
+      // 2 · next week's live rows: carried = left, spent 0.
+      const nextRows = {};
+      doc.rows.filter(r => r.kind === 'expense').forEach(r => {
+        const existing = (budget.liveAll[next] || {})[r.line_id];
+        nextRows[r.line_id] = { user_id: authUserId, line_id: r.line_id, week_start: next, carried: r.left, spent: existing ? budR2(existing.spent) : 0 };
+      });
+      budget.liveAll[next] = nextRows;
+      if (sb && authUserId) {
+        const payload = Object.values(nextRows).map(r => ({ ...r, updated_at: new Date().toISOString() }));
+        if (payload.length) {
+          const { error } = await sb.from('budget_live').upsert(payload, { onConflict: 'user_id,line_id,week_start' });
+          if (error) { console.warn('budget carry-forward', next, error); break; }
+        }
+      }
+      closedNow.push(open);
+      open = next;
+      state.budgetOpenWeek = open;
+      try { await persistNow(); } catch (e) {}
+    }
+    budget.weekStart = current;
+    budget.live = budget.liveAll[current] || {};
+    budget.weeks.sort((a, b) => a.week_start < b.week_start ? -1 : 1);
+    renderBudget();
+    if (closedNow.length) budgetAskReflection(closedNow[closedNow.length - 1], closedNow.length);
+  } finally {
+    budgetClosing = false;
+  }
+  return closedNow;
+}
+
+// ---- the reflection question ------------------------------------------------
+function budgetAskReflection(weekStart, nClosed) {
+  const m = document.getElementById('budget-reflect-modal');
+  if (!m) return;
+  const ws = new Date(weekStart + 'T12:00:00'); const we = new Date(ws); we.setDate(we.getDate() + 6);
+  const fmtD = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  document.getElementById('budget-reflect-week').textContent =
+    (nClosed > 1 ? `${nClosed} weeks closed in order. ` : '') + `Week of ${fmtD(ws)} to ${fmtD(we)} is closed; what was left has carried forward.`;
+  document.getElementById('budget-reflect-q').textContent = BUDGET_REFLECT_Q;
+  const ta = document.getElementById('budget-reflect-ta'); ta.value = ''; ta.dataset.week = weekStart;
+  m.classList.add('open');
+  setTimeout(() => { try { ta.focus(); } catch (e) {} }, 60);
+}
+function closeBudgetReflect() { document.getElementById('budget-reflect-modal').classList.remove('open'); }
+async function saveBudgetReflect() {
+  const ta = document.getElementById('budget-reflect-ta');
+  const weekStart = ta.dataset.week; const text = (ta.value || '').trim().slice(0, 2000);
+  closeBudgetReflect();
+  if (!text) return;
+  const w = budget.weeks.find(x => x.week_start === weekStart);
+  if (w) w.reflection = text;
+  if (sb && authUserId) {
+    const { error } = await sb.from('budget_weeks').update({ reflection: text }).eq('user_id', authUserId).eq('week_start', weekStart).is('reflection', null);
+    if (error) { console.warn('budget reflection', error); showToast('Could not save that reflection'); return; }
+  }
+  showToast('Reflection kept with the week');
+  if (budget.view === 'month') renderBudget();
+}
+
+// ---- loading closed weeks; view switch -------------------------------------
+async function loadBudgetWeeks() {
+  if (!sb || !authUserId) { budget.weeks = budget.weeks || []; return; }
+  const { data, error } = await sb.from('budget_weeks').select('*').order('week_start', { ascending: true });
+  if (error) { console.warn('budget weeks load', error); return; }
+  budget.weeks = data || [];
+}
+function budgetSetView(v) {
+  budget.view = ['week', 'month', 'year'].includes(v) ? v : 'week';
+  renderBudget();
+}
+
+// Closed months: every month whose last day is before the current week's Monday.
+function budgetClosedMonths() {
+  const current = budgetWeekStart(new Date());
+  const months = {};
+  (budget.weeks || []).forEach(w => {
+    const mk = budMonthKey(w.week_start);
+    const y = Number(mk.slice(0, 4)), m = Number(mk.slice(5, 7));
+    const lastDay = dateKey(new Date(y, m, 0, 12));
+    if (lastDay < current) (months[mk] = months[mk] || []).push(w);
+  });
+  return Object.keys(months).sort().map(mk => ({ key: mk, weeks: months[mk] }));
+}
+function budMonthLabel(mk) { const d = new Date(mk + '-01T12:00:00'); return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); }
+
+// Sum a set of closed weeks by line. Carried and left are summed too, as the
+// brief has it: the same columns, summed across the weeks.
+function budgetSumWeeks(weeks) {
+  const byLine = {}; const order = [];
+  weeks.forEach(w => (w.snapshot || []).forEach(r => {
+    if (r.kind !== 'expense') return;
+    if (!byLine[r.line_id]) { byLine[r.line_id] = { name: r.name, carried: 0, allocation: 0, spent: 0, left: 0, weeks: 0 }; order.push(r.line_id); }
+    const b = byLine[r.line_id];
+    b.name = r.name; b.carried = budR2(b.carried + r.carried); b.allocation = budR2(b.allocation + r.allocation);
+    b.spent = budR2(b.spent + r.spent); b.left = budR2(b.left + r.left); b.weeks++;
+  }));
+  const rows = order.map(id => byLine[id]);
+  const sum = k => budR2(rows.reduce((a, r) => a + r[k], 0));
+  const income = budR2(weeks.reduce((a, w) => a + ((w.totals && w.totals.income) || 0), 0));
+  return { rows, totals: { carried: sum('carried'), allocation: sum('allocation'), spent: sum('spent'), left: sum('left'), income } };
+}
+
+function renderBudgetMonth(host, esc) {
+  const months = budgetClosedMonths();
+  if (!months.length) { host.innerHTML = `<div class="bud-block"><div class="bud-muted">Month appears once a month has closed. Nothing has closed yet.</div></div>`; return; }
+  if (!budget.monthPick || !months.some(m => m.key === budget.monthPick)) budget.monthPick = months[months.length - 1].key;
+  const pick = months.find(m => m.key === budget.monthPick);
+  const agg = budgetSumWeeks(pick.weeks);
+  let h = `<div class="bud-block"><div class="bud-tabs">` + months.map(m => `<button class="bud-tab ${m.key === pick.key ? 'active' : ''}" onclick="budget.monthPick='${m.key}';renderBudget()">${esc(budMonthLabel(m.key))}</button>`).join('') + `</div>`;
+  h += `<div class="bud-block-title">${esc(budMonthLabel(pick.key))} <span class="bud-muted">${pick.weeks.length} closed week${pick.weeks.length === 1 ? '' : 's'} \u00b7 read only</span></div>`;
+  h += `<div class="bud-scroll"><table class="bud-table"><thead><tr><th>Line</th><th class="bud-n">Carried forward</th><th class="bud-n">This week</th><th class="bud-n">Spent</th><th class="bud-n">Left</th></tr></thead><tbody>`;
+  agg.rows.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td class="bud-n bud-ro">${fmtMoney(r.carried)}</td><td class="bud-n">${fmtMoney(r.allocation)}</td><td class="bud-n">${fmtMoney(r.spent)}</td><td class="bud-n ${r.left < 0 ? 'bud-neg' : ''}">${fmtMoney(r.left)}</td></tr>`; });
+  h += `</tbody><tfoot><tr><td>Totals</td><td class="bud-n bud-total">${fmtMoney(agg.totals.carried)}</td><td class="bud-n bud-total">${fmtMoney(agg.totals.allocation)}</td><td class="bud-n bud-total">${fmtMoney(agg.totals.spent)}</td><td class="bud-n bud-total ${agg.totals.left < 0 ? 'bud-neg' : ''}">${fmtMoney(agg.totals.left)}</td></tr></tfoot></table></div>`;
+  h += `<div class="bud-muted" style="margin-top:6px">Income across the month: ${fmtMoney(agg.totals.income)}</div></div>`;
+  h += `<div class="bud-block"><div class="bud-block-title">Reflections</div>`;
+  pick.weeks.forEach(w => {
+    const ws = new Date(w.week_start + 'T12:00:00');
+    h += `<div class="bud-refl"><div class="bud-refl-week">Week of ${esc(ws.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</div><div class="${w.reflection ? '' : 'bud-muted'}">${w.reflection ? esc(w.reflection) : 'No reflection recorded for this week.'}</div></div>`;
+  });
+  h += `</div>`;
+  host.innerHTML = h;
+}
+
+function renderBudgetYear(host, esc) {
+  const months = budgetClosedMonths();
+  if (!months.length) { host.innerHTML = `<div class="bud-block"><div class="bud-muted">Year fills a row at a time as each month closes. Nothing has closed yet.</div></div>`; return; }
+  const byYear = {};
+  months.forEach(m => (byYear[m.key.slice(0, 4)] = byYear[m.key.slice(0, 4)] || []).push(m));
+  let h = '';
+  Object.keys(byYear).sort().reverse().forEach(y => {
+    const ms = byYear[y];
+    let ytd = { income: 0, carried: 0, allocation: 0, spent: 0, left: 0 };
+    h += `<div class="bud-block"><div class="bud-block-title">${esc(y)} <span class="bud-muted">${ms.length} closed month${ms.length === 1 ? '' : 's'} \u00b7 read only</span></div>`;
+    h += `<div class="bud-scroll"><table class="bud-table"><thead><tr><th>Month</th><th class="bud-n">Income</th><th class="bud-n">Carried forward</th><th class="bud-n">Allocated</th><th class="bud-n">Spent</th><th class="bud-n">Left</th></tr></thead><tbody>`;
+    ms.forEach(m => {
+      const a = budgetSumWeeks(m.weeks).totals;
+      ['income', 'carried', 'allocation', 'spent', 'left'].forEach(k => { ytd[k] = budR2(ytd[k] + a[k]); });
+      h += `<tr><td>${esc(budMonthLabel(m.key))}</td><td class="bud-n">${fmtMoney(a.income)}</td><td class="bud-n bud-ro">${fmtMoney(a.carried)}</td><td class="bud-n">${fmtMoney(a.allocation)}</td><td class="bud-n">${fmtMoney(a.spent)}</td><td class="bud-n ${a.left < 0 ? 'bud-neg' : ''}">${fmtMoney(a.left)}</td></tr>`;
+    });
+    h += `</tbody><tfoot><tr><td>Year to date</td><td class="bud-n bud-total">${fmtMoney(ytd.income)}</td><td class="bud-n bud-total">${fmtMoney(ytd.carried)}</td><td class="bud-n bud-total">${fmtMoney(ytd.allocation)}</td><td class="bud-n bud-total">${fmtMoney(ytd.spent)}</td><td class="bud-n bud-total ${ytd.left < 0 ? 'bud-neg' : ''}">${fmtMoney(ytd.left)}</td></tr></tfoot></table></div></div>`;
+  });
+  host.innerHTML = h;
 }
 
 // ============================================================
@@ -6502,6 +6771,7 @@ function topUpRecurringSeries() {
 // Completed tasks stay on the day they were finished, as a record.
 // ============================================================
 function checkCarryForward() {
+  try { budgetCloseIfDue(); } catch (e) {}   // the budget's Sunday close rides the same date boundary (delivery two)
   const todayKey = dateKey(today);
   let moved = 0;
   state.tasks.forEach(t => {
@@ -7356,6 +7626,20 @@ function openAiDump() {
   document.getElementById('ai-dump-modal').classList.add('open');
 }
 function closeProUpgrade() { document.getElementById('pro-upgrade-modal').classList.remove('open'); }
+
+// Lifetime post-purchase Pro ask (7 Sep 2026). Opens only when the entitlement
+// just polled in is a Lifetime without Pro; the button hands off to the served
+// Settings route. No new price, endpoint or gate.
+function maybeShowLifetimeProAsk() {
+  const ent = state.entitlement || {};
+  if (ent.source !== 'lifetime' || ent.plan === 'pro') return false;
+  const m = document.getElementById('lifetime-pro-ask-modal');
+  if (!m) return false;
+  m.classList.add('open');
+  return true;
+}
+function closeLifetimeProAsk() { document.getElementById('lifetime-pro-ask-modal').classList.remove('open'); }
+function lifetimeProAskGo() { closeLifetimeProAsk(); openProModal(); }
 
 // Job 6: a Lifetime member sees the founding rate, never the standard prices.
 // Called every time the Go Pro modal opens; rewrites the price line and both
@@ -10348,7 +10632,11 @@ function handleCheckoutReturn() {
       await loadEntitlement();
       if (isPremium() || tries >= 5) {
         clearInterval(poll);
-        if (isPremium()) showToast("You're Premium — thank you!");
+        if (isPremium()) {
+          showToast("You're Premium — thank you!");
+          // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep).
+          maybeShowLifetimeProAsk();
+        }
       }
     }, 1500);
   }
