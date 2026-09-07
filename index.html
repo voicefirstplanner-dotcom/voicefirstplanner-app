@@ -3631,6 +3631,21 @@ body.pv #demo-banner { position: relative; z-index: 3; }
   </div>
 </div>
 
+<!-- Lifetime post-purchase Pro ask (Management brief 7 Sep 2026). Shown once,
+     to a buyer whose entitlement has just landed as source='lifetime' and
+     plan!='pro'. The button is the served Settings route (openProModal), which
+     already carries the founding prices and the source='lifetime' gate. -->
+<div class="modal-overlay" id="lifetime-pro-ask-modal" onclick="if(event.target===this)closeLifetimeProAsk()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">One thing Lifetime does not include: the AI layer.</div>
+    <div class="modal-sub">Lifetime is Premium for life. Pro is the AI layer: say the mess and approve the plan, and a goal broken into a week of tasks. Founding members add it for <strong>$1.85 a month, billed annually at $22.25</strong>, or $3.25 month to month. The same 75% off, applied to Pro.</div>
+    <button class="modal-cta" id="lifetime-pro-ask-btn" onclick="lifetimeProAskGo()">Add Pro at the founding rate</button>
+    <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.5">You can add it any time from Settings. Cancelling it later leaves your Lifetime exactly as it is.</div>
+    <button class="modal-close-btn" onclick="closeLifetimeProAsk()">Not now</button>
+  </div>
+</div>
+
 <!-- AI coming-soon / interest modal -->
 <div class="modal-overlay" id="ai-modal" onclick="if(event.target===this)closeAiModal()">
   <div class="modal-sheet">
@@ -7079,6 +7094,20 @@ function openAiDump() {
 }
 function closeProUpgrade() { document.getElementById('pro-upgrade-modal').classList.remove('open'); }
 
+// Lifetime post-purchase Pro ask (7 Sep 2026). Opens only when the entitlement
+// just polled in is a Lifetime without Pro; the button hands off to the served
+// Settings route. No new price, endpoint or gate.
+function maybeShowLifetimeProAsk() {
+  const ent = state.entitlement || {};
+  if (ent.source !== 'lifetime' || ent.plan === 'pro') return false;
+  const m = document.getElementById('lifetime-pro-ask-modal');
+  if (!m) return false;
+  m.classList.add('open');
+  return true;
+}
+function closeLifetimeProAsk() { document.getElementById('lifetime-pro-ask-modal').classList.remove('open'); }
+function lifetimeProAskGo() { closeLifetimeProAsk(); openProModal(); }
+
 // Job 6: a Lifetime member sees the founding rate, never the standard prices.
 // Called every time the Go Pro modal opens; rewrites the price line and both
 // buttons from the entitlement. Presentation is Pricing v8 through the 10 Aug
@@ -10070,7 +10099,11 @@ function handleCheckoutReturn() {
       await loadEntitlement();
       if (isPremium() || tries >= 5) {
         clearInterval(poll);
-        if (isPremium()) showToast("You're Premium — thank you!");
+        if (isPremium()) {
+          showToast("You're Premium — thank you!");
+          // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep).
+          maybeShowLifetimeProAsk();
+        }
       }
     }, 1500);
   }
