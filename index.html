@@ -3758,7 +3758,8 @@ const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
                     'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode',
-                    'calImports'];   // calendar import log — what each import added, for undo
+                    'calImports',    // calendar import log — what each import added, for undo
+                    'budgetCurrency','budgetOpenWeek'];   // budget: display currency; the open week (delivery two)
 
 function serializeState() {
   const out = {};
@@ -4884,6 +4885,15 @@ async function loadBudget() {
   budget.live = {};
   (live || []).forEach(r => { budget.live[r.line_id] = r; });
   await loadBudgetWeeks();
+  if (!state.budgetOpenWeek) {
+    // First run with a close in the code: the open week is the oldest live
+    // week that has no closed record, else this week.
+    const closed = new Set(budget.weeks.map(w => w.week_start));
+    const { data: oldest } = await sb.from('budget_live').select('week_start').order('week_start', { ascending: true }).limit(60);
+    const cand = (oldest || []).map(r => r.week_start).filter(w => !closed.has(w)).sort()[0];
+    state.budgetOpenWeek = cand || budget.weekStart;
+    try { persistNow(); } catch (e) {}
+  }
   budget.loaded = true;
   renderBudget();
   try { await budgetCloseIfDue(); } catch (e) { console.warn('budget close', e); }
