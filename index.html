@@ -5159,7 +5159,7 @@ async function budgetCloseIfDue() {
       const next = budAddDays(open, 7);
       // 1 · the closed week, whole. PK conflict = already closed by another tab; move on.
       if (sb && authUserId) {
-        const { error } = await sb.from('budget_weeks').insert({ user_id: authUserId, week_start: open, snapshot: doc.rows, totals: doc.totals, reflection: null });
+        const { error } = await sb.from('budget_weeks').insert({ user_id: authUserId, week_start: open, snapshot: doc.rows, totals: doc.totals });
         if (error && error.code !== '23505') { console.warn('budget close', open, error); break; }
       }
       budget.weeks = budget.weeks.filter(w => w.week_start !== open).concat([{ week_start: open, snapshot: doc.rows, totals: doc.totals, reflection: null, closed_at: new Date().toISOString() }]);
@@ -5186,7 +5186,7 @@ async function budgetCloseIfDue() {
     budget.live = budget.liveAll[current] || {};
     budget.weeks.sort((a, b) => a.week_start < b.week_start ? -1 : 1);
     renderBudget();
-    if (closedNow.length) budgetAskReflection(closedNow[closedNow.length - 1], closedNow.length);
+    // Reflection prompt removed (Dave, 14 Sep 2026): the week closes silently. Old answers stay in the table and in Month.
   } finally {
     budgetClosing = false;
   }
@@ -5277,12 +5277,15 @@ function renderBudgetMonth(host, esc) {
   agg.rows.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td class="bud-n bud-ro">${fmtMoney(r.carried)}</td><td class="bud-n">${fmtMoney(r.allocation)}</td><td class="bud-n">${fmtMoney(r.spent)}</td><td class="bud-n ${r.left < 0 ? 'bud-neg' : ''}">${fmtMoney(r.left)}</td></tr>`; });
   h += `</tbody><tfoot><tr><td>Totals</td><td class="bud-n bud-total">${fmtMoney(agg.totals.carried)}</td><td class="bud-n bud-total">${fmtMoney(agg.totals.allocation)}</td><td class="bud-n bud-total">${fmtMoney(agg.totals.spent)}</td><td class="bud-n bud-total ${agg.totals.left < 0 ? 'bud-neg' : ''}">${fmtMoney(agg.totals.left)}</td></tr></tfoot></table></div>`;
   h += `<div class="bud-muted" style="margin-top:6px">Income across the month: ${fmtMoney(agg.totals.income)}</div></div>`;
-  h += `<div class="bud-block"><div class="bud-block-title">Reflections</div>`;
-  pick.weeks.forEach(w => {
-    const ws = new Date(w.week_start + 'T12:00:00');
-    h += `<div class="bud-refl"><div class="bud-refl-week">Week of ${esc(ws.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</div><div class="${w.reflection ? '' : 'bud-muted'}">${w.reflection ? esc(w.reflection) : 'No reflection recorded for this week.'}</div></div>`;
-  });
-  h += `</div>`;
+  const withRefl = pick.weeks.filter(w => w.reflection);
+  if (withRefl.length) {
+    h += `<div class="bud-block"><div class="bud-block-title">Reflections</div>`;
+    withRefl.forEach(w => {
+      const ws = new Date(w.week_start + 'T12:00:00');
+      h += `<div class="bud-refl"><div class="bud-refl-week">Week of ${esc(ws.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</div><div>${esc(w.reflection)}</div></div>`;
+    });
+    h += `</div>`;
+  }
   host.innerHTML = h;
 }
 
