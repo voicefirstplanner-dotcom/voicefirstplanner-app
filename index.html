@@ -6541,7 +6541,7 @@ function processVoice(text) {
     // while "Groceries, milk and bread" (no amount) still reaches the list.
     // Nothing is written here: the confirmation sheet does the writing.
     budgetOpenCapture(text, 'voice');
-  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
+  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:,\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
     // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
     let items = text
       .replace(/^\s*add\s+/i, '')
@@ -6549,6 +6549,7 @@ function processVoice(text) {
       .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/gi, '')
       .replace(/^\s*(?:shopping|grocery|groceries)\s+list\b[:\s]*/i, '')
       .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
+      .replace(/^\s*(?:shopping|grocery|groceries)\b[:,\s]*/i, '')   // bare keyword prefix, comma or colon or space (14 Sep 2026)
       .trim();
     // Which list? Three cases, and the middle one was wrong (3 Sep 2026):
     //   "to my hardware list"  -> the list NAMED hardware (created if Premium)
