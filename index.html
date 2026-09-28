@@ -6679,7 +6679,7 @@ function processVoice(text) {
     renderNotes();
     showToast('Saved to notes');
   } else if (t.includes('focus')) {
-    const clean = text.replace(/^(set|my) focus (is|to)?/i,'').replace(/focus on/i,'').trim();
+    const clean = text.replace(/^(?:set\s+(?:my\s+)?|my\s+)focus\s+(?:(?:for\s+)?today\s+)?(?:is|to)\b/i,'').replace(/focus on/i,'').trim();
     setFocusText(clean || text);
     showToast('Daily focus set');
   } else {
@@ -6805,6 +6805,16 @@ function voiceCreateTask(text, t) {
       clean = stripTdDate(clean);
     }
 
+    // Free plan: 5 tasks a day, the same check addTask() makes (Pricing v10.2.1 §5), on the
+    // day the spoken task would land. Nothing captured is lost: the toast carries the words
+    // and they wait in the task box, so the user can add them after upgrading.
+    if (!isPremium() && state.tasks.filter(x => x.date === taskDate).length >= 5) {
+      const keep = (clean || text).replace(/\s{2,}/g,' ').trim();
+      const inp = document.getElementById('task-inp'); if (inp) inp.value = keep;
+      showToast(`Free plan: up to 5 tasks per day — upgrade for unlimited. Kept: "${keep}"`);
+      showUpgrade();
+      return;
+    }
     state.tasks.push({ id: Date.now(), text: (clean || text).replace(/\s{2,}/g,' ').trim(), p, done: false, date: taskDate, origDate: taskDate });
     viewingDate = taskDate;
     updateViewingDateLabel();
