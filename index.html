@@ -4530,6 +4530,10 @@ function setQuote() {
         var qt = document.getElementById('quote-text'), qa = document.getElementById('quote-auth');
         if (qt) qt.textContent = '"' + row.quote + '"';
         if (qa && row.author) qa.textContent = '\u2014 ' + row.author;
+        var vq = document.getElementById('val-quote'), va = document.getElementById('val-author');
+        if (vq) vq.textContent = '"' + row.quote + '"';
+        if (va && row.author) va.textContent = '\u2014 ' + row.author;
+        if (typeof pvSyncFooterQuote === 'function') pvSyncFooterQuote();
       }).catch(function () {});
     }
   } catch (e) {}
