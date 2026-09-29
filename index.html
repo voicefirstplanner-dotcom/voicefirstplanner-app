@@ -5381,7 +5381,7 @@ function budgetParseAmount(text) {
     if (w !== undefined && isNum(w)) { if (start < 0) start = i; run.push(w); continue; }
     if (run.length) {
       const core = run.filter(x => !/^(and|point|dollars?|cents?)$/.test(x.replace(/[,.]$/, '')));
-      if (core.length && !(core.length === 1 && /^(a|an)$/.test(core[0]))) {
+      if (core.length && !(core.length === 1 && /^(a|an)$/.test(core[0])) && !run.every(x => /^(a|an)$/.test(x.replace(/[,.]$/, '')))) {
         if (!best || core.length > best.core.length) best = { core, run, start, end: i };
       }
       run = []; start = -1;
