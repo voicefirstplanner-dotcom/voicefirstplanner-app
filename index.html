@@ -6878,8 +6878,15 @@ function voiceCreateTask(text, t) {
       const dayNum = parseInt(onDateMatch[1]);
       const monthStr = onDateMatch[2] ? onDateMatch[2].toLowerCase().slice(0,3) : null;
       const monthNum = monthStr ? months[monthStr] : today.getMonth();
-      const d = new Date(today.getFullYear(), monthNum, dayNum);
-      if (d < tdTodayMid) d.setFullYear(today.getFullYear() + 1);
+      let d = new Date(today.getFullYear(), monthNum, dayNum);
+      if (!monthStr && dayNum >= 1 && dayNum <= 31) {
+        // No month named: the next time that day comes round, today included. A month
+        // without that day ("the 31st" in September) is skipped for the next that has it.
+        for (let k = 0; k < 13; k++) {
+          const c = new Date(today.getFullYear(), today.getMonth() + k, dayNum);
+          if (c.getDate() === dayNum && c >= tdTodayMid) { d = c; break; }
+        }
+      } else if (d < tdTodayMid) d.setFullYear(today.getFullYear() + 1);
       taskDate = dateKey(d);
       clean = clean.replace(onDateMatch[0],'').trim();
     } else if (tdWd) {
