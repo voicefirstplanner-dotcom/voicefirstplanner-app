@@ -3149,7 +3149,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
           <button class="field-mic" onclick="dictateInto('role-inp',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button onclick="addRole()" style="background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:0 14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Add</button>
         </div>
-        <button class="ai-btn" onclick="aiAction('Help me define what success looks like in each of my key life roles: Parent, Professional, Learner, Friend, and Community member.')">
+        <button class="ai-btn" onclick="aiAction('Help me define what success looks like in each of my life roles.')">
           <i class="ti ti-sparkles"></i>AI role-success coaching<span class="soon-badge">Pro · soon</span>
         </button>
       </div>
@@ -4406,8 +4406,8 @@ const HABIT_LIBRARY = [
 ];
 
 const DEFAULT_GOALS = [
-  { id: 1, name: 'Read 24 books this year', cur: 0, tot: 24, role: 'Learner' },
-  { id: 2, name: 'Run a half-marathon', cur: 0, tot: 21, unit: 'km', role: 'Health' },
+  { id: 1, name: 'Read 24 books this year', cur: 0, tot: 24 },
+  { id: 2, name: 'Run a half-marathon', cur: 0, tot: 21, unit: 'km' },
 ];
 
 // Free-tier project cap (Claims Ledger L9: "5 tasks/day, 4 habits, 2 projects, 5 values").
@@ -4422,6 +4422,7 @@ const FREE_PROJECT_LIMIT = 2;
 // moves to match the docs — never the reverse (precedent: "2 projects", 15 Jul).
 const FREE_HABIT_LIMIT = 4;
 const FREE_VALUE_LIMIT = 5;   // total values held, seeded ones included
+const FREE_ROLE_LIMIT = 3;    // total life roles held (Dave, 25 Sep; built 30 Sep). New accounts start with one.
 
 const DEFAULT_PROJECTS = [
   { id: 1, name: 'Boat refit', desc: 'Full restoration of the 38ft sloop', icon: '⛵', status: 'Active', progress: 35, tags: ['sailing','2026'], captures: [
@@ -4445,12 +4446,9 @@ const DEFAULT_NOTES = [
 // unable to add a single value of their own — the same trap the seeded demo project
 // sprang in July. Two seeded + three of their own = the 5 the docs promise.
 const DEFAULT_VALUES = ['Family','Health'];
+// New accounts start with one role (Dave, 30 Sep). Existing accounts keep the roles they hold.
 const DEFAULT_ROLES = [
-  { name: 'Parent', icon: 'ti-home', def: 'Present, patient, and supportive' },
-  { name: 'Professional', icon: 'ti-briefcase', def: 'Skilled, reliable, and growth-focused' },
-  { name: 'Learner', icon: 'ti-book', def: 'Curious, open-minded, and consistent' },
   { name: 'Friend', icon: 'ti-users', def: 'Loyal, generous, and encouraging' },
-  { name: 'Community', icon: 'ti-world', def: 'Contributing, aware, and engaged' },
 ];
 
 const TAGS = ['work','personal','idea','reading','goals'];
@@ -4530,15 +4528,15 @@ let hintTimer = null;
 let hintLocked = false;   // true once a transcript is on screen: the user's only
                           // confirmation of what was captured must not rotate away.
 
-const today = new Date();
-const todayDow = (today.getDay() + 6) % 7;
+let today = new Date();   // refreshed by rollDayIfNeeded() when the calendar day changes (30 Sep)
+let todayDow = (today.getDay() + 6) % 7;
 function weekKeyFor(d) {
   // Key = local date of the Monday of that week, e.g. "w2026-07-06".
   // Never collides across months/years; aligns with the Mon–Sun grid.
   const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
   return `w${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`;
 }
-const weekKey = weekKeyFor(today);
+let weekKey = weekKeyFor(today);
 
 // Calendar state
 function dateKey(d) {
@@ -4813,7 +4811,7 @@ function renderObValues() {
 function renderObRoles() {
   const body = document.getElementById('ob-body');
   body.innerHTML = `
-    <p style="font-size:14px;color:var(--text-mid);margin-bottom:14px;line-height:1.6">These are the roles that matter most in your life. Each goal and task you set can link back to a role.</p>
+    <p style="font-size:14px;color:var(--text-mid);margin-bottom:14px;line-height:1.6">Start with one role. You can add your own, and define what success looks like in each.</p>
     ${DEFAULT_ROLES.map(r => `
       <div class="role-row" style="margin-bottom:6px">
         <div class="role-icon"><i class="ti ${r.icon}"></i></div>
@@ -5457,7 +5455,14 @@ function budgetParseAmount(text) {
     if (w !== undefined && isNum(w)) { if (start < 0) start = i; run.push(w); continue; }
     if (run.length) {
       const core = run.filter(x => !/^(and|point|dollars?|cents?)$/.test(x.replace(/[,.]$/, '')));
-      if (core.length && !(core.length === 1 && /^(a|an)$/.test(core[0])) && !run.every(x => /^(a|an)$/.test(x.replace(/[,.]$/, '')))) {
+      // 30 Sep: "a"/"an" + one number word + a word that is not money ("a two hour task",
+      // "a one page summary") is a size or length, not an amount. "a hundred", "a thousand"
+      // and anything with dollars or cents are untouched, as is any sentence with a spend word.
+      const sizeNotMoney = run.length === 2 && /^(a|an)$/.test(run[0]) && /^[a-z]+$/.test(run[1])
+        && (run[1] in BUD_NUM_WORDS) && !/^(a|an|hundred|thousand)$/.test(run[1])
+        && w !== undefined && /^[a-z]/.test(w) && !/^(bucks?|quid|nzd|usd|aud)\b/.test(w)
+        && !/\b(?:spent|spend|paid|pay|bought|cost|costs)\b/.test(t);   // a spend sentence keeps today's reading
+      if (core.length && !sizeNotMoney && !(core.length === 1 && /^(a|an)$/.test(core[0])) && !run.every(x => /^(a|an)$/.test(x.replace(/[,.]$/, '')))) {
         if (!best || core.length > best.core.length) best = { core, run, start, end: i };
       }
       run = []; start = -1;
@@ -6314,8 +6319,13 @@ function processVoice(text) {
   // is rewritten: "meet Ed at 3pm" keeps its Ed (and lands as the appointment).
   text = text.replace(/^\s*ed\b[,.:;]?\s*/i, 'Add ');
   text = text.replace(/^\s*(?:and|ad)\b/i, 'Add');
+  const heardAs = text;
+  // 30 Sep: punctuation the speech engine puts straight after a leading command word
+  // ("Add, call the bank") goes with the word, so no branch keeps it. Nothing else
+  // about the words changes; the Heard line still shows what was heard.
+  text = text.replace(/^(\s*(?:add|set|create|new|make|put|start|begin|note|notes|noted|idea|capture|remember|remind\s+me|log|send|schedule|book)\b)\s*[,.:;!?]+\s*/i, '$1 ');
   const t = text.toLowerCase();
-  document.getElementById('voice-hint').textContent = 'Heard: "' + text + '"';
+  document.getElementById('voice-hint').textContent = 'Heard: "' + heardAs + '"';
   hintLocked = true;   // this line is the user's confirmation — it stays put
   // Reminder intent — intercept before appointment parsing.
   if (/\bremind me\b/i.test(t) || /\bset (?:a |an )?reminder\b/i.test(t) || /^\s*reminder\b/i.test(t)) {
@@ -6716,6 +6726,7 @@ function processVoice(text) {
     renderValues();
     showTab('values', null);
     if (rr.added.length) showToast(rr.added.length === 1 ? `Role added: "${rr.added[0]}" — tap it to define success` : `${rr.added.length} roles added`);
+    else if (rr.blocked) { showToast(`Free plan: up to ${FREE_ROLE_LIMIT} roles — upgrade for unlimited`); showUpgrade(); }
     else if (rr.dup.length) showToast('That role is already in your list');
     else showToast('Tell me the role — e.g. "add mentor to my roles"');
     return;
@@ -8500,6 +8511,7 @@ function renderScheduleGrid() {
     const d = new Date(viewingDate + 'T12:00:00');
     const full = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const isToday = viewingDate === dateKey(today);
+    dayDrawnFor = viewingDate;
     dateEl.innerHTML = full + (isToday ? ' <span style="font-size:11px;font-weight:700;color:var(--accent-on-tint);background:rgba(var(--orange-rgb),0.12);padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:4px">TODAY</span>' : '');
   }
   grid.innerHTML = '';
@@ -8730,7 +8742,7 @@ function addTask() {
   const p = document.getElementById('task-pri').value;
   const dateInp = document.getElementById('task-date');
   if (!inp.value.trim()) return;
-  const taskDate = dateInp.value || dateKey(today);
+  const taskDate = dateInp.value || viewingDate;
   if (!isPremium() && state.tasks.filter(t => t.date === taskDate).length >= 5) {
     showToast('Free plan: up to 5 tasks per day — upgrade for unlimited');
     showUpgrade();
@@ -8738,12 +8750,13 @@ function addTask() {
   }
   state.tasks.push({ id: Date.now(), text: inp.value.trim(), p, done: false, date: taskDate, origDate: taskDate });
   inp.value = '';
-  dateInp.value = dateKey(today);
-  // Switch to the day the task was added if it's not today
-  if (taskDate !== dateKey(today)) {
+  // Show the day the task landed on, and leave the box on the day shown (30 Sep):
+  // the box used to reset to today while the view moved to the task's day.
+  if (taskDate !== viewingDate) {
     viewingDate = taskDate;
     updateViewingDateLabel();
   }
+  dateInp.value = viewingDate;
   renderTasks();
   renderCalStrip();
   if (taskDate !== dateKey(today)) {
@@ -9147,14 +9160,55 @@ function formatDateNice(dateStr) {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+// The viewed day moves everything that shows it (30 Sep): the label, the schedule
+// heading and its day, the task and appointment lists, and the date boxes beside
+// Add. Every path that sets viewingDate calls this, so none can leave one behind.
+// The boxes follow only when the viewed day actually changes, so a date the user
+// has just picked in a box is not overwritten by an unrelated redraw.
+var dayBoxesFor = null, dayDrawnFor = null;
 function updateViewingDateLabel() {
   const lbl = document.getElementById('viewing-date-label');
   const btn = document.getElementById('go-today-btn');
   lbl.textContent = formatDateNice(viewingDate);
   btn.style.display = viewingDate === dateKey(today) ? 'none' : 'block';
+  if (dayBoxesFor !== viewingDate) {
+    const tb = document.getElementById('task-date'), ab = document.getElementById('appt-date');
+    if (tb) tb.value = viewingDate;
+    if (ab) ab.value = viewingDate;
+    dayBoxesFor = viewingDate;
+  }
+  if (dayDrawnFor !== viewingDate) {
+    try { renderTasks(); renderAppointments(); renderScheduleGrid(); } catch (e) {}
+  }
   renderFocus();   // focus is per-date: the day changed, so the focus must follow
   if (typeof pvSyncDay === 'function') pvSyncDay();   // Planner view: the spread turns with the date
 }
+
+// The day rolls over (30 Sep): an app left open past midnight, or returned to on a
+// later day, takes the new date as "today" — header, quote, labels, TODAY tag, date
+// boxes — and, if it was showing today, moves to the new today. Carry-forward runs
+// as it does on a fresh load. Checked when the app is returned to and once a minute.
+function rollDayIfNeeded() {
+  const now = new Date();
+  if (dateKey(now) === dateKey(today)) return false;
+  const wasOnToday = viewingDate === dateKey(today);
+  today = now;
+  todayDow = (today.getDay() + 6) % 7;
+  weekKey = weekKeyFor(today);
+  if (wasOnToday) {
+    viewingDate = dateKey(today);
+    calViewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  }
+  dayDrawnFor = null;
+  try { setTopbarDate(); setQuote(); } catch (e) {}
+  try { checkCarryForward(); } catch (e) {}
+  try { renderAll(); } catch (e) {}
+  try { updateViewingDateLabel(); } catch (e) {}
+  return true;
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) rollDayIfNeeded(); });
+window.addEventListener('focus', rollDayIfNeeded);
+setInterval(rollDayIfNeeded, 60000);
 
 function goToToday() {
   // Full return to today: date, the strip's visible month, and every surface
@@ -10564,9 +10618,9 @@ function addValue() {
   else showToast('Already in your values');
 }
 // Add one or more life roles from a raw string (typed or spoken). Title-cases, de-dupes.
-// New roles start with no definition (the user taps the role to define success). Returns {added,dup}.
+// New roles start with no definition (the user taps the role to define success). Returns {added,dup,blocked}.
 function addRolesFromText(raw) {
-  const res = { added: [], dup: [] };
+  const res = { added: [], dup: [], blocked: 0 };
   if (!raw) return res;
   const parts = raw.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
   state.roles = state.roles || [];
@@ -10574,8 +10628,10 @@ function addRolesFromText(raw) {
     const name = p.replace(/\b\w/g, c => c.toUpperCase()).trim();
     if (!name) return;
     const hit = state.roles.find(r => r.name.toLowerCase() === name.toLowerCase());
-    if (hit) { res.dup.push(hit.name); }
-    else { state.roles.push({ name, icon: 'ti-user', def: '' }); res.added.push(name); }
+    if (hit) { res.dup.push(hit.name); return; }
+    // Re-checked per item, as values are: fill the remaining slots and stop.
+    if (!isPremium() && state.roles.length >= FREE_ROLE_LIMIT) { res.blocked++; return; }
+    state.roles.push({ name, icon: 'ti-user', def: '' }); res.added.push(name);
   });
   return res;
 }
@@ -10588,6 +10644,7 @@ function addRole() {
   inp.value = '';
   renderValues();
   if (r.added.length) showToast(r.added.length === 1 ? `Role added: "${r.added[0]}" — tap it to define success` : `${r.added.length} roles added`);
+  else if (r.blocked) { showToast(`Free plan: up to ${FREE_ROLE_LIMIT} roles — upgrade for unlimited`); showUpgrade(); }
   else showToast('Already in your roles');
 }
 function renderValues() {
