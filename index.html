@@ -6782,7 +6782,36 @@ function processVoice(text) {
 // The task branch's whole body, extracted verbatim so the explicit task route
 // and the nothing-matched fallback share ONE implementation (3 Aug). Parses
 // priority and spoken dates exactly as before; creates and shows the task.
+// Spoken day-of-month words, for the task branch: "on the third", "June twenty first" and
+// "the third of June" become "on the 3rd", "June 21st", "the 3rd of June", so the date
+// readers below (which read digits) see them. Only where they name a date: "the third
+// chapter" and "the second floor" are left alone. "may" is left out of "<month> <word>"
+// ("I may first ...").
+const VT_ORD = { first:1, second:2, third:3, fourth:4, fifth:5, sixth:6, seventh:7, eighth:8, ninth:9, tenth:10,
+  eleventh:11, twelfth:12, thirteenth:13, fourteenth:14, fifteenth:15, sixteenth:16, seventeenth:17,
+  eighteenth:18, nineteenth:19, twentieth:20, thirtieth:30 };
+function vtOrdinalDates(s) {
+  if (!s) return s;
+  const MON = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  const MON_NOT_MAY = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  const ORD = '((?:twenty|thirty)[\\s-](?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth)';
+  const val = w => {
+    w = w.toLowerCase(); const m = w.match(/^(twenty|thirty)[\s-](\w+)$/);
+    const n = m ? (m[1] === 'twenty' ? 20 : 30) + VT_ORD[m[2]] : VT_ORD[w];
+    return n >= 1 && n <= 31 ? n : null;
+  };
+  const suf = n => (n % 10 === 1 && n !== 11) ? 'st' : (n % 10 === 2 && n !== 12) ? 'nd' : (n % 10 === 3 && n !== 13) ? 'rd' : 'th';
+  s = s.replace(new RegExp('\\b(on\\s+the\\s+)' + ORD + '(?=\\s*(?:$|[.,;:!?]|(?:of\\s+)?' + MON + '\\b|(?:at|by|for|in|from|as|with|before|after)\\b))', 'gi'),
+    (all, on, w) => { const n = val(w); return n ? on + n + suf(n) : all; });
+  s = s.replace(new RegExp('\\b(the\\s+)' + ORD + '(\\s+of\\s+' + MON + '\\b)', 'gi'),
+    (all, the, w, of) => { const n = val(w); return n ? the + n + suf(n) + of : all; });
+  s = s.replace(new RegExp('\\b(' + MON_NOT_MAY + '\\s+)(?:the\\s+)?' + ORD + '\\b', 'gi'),
+    (all, mo, w) => { const n = val(w); return n ? mo + n + suf(n) : all; });
+  return s;
+}
+
 function voiceCreateTask(text, t) {
+    text = vtOrdinalDates(text); t = vtOrdinalDates(t);
     // Priority: match "<letter> priority" or "as a/an <letter>" — specific patterns, no false A matches.
     let p = 'C';
     const mPr = t.match(/\b(?:as an?\s+)?([abc])\s+priority\b/) || t.match(/\bas an?\s+([abc])\b/);
@@ -6888,7 +6917,7 @@ function voiceCreateTask(text, t) {
         }
       } else if (d < tdTodayMid) d.setFullYear(today.getFullYear() + 1);
       taskDate = dateKey(d);
-      clean = clean.replace(onDateMatch[0],'').trim();
+      clean = clean.replace(new RegExp(onDateMatch[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),'').trim();   // trimmed: a priority phrase after it has already gone
     } else if (tdWd) {
       const target = tdDayNames[tdWd[1].toLowerCase()];
       const d = new Date(today);
