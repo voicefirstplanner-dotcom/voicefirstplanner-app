@@ -3846,6 +3846,15 @@ const SUPABASE_URL = 'https://vudqzjdyverpdfpcpakl.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_kwBiNThMV7Xf9EmSeF-jlA_UnyoGvmO';
 
 const SB_CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 30;
+// Sign in with Apple (1 Oct): if Apple or Supabase sends an error back to the redirect, it
+// arrives in the address (?error=… or #error=…). The client keeps no session and does not
+// report it, so it is read here, before the client starts, and shown on the auth screen.
+const AUTH_RETURN_ERROR = (function () {
+  try {
+    const p = new URLSearchParams((location.search || '').replace(/^\?/, '') + '&' + (location.hash || '').replace(/^#/, ''));
+    return p.get('error_description') || p.get('error') || '';
+  } catch (e) { return ''; }
+})();
 const sb = (SB_CONFIGURED && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
@@ -3908,9 +3917,10 @@ async function loadState() {
   if (!sb || !authUserId) return;
   const { data, error } = await sb.from('planner_state')
     .select('data').eq('user_id', authUserId).maybeSingle();
-  if (error) { console.warn('Supabase load error:', error.message); return; }
+  if (error) { console.warn('Supabase load error:', error.message); return null; }
   if (data && data.data) applyState(data.data);
   lastSavedJSON = JSON.stringify(serializeState());
+  return !!(data && data.data);   // true: a saved planner; false: none yet (Sign in with Apple, 1 Oct)
 }
 
 // ---- Save the planner (only when something actually changed) ----
@@ -3982,12 +3992,30 @@ async function restoreSession() {
   startAutosave();
   if (!sb) return;  // local mode -> stay on the auth screen
   const { data: { session } } = await sb.auth.getSession();
+  if (AUTH_RETURN_ERROR) {
+    try { history.replaceState({}, '', location.pathname); } catch (e) {}   // the error leaves the address bar
+    if (!session) { authMsg(AUTH_RETURN_ERROR, true); return; }
+  }
   if (!session) return;
   authUserId = session.user.id;
   const meta = session.user.user_metadata || {};
-  state.user = { name: meta.name || session.user.email.split('@')[0], email: session.user.email };
-  await loadState();
+  const email = session.user.email || '';
+  state.user = { name: meta.name || meta.full_name || email.split('@')[0], email };
+  const hasPlan = await loadState();
+  // Sign in with Apple (1 Oct): a first-time Apple user (no saved planner yet) runs onboarding,
+  // exactly as a new email account does after signUp(). Email accounts are unchanged.
+  if (hasPlan === false && signedInWithApple(session.user)) {
+    document.getElementById('auth-screen').style.display = 'none';
+    startOnboarding();
+    return;
+  }
   launchApp();
+}
+
+function signedInWithApple(user) {
+  const am = (user && user.app_metadata) || {};
+  return am.provider === 'apple' || (am.providers || []).includes('apple')
+    || ((user && user.identities) || []).some(i => i.provider === 'apple');
 }
 
 // ============================================================
@@ -4687,12 +4715,16 @@ async function signUp() {
   startOnboarding();
 }
 
-function signInApple() {
+async function signInApple() {
   if (!sb) { state.user = { name: 'Dave', email: 'dave@icloud.com' }; launchApp(); return; }
-  // Real Apple sign-in needs an Apple OAuth provider configured in the
-  // Supabase dashboard (Apple Developer Services ID + key). Until that's
-  // set up, point people at email sign-in.
-  showToast('Apple sign-in is coming soon — use email for now');
+  // Sign in with Apple through Supabase's Apple provider (1 Oct). The browser goes to Apple and
+  // comes back to this page; restoreSession() picks the session up from the address.
+  authMsg('Signing in…');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'apple',
+    options: { redirectTo: location.origin + location.pathname },
+  });
+  if (error) authMsg(error.message, true);
 }
 
 function demoMode() {
@@ -6311,6 +6343,22 @@ function attachFieldMics() {
   });
 }
 
+// Free-plan checks for the spoken paths (30 Sep ruling §3): the same limit and toast as the
+// typed path, then the upgrade sheet; the spoken words wait in that tab's input box, as the
+// spoken-task limit keeps them in the task box. The voice tutorial's practice entries are
+// rolled back when it ends, so practice is not stopped (as the spoken project check).
+function vtKeepWords(inputId, words, tab) {
+  try { showTab(tab, null); } catch (e) {}
+  const inp = document.getElementById(inputId);
+  if (inp) inp.value = String(words || '').replace(/\s{2,}/g, ' ').trim();
+}
+function vtNoteCapped(words) {
+  if (vtPracticeMode || isPremium() || (state.notes || []).length < 10) return false;
+  vtKeepWords('note-body-inp', words, 'notes');
+  showToast('Free plan: up to 10 notes — upgrade for unlimited'); showUpgrade();
+  return true;
+}
+
 function processVoice(text) {
   // Whisper often mishears the command word "Add" as "And", "Ad" or "Ed" at the
   // start of a sentence. FIX 2 (3 Aug, Dave's ruling): a LEADING "Ed" is always
@@ -6344,6 +6392,7 @@ function processVoice(text) {
       .replace(/\b(?:make|take)\s+a\s+note\s*(?:that|to|of|:)?\s*/i, '')
       .replace(/^\s*(?:noted|notes|note)\b[:,]?\s*(?:that\s+)?/i, '')
       .trim();
+    if (vtNoteCapped(clean || text)) return;
     const vnTs = Date.now();   // one instant: id and created are the same value by design
     state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
     renderNotes();
@@ -6371,7 +6420,10 @@ function processVoice(text) {
   // The old appointment-keyword list is superseded by FIX 1: the time IS the
   // intent. Short utterances — even one word plus a time ("work at 3pm",
   // "gym at six") — are valid appointments now.
+  // 30 Sep ruling §4.1: a spoken day ("on the third") is read by the appointment path too.
+  const apText = vtOrdinalDates(text), apT = vtOrdinalDates(t);
   if (hasClockTime && !explicitRoute) {
+    let text = apText, t = apT;   // this branch only; every other branch keeps the words as heard
     const toMin = (h, m) => h * 60 + m;
     const fromMin = tot => { tot = ((tot % 1440) + 1440) % 1440; return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; };
     // Meridiem heuristic for bare / "o'clock" hours: 1-6 -> afternoon, 7-12 & 0 stay (12 = noon).
@@ -6473,9 +6525,15 @@ function processVoice(text) {
       const dayNum = parseInt(onDateA[1]);
       const monStr = onDateA[2] ? onDateA[2].toLowerCase().slice(0,3) : null;
       const monNum = monStr ? monthsA[monStr] : today.getMonth();
-      const d = new Date(today.getFullYear(), monNum, dayNum);
-      if (d < todayMid && !monStr) d.setMonth(d.getMonth()+1); // bare "the 13th" already passed -> next month
-      if (d < todayMid && monStr) d.setFullYear(today.getFullYear()+1); // named month already passed -> next year
+      let d = new Date(today.getFullYear(), monNum, dayNum);
+      if (!monStr && dayNum >= 1 && dayNum <= 31) {
+        // No month named: the next time that day comes round, today included, skipping a month
+        // without that day ("the 31st" in September -> 31 October). The task branch's rule.
+        for (let k = 0; k < 13; k++) {
+          const c = new Date(today.getFullYear(), today.getMonth() + k, dayNum);
+          if (c.getDate() === dayNum && c >= todayMid) { d = c; break; }
+        }
+      } else if (d < todayMid && monStr) d.setFullYear(today.getFullYear()+1); // named month already passed -> next year
       apptDate = dateKey(d);
     }
     else if (wdM) {
@@ -6675,6 +6733,10 @@ function processVoice(text) {
       .trim();
     if (!item) { showToast('Tell me what to add — e.g. "add visit Japan to my bucket list"'); return; }
     state.bucket = state.bucket || [];
+    if (!vtPracticeMode && !isPremium() && state.bucket.length >= 10) {
+      vtKeepWords('bucket-inp', item, 'bucket');
+      showToast('Free plan: up to 10 bucket-list items — upgrade for unlimited'); showUpgrade(); return;
+    }
     state.bucket.push({ id: Date.now(), text: item, done: false });
     renderBucket();
     showTab('bucket', null);
@@ -6737,6 +6799,10 @@ function processVoice(text) {
                 .replace(/^\s*(?:to|of|for|is|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
     if (!g) { showToast('Tell me the goal — e.g. "add goal read 24 books"'); return; }
     state.goals = state.goals || [];
+    if (!vtPracticeMode && !isPremium() && state.goals.length >= 3) {
+      vtKeepWords('goal-inp', g, 'goals');
+      showToast('Free plan: up to 3 goals — upgrade for unlimited'); showUpgrade(); return;
+    }
     state.goals.push({ id: Date.now(), name: g, cur: 0, tot: 1, role: '' });
     renderGoals();
     showTab('goals', null);
@@ -6761,6 +6827,7 @@ function processVoice(text) {
     /* a habit was matched by name/synonym and ticked for today inside logHabitByVoice() */
   } else if (t.includes('note') || t.includes('idea') || t.includes('capture') || t.includes('remember')) {
     const clean = text.replace(/^(note|idea|capture|remember)[:\s]*/i,'').trim();
+    if (vtNoteCapped(clean || text)) return;
     const vnTs = Date.now();   // one instant: id and created are the same value by design
     state.notes.unshift({ id: vnTs, created: vnTs, title: 'Voice capture', body: clean || text, tags: ['idea'], checklist: null });
     renderNotes();
@@ -6881,6 +6948,7 @@ function voiceCreateTask(text, t) {
       .replace(/\b(?:on\s+)?(?:next\s+|this\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,'')
       .replace(/\s{2,}/g,' ').trim();
 
+    const cleanBeforeDate = clean;
     if (tomorrowMatch) {
       const d = new Date(today); d.setDate(today.getDate() + 1);
       taskDate = dateKey(d);
@@ -6927,6 +6995,9 @@ function voiceCreateTask(text, t) {
       taskDate = dateKey(d);
       clean = stripTdDate(clean);
     }
+    // 30 Sep ruling §4.3: when date words came out, a full stop left standing on its own at
+    // the end ("call mum .") goes with them. Nothing else about the words changes.
+    if (clean !== cleanBeforeDate) clean = clean.replace(/\s+\.+$/, '');
 
     // Free plan: 5 tasks a day, the same check addTask() makes (Pricing v10.2.1 §5), on the
     // day the spoken task would land. Nothing captured is lost: the toast carries the words
