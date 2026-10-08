@@ -486,6 +486,27 @@ html, body {
 }
 .topbar-date { font-size: 11px; color: var(--text-on-navy-soft); }
 .topbar-icon-btn { background: none; border: none; cursor: pointer; color: var(--text-on-navy-soft); padding: 0; display: flex; align-items: center; }
+/* WEBSITE BUTTON + "WHAT'S NEW" (8 Oct 2026). The button rides at the right of
+   the date line, in the band between the icons and the quote: its margins pull
+   it into the gap above (8px) and below (4px), so the top bar is no taller and
+   nothing under it moves. When there is something new, a second box of the same
+   shape joins it on the right, filled in the name badge's orange, so the two read
+   as one: Website | What's new (Dave, 8 Oct 16:02). With the box on, the pair
+   reaches about as far left as the search icon on a tablet or desktop, and
+   under the name badge on a phone (Dave, 16:10). Colours are the top bar's own pairs: the date and the icons' soft text on
+   navy, and the name badge's accent. */
+.topbar-web { float: right; display: flex; flex-direction: row; align-items: stretch; margin: -8px 0 -4px 12px; }
+.web-btn, .web-pill {
+  display: inline-flex; align-items: center; box-sizing: border-box; height: 26px; padding: 0 9px;
+  border: 1px solid var(--text-on-navy-soft); border-radius: 8px; background: none;
+  color: var(--text-on-navy-soft); font-family: var(--font); font-size: 12px; font-weight: 600; line-height: 1; text-decoration: none; white-space: nowrap;
+}
+.web-btn { gap: 4px; }
+.web-btn i { font-size: 15px; }
+.web-btn:hover, .web-btn:focus-visible { color: var(--on-navy-ice); border-color: var(--on-navy-ice); }
+.web-pill { background: var(--orange); border-color: var(--orange); color: var(--on-accent); border-radius: 0 8px 8px 0; }
+.web-pill[hidden] { display: none; }
+.topbar-web.has-pill .web-btn { border-radius: 8px 0 0 8px; border-right: none; }
 .fb-chips { display: flex; gap: 8px; margin-bottom: 14px; }
 .fb-chip {
   flex: 1; padding: 10px 6px; border-radius: var(--radius);
@@ -2297,6 +2318,8 @@ body.pv .topbar-row { display: contents; }
 body.pv .wordmark { grid-area: brand; }
 body.pv .topbar-right { grid-area: right; }
 body.pv .topbar-date { grid-area: date; }
+body.pv .topbar { grid-template-areas: "brand voice right" "date ai web" "strip strip strip"; }
+body.pv .topbar-web { float: none; margin: 0; grid-area: web; justify-self: end; align-self: start; }
 body.pv .quote-strip { grid-area: strip; }
 body.pv .topbar .voice-btn { grid-area: voice; width: 100%; max-width: 460px; justify-self: center; margin: 0 !important; }
 body.pv #pv-slot-ai-top { grid-area: ai; justify-self: center; width: 100%; max-width: 460px; }
@@ -2727,6 +2750,12 @@ body.pv #demo-banner { position: relative; z-index: 3; }
           <i class="ti ti-settings" style="font-size:20px"></i>
         </button>
       </div>
+    </div>
+    <!-- WEBSITE BUTTON + "WHAT'S NEW" (8 Oct 2026). The button is always here.
+         What's new is hidden unless the website reports a newer entry (loadWhatsNew). -->
+    <div class="topbar-web" id="topbar-web">
+      <a class="web-btn" id="web-btn" href="https://voicefirstdayplanner.com/" target="_blank" rel="noopener"><i class="ti ti-world" aria-hidden="true"></i>Website</a>
+      <a class="web-pill" id="web-pill" href="https://voicefirstdayplanner.com/" target="_blank" rel="noopener" onclick="whatsNewPressed()" hidden>What&#39;s new</a>
     </div>
     <div class="topbar-date" id="topbar-date"></div>
     <div class="quote-strip" style="margin-top:8px;position:relative">
@@ -3869,6 +3898,7 @@ const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket',
                     'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode',
                     'calImports',    // calendar import log — what each import added, for undo
                     'budgetCurrency','budgetOpenWeek'];   // budget: display currency; the open week (delivery two)
+STATE_KEYS.push('whatsNewSeen');   // date of the newest "What's new" entry this person has tapped (8 Oct 2026)
 
 function serializeState() {
   const out = {};
@@ -4544,6 +4574,7 @@ let state = {
   viewMode: 'classic',   // 'classic' | 'planner' — the whole-app presentation, chosen in Settings beside the themes
   theme: 'classic',
   reminderSound: true,   // the synthesised reminder bell (Stage 2 addendum) — off leaves notifications intact
+  whatsNewSeen: '',      // date of the newest "What's new" entry this person has tapped; '' = none yet
   iconIdx: 0,
   reminders: [],
 };
@@ -4734,6 +4765,54 @@ function demoMode() {
   applyDemoBanner();
 }
 
+// THE "WHAT'S NEW" BOX (8 Oct 2026, Management's rule of the same day). The
+// website publishes the date of the newest entry on its "What's new" page in a
+// small file, WHATS_NEW_FEED: {"latest": "<ISO date or date-time>", "url":
+// "<the page>"}. The box shows while that date is newer than the one this person
+// last tapped (state.whatsNewSeen, saved with the planner, so a tap on one
+// device clears it on all of them). Tapping opens the page in a new tab and the
+// box goes. It comes back only when a newer entry is published; nobody switches
+// it on by hand. Until the file exists, or if it is unreadable, has no valid
+// date, or points anywhere but https://voicefirstdayplanner.com, it stays off.
+const WHATS_NEW_FEED = 'https://voicefirstdayplanner.com/whats-new.json';
+let whatsNew = null;   // { latest, url } once the website reports an entry; null = off
+function whatsNewTime(s) { const t = Date.parse(String(s || '')); return isNaN(t) ? 0 : t; }
+function whatsNewUrlOk(u) {
+  try {
+    const x = new URL(String(u || ''));
+    return x.protocol === 'https:' && (x.hostname === 'voicefirstdayplanner.com' || x.hostname.endsWith('.voicefirstdayplanner.com'));
+  } catch (e) { return false; }
+}
+function renderWhatsNew() {
+  const pill = document.getElementById('web-pill'), box = document.getElementById('topbar-web');
+  if (!pill || !box) return;
+  const show = !!(whatsNew && whatsNewTime(whatsNew.latest) > whatsNewTime(state.whatsNewSeen));
+  if (show) pill.href = whatsNew.url;
+  pill.hidden = !show;
+  box.classList.toggle('has-pill', show);
+}
+function loadWhatsNew() {
+  try {
+    if (typeof fetch !== 'function') return;
+    // a fresh address each hour, so no cache between here and the website holds an old copy for longer
+    const hour = Math.floor(Date.now() / 3600000);
+    fetch(WHATS_NEW_FEED + '?h=' + hour, { cache: 'no-cache', credentials: 'omit' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        whatsNew = (j && whatsNewTime(j.latest) > 0 && whatsNewUrlOk(j.url)) ? { latest: String(j.latest), url: String(j.url) } : null;
+        renderWhatsNew();
+      }).catch(function () {});
+  } catch (e) {}
+}
+// The link itself opens the page in a new tab. This records the date of the
+// entry this person has now seen, so the box stays away until a newer one.
+function whatsNewPressed() {
+  if (!whatsNew) return;
+  state.whatsNewSeen = whatsNew.latest;
+  renderWhatsNew();
+  try { persistNow(); } catch (e) {}
+}
+
 // The banner is guest-only and permanent for the session — no dismiss control
 // exists, so a visitor who leaves and returns still sees why their plan is gone.
 // Driven from isDemo alone, so a signed-in user can never see it.
@@ -4775,6 +4854,7 @@ function launchApp() {
   applyViewMode();       // Planner view is persisted state too — applied after first paint, exactly like the theme
   try { addHelpChips(); } catch (e) {}
   applyDemoBanner();     // guest-only notice; harmless and correct on every entry path
+  loadWhatsNew();        // the "What's new" box: off unless the website reports a newer entry
   loadEntitlement().then(() => { try { loadBudget(); } catch (e) { console.warn('budget', e); } });
   handleCheckoutReturn();
 }
@@ -12846,6 +12926,7 @@ function renderAll() {
   renderScheduleGrid();    // same
   renderCalStrip();        // same, plus checkCarryForward()'s `if (moved)` branch
   renderReminderAlert();   // a reminder fired-but-not-acked before logout never repainted
+  renderWhatsNew();        // whatsNewSeen is persisted state: the What's new box is repainted with it
 }
 
 // ============================================================
