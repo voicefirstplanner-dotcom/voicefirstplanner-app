@@ -1115,7 +1115,14 @@ html, body {
 .ptop-lab { width: 112px; flex-shrink: 0; color: var(--text-mid); font-size: 12px; font-weight: 600; }
 .ptop-val { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 .ptop-empty { color: var(--text-light); }
-.ptop-status { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.ptop-status { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+/* The free photos-and-files count (Dave, 11 Oct 10:26): far right of the status row, plain
+   text so it never reads as one of the buttons; on a narrow phone it drops to its own line,
+   still at the right. */
+.pquota { margin-left: auto; padding-left: 16px; font-size: 13px; color: var(--text); white-space: nowrap; }
+.pquota b { font-weight: 700; }
+.pquota.full b { color: var(--danger-text); }
+.pquota-up { background: none; border: none; padding: 0; margin: 0; font: inherit; font-weight: 700; color: var(--appt-text); text-decoration: underline; cursor: pointer; }
 .pstat-btn { border: 1px solid var(--border); background: var(--card); color: var(--text-mid); border-radius: 14px; padding: 4px 11px; font-family: var(--font); font-size: 12px; cursor: pointer; }
 .pstat-btn.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy-ice); font-weight: 600; }
 .ptop-prog-l { font-size: 11px; color: var(--text-light); }
@@ -6491,7 +6498,7 @@ function addHelpChips() {
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
-const MIC_FIELDS = ['focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2','ap-title','ap-with','ap-location','ap-notes'];
+const MIC_FIELDS = ['step-inp','focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2','ap-title','ap-with','ap-location','ap-notes'];
 function attachFieldMics() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
@@ -10093,7 +10100,7 @@ function renderProjectTop() {
   el.innerHTML = `
     <div class="ptop-row"><span class="ptop-lab">Done looks like</span><span class="ptop-val">${p.desc ? projEsc(p.desc) : '<span class="ptop-empty">Not set</span>'}</span></div>
     <div class="ptop-row"><span class="ptop-lab">Target date</span><span class="ptop-val">${p.target ? projEsc(projTargetLabel(p.target)) : '<span class="ptop-empty">Not set</span>'}</span></div>
-    <div class="ptop-status">${PROJ_STATUSES.map(s => `<button type="button" class="pstat-btn${p.status === s ? ' on' : ''}" onclick="setProjStatus('${s}')">${s}</button>`).join('')}</div>
+    <div class="ptop-status">${PROJ_STATUSES.map(s => `<button type="button" class="pstat-btn${p.status === s ? ' on' : ''}" onclick="setProjStatus('${s}')">${s}</button>`).join('')}<span class="pquota" id="proj-quota" style="display:none"></span></div>
     <div class="proj-prog big"><div class="proj-prog-fill" style="width:${p.progress}%"></div></div>
     <div class="ptop-prog-l">${p.steps.length ? `${doneN} of ${p.steps.length} steps done · ${p.progress}%` : 'Progress shows here once the project has steps'}</div>`;
 }
@@ -10335,7 +10342,14 @@ function addProjectFile() {
 async function onFilePicked(inp) {
   const file = inp.files && inp.files[0];
   inp.value = '';
-  if (!file || !currentProject) return;
+  if (!currentProject) return;
+  // A file kept only in Google Drive or iCloud can reach the browser empty, or not at
+  // all (Dave, 11 Oct 09:53: nothing happened). This runs only when the picker reports a
+  // change (cancelling reports none), so say so rather than do nothing.
+  if (!file || !file.size) {
+    showToast('Couldn\'t read that file. If it\'s in Google Drive or iCloud, save a copy to this device and try again.');
+    return;
+  }
   const proj = currentProject;
   const type = projFileType(file);
   if (!type) { showToast('That kind of file can\'t be added — PDF, pictures, Word or Excel'); return; }
@@ -10413,10 +10427,8 @@ function renderDetailFiles() {
   const p = currentProject;
   if (!el || !p) return;
   const q = document.getElementById('file-quota');
-  if (q) {
-    if (isDemo || isPremium()) q.style.display = 'none';
-    else { q.textContent = projQuotaText(); q.style.display = ''; }
-  }
+  if (q) q.style.display = 'none';   // the count now shows once, in the status row
+  updatePhotoQuota();
   if (!p.files.length) { el.innerHTML = '<div class="pempty">No files yet — quotes, plans, receipts, manuals.</div>'; return; }
   el.innerHTML = p.files.map(f => `
     <div class="capture-item file-row">
@@ -10701,17 +10713,21 @@ function photoCount() {
   return n;
 }
 
-// The remaining-allowance chip on the Photo tile — visible for free accounts
-// BEFORE the limit bites. Paid and demo see nothing.
-function projQuotaText() {
-  const left = Math.max(0, FREE_PHOTO_LIMIT - photoCount());
-  return left > 0 ? `${left} of ${FREE_PHOTO_LIMIT} photos or files left` : 'Upgrade for more';
-}
+// The free photos-and-files count (Dave, 11 Oct 10:24–10:26). It used to sit on the
+// Photo tile; now it shows once, at the far right of the project's status row, counting
+// up: "Photos & files: 2 of 3 used", and at 3 "… 3 of 3 used · Upgrade". Free accounts
+// only: Premium and the demo see nothing.
 function updatePhotoQuota() {
-  const el = document.getElementById('photo-quota');
+  const tile = document.getElementById('photo-quota');
+  if (tile) tile.style.display = 'none';
+  const el = document.getElementById('proj-quota');
   if (!el) return;
   if (isDemo || isPremium()) { el.style.display = 'none'; return; }
-  el.textContent = projQuotaText();
+  const used = Math.min(FREE_PHOTO_LIMIT, photoCount());
+  const full = used >= FREE_PHOTO_LIMIT;
+  el.className = 'pquota' + (full ? ' full' : '');
+  el.innerHTML = `Photos &amp; files: <b>${used} of ${FREE_PHOTO_LIMIT}</b> used`
+    + (full ? ` · <button type="button" class="pquota-up" onclick="showUpgrade()">Upgrade</button>` : '');
   el.style.display = '';
 }
 
