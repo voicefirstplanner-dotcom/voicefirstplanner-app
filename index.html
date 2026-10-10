@@ -1102,6 +1102,47 @@ html, body {
   transition: all 0.15s;
 }
 .new-proj-btn:hover { border-color: var(--orange); color: var(--accent-on-light); background: var(--ice); }
+/* PROJECTS REBUILT (10 Oct 2026): progress, next step, top section, steps, files,
+   the project name on a task that came from a step, and the which-project sheet. */
+.proj-prog { height: 4px; background: var(--pale); overflow: hidden; }
+.proj-prog-fill { height: 100%; background: var(--orange); }
+.proj-prog.big { height: 8px; border-radius: 4px; margin: 12px 0 4px; }
+.proj-next { padding: 7px 14px; font-size: 12px; color: var(--text); display: flex; gap: 6px; align-items: center; border-bottom: 0.5px solid var(--pale); }
+.proj-next i { color: var(--accent-icon-on-light); font-size: 14px; flex-shrink: 0; }
+.proj-next span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-chip { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--ice); color: var(--accent-on-light); margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.ptop-row { display: flex; gap: 10px; font-size: 13px; padding: 3px 0; align-items: baseline; }
+.ptop-lab { width: 112px; flex-shrink: 0; color: var(--text-mid); font-size: 12px; font-weight: 600; }
+.ptop-val { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.ptop-empty { color: var(--text-light); }
+.ptop-status { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.pstat-btn { border: 1px solid var(--border); background: var(--card); color: var(--text-mid); border-radius: 14px; padding: 4px 11px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+.pstat-btn.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy-ice); font-weight: 600; }
+.ptop-prog-l { font-size: 11px; color: var(--text-light); }
+.step-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 10px; background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; }
+.step-row.is-next { border: 1px solid var(--orange); }
+.step-row .task-check { flex-shrink: 0; cursor: pointer; }
+.step-row.done .step-text { text-decoration: line-through; color: var(--text-light); }
+.step-main { flex: 1; min-width: 0; cursor: pointer; }
+.step-text { font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+.step-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.step-tags:not(:empty) { margin-top: 3px; }
+.step-next { font-size: 10px; font-weight: 700; color: var(--on-accent); background: var(--orange); border-radius: 8px; padding: 1px 6px; }
+.step-day { font-size: 11px; color: var(--appt-text); display: inline-flex; gap: 3px; align-items: center; }
+.step-acts { display: flex; gap: 0; flex-shrink: 0; }
+.step-acts button { background: none; border: none; color: var(--text-mid); cursor: pointer; padding: 4px 3px; font-size: 16px; line-height: 1; }
+.step-acts button[disabled] { opacity: .3; cursor: default; }
+.step-add { display: flex; gap: 6px; margin-top: 6px; }
+.pempty { font-size: 13px; color: var(--text-light); text-align: center; padding: 10px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.file-quota { font-size: 11px; color: var(--text-mid); font-weight: 600; }
+.file-row .cap-info { min-width: 0; }
+.file-row .cap-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; font-size: 12px; color: var(--appt-text); cursor: pointer; font-family: var(--font); flex-shrink: 0; }
+.cap-kind { font-weight: 600; color: var(--text-mid); }
+.proj-pick-btn { display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); font-family: var(--font); font-size: 15px; color: var(--text); cursor: pointer; }
+.proj-pick-btn:hover { border-color: var(--orange); }
+.step-day-btn { flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; }
 
 /* Project Detail */
 .detail-overlay {
@@ -3037,7 +3078,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         </div>
         <div id="new-proj-form" class="hidden" style="margin-bottom:10px">
           <input class="task-inp" id="np-name" placeholder="Project name (e.g. Boat Refit)" style="width:100%;margin-bottom:6px">
-          <input class="task-inp" id="np-desc" placeholder="Short description" style="width:100%;margin-bottom:6px">
+          <input class="task-inp" id="np-desc" placeholder="What done looks like (optional)" style="width:100%;margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;color:var(--text-mid)">Target date:</span>
+            <input type="date" id="np-target" style="border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--card)">
+          </div>
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
             <span style="font-size:13px;color:var(--text-mid)">Icon:</span>
             <span id="np-icon" style="font-size:22px;cursor:pointer" onclick="cycleIcon()">⛵</span>
@@ -3260,9 +3305,26 @@ body.pv #demo-banner { position: relative; z-index: 3; }
       <button class="detail-back" onclick="closeDetail()"><i class="ti ti-arrow-left"></i> All projects</button>
       <div class="detail-name" id="detail-name"></div>
       <div class="detail-desc" id="detail-desc"></div>
-      <div style="display:flex;gap:8px;margin-top:8px"><button class="detail-back" onclick="editProject()" style="background:rgba(255,255,255,.12);color:var(--accent-on-navy-tint)"><i class="ti ti-pencil"></i> Rename</button><button class="detail-back" onclick="deleteProject(currentProject.id)" style="background:rgba(255,138,138,.2);color:var(--danger-on-navy)"><i class="ti ti-trash"></i> Delete</button></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="detail-back" onclick="editProject()" style="background:rgba(255,255,255,.12);color:var(--accent-on-navy-tint)"><i class="ti ti-pencil"></i> Edit</button><button class="detail-back" onclick="deleteProject(currentProject.id)" style="background:rgba(255,138,138,.2);color:var(--danger-on-navy)"><i class="ti ti-trash"></i> Delete</button></div>
     </div>
     <div class="detail-body">
+      <!-- PROJECTS REBUILT (10 Oct 2026): the top, next steps and files, then the
+           capture buttons and the one dated notes list. -->
+      <div class="card" style="margin-bottom:10px" id="detail-top"></div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-label">Next steps</div>
+        <div id="detail-steps"></div>
+        <div class="step-add">
+          <input class="task-inp" id="step-inp" placeholder="Add a step…" onkeydown="if(event.key==='Enter')addStep()" style="flex:1;min-width:0">
+          <button class="add-btn" onclick="addStep()">Add</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-head"><div class="card-label">Files</div><span class="file-quota" id="file-quota" style="display:none"></span></div>
+        <div id="detail-files"></div>
+        <button class="new-proj-btn" style="margin-top:6px" onclick="addProjectFile()"><i class="ti ti-paperclip"></i> Add a file</button>
+        <input type="file" id="file-capture-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" style="display:none" onchange="onFilePicked(this)">
+      </div>
       <div class="card" style="margin-bottom:10px">
         <div class="card-label">Capture</div>
         <div class="capture-grid">
@@ -3275,15 +3337,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Captured items</div>
+        <div class="card-label">Notes</div>
         <div id="detail-captures"></div>
         <!-- Photo capture: opens the camera on phone/iPad, the file picker on
              desktop — the file input covers all platforms honestly. -->
         <input type="file" id="photo-capture-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPicked(this)">
-      </div>
-      <div class="card">
-        <div class="card-label">Linked tasks</div>
-        <div id="detail-tasks"></div>
       </div>
     </div>
   </div>
@@ -3640,6 +3698,34 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <textarea id="capture-input-2" rows="3" style="width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;color:var(--text);margin-bottom:4px;box-sizing:border-box;resize:vertical;display:none"></textarea>
     <button class="modal-cta" id="capture-save-btn" onclick="saveCapture()">Save</button>
     <button class="modal-close-btn" onclick="closeCapture()">Cancel</button>
+  </div>
+</div>
+
+<!-- PROJECTS REBUILT (10 Oct 2026): put a step onto a day -->
+<div class="modal-overlay" id="step-day-modal" onclick="if(event.target===this)closeStepDay()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Put on a day</div>
+    <div class="modal-sub" id="step-day-sub"></div>
+    <div style="display:flex;gap:8px;margin:4px 0 10px">
+      <button type="button" class="step-day-btn" onclick="stepDayPick('today')">Today</button>
+      <button type="button" class="step-day-btn" onclick="stepDayPick('tomorrow')">Tomorrow</button>
+    </div>
+    <input type="date" id="step-day-date" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;color:var(--text);background:var(--card);box-sizing:border-box;margin-bottom:4px">
+    <button class="modal-cta" onclick="stepDayPick('date')">Put on this day</button>
+    <button class="modal-close-btn" id="step-day-off" onclick="stepDayOff()">Take off the day</button>
+    <button class="modal-close-btn" onclick="closeStepDay()">Cancel</button>
+  </div>
+</div>
+
+<!-- PROJECTS REBUILT (10 Oct 2026): the planner asks which project, never guesses -->
+<div class="modal-overlay" id="proj-pick-modal" onclick="if(event.target===this)closeProjPick()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Which project?</div>
+    <div class="modal-sub" id="proj-pick-heard"></div>
+    <div id="proj-pick-list" style="max-height:50vh;overflow-y:auto"></div>
+    <button class="modal-close-btn" onclick="closeProjPick()">Cancel</button>
   </div>
 </div>
 
@@ -4424,7 +4510,7 @@ const VOICE_HINTS = [
   'Say: "I exercised today"',
   'Say: "Focus for 25 minutes on the report"',
   'Say: "Remind me to call the plumber at 3pm tomorrow"',
-  'Say: "Add idea to my Boat Refit project"',
+  'Say: "Note for my Boat Refit project: …"',
   'Say: "Note: call the supplier tomorrow"',
   'Say: "What should I focus on today?"',
 ];
@@ -4483,7 +4569,14 @@ const FREE_VALUE_LIMIT = 5;   // total values held, seeded ones included
 const FREE_ROLE_LIMIT = 3;    // total life roles held (Dave, 25 Sep; built 30 Sep). New accounts start with one.
 
 const DEFAULT_PROJECTS = [
-  { id: 1, name: 'Boat refit', desc: 'Full restoration of the 38ft sloop', icon: '⛵', status: 'Active', progress: 35, tags: ['sailing','2026'], captures: [
+  { id: 1, name: 'Boat refit', desc: 'Back in the water for summer', icon: '⛵', status: 'Active', progress: 33, tags: ['sailing','2026'],
+    target: (function () { const d = new Date(); d.setDate(d.getDate() + 60); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
+    steps: [
+      { id: 101, text: 'Strip the old antifouling', done: true, created: 0, taskId: null },
+      { id: 102, text: 'Book the haul-out', done: false, created: 0, taskId: null },
+      { id: 103, text: 'Order new rigging', done: false, created: 0, taskId: null },
+    ], nextStepId: 102, files: [],
+    captures: [
     { type: 'voice', title: 'Outboard motor notes — boat show', meta: '2 min voice memo', icon: 'ti-microphone' },
     { type: 'photo', title: 'Hull damage photos', meta: '6 photos', icon: 'ti-camera' },
     { type: 'doc', title: 'Yamaha 150hp spec sheet', meta: 'PDF · 2.4MB', icon: 'ti-file-text' },
@@ -4542,7 +4635,7 @@ let state = {
     { id: 1, text: 'See the southern lights', done: false },
     { id: 2, text: 'Learn to sail', done: false },
   ],
-  projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures] })),
+  projects: DEFAULT_PROJECTS.map(p => ({ ...p, captures: [...p.captures], steps: (p.steps || []).map(x => ({ ...x })), files: [] })),
   recurEnds: {},   // seriesId -> last date the series may ever cover (L14: an ended series stays ended)
   recurRules: {},  // seriesId -> series rule record (Stage 1, 30 Jul). Parallel to the rows — nothing reads it for display.
   notes: DEFAULT_NOTES.map(n => ({ ...n })),
@@ -5764,6 +5857,7 @@ function searchIndex(q) {
     (p.captures || []).forEach((c, ci) => {
       if (has(c.title) || has(c.meta)) hits.push({ kind: 'project', id: p.id, extra: ci, text: (c.title || '') + ' — ' + p.name, date: null });
     });
+    projSearchHits(p, has, hits);
   });
   (state.shoppingLists || []).forEach(l => (l.items || []).forEach(it => {
     if (has(it.text)) hits.push({ kind: 'shop', id: it.id, extra: l.id, text: it.text + (state.shoppingLists.length > 1 ? ' — ' + l.name : ''), date: null });
@@ -5895,7 +5989,7 @@ function searchGo(kind, id, extra) {
     showTab('projects');
     renderProjects();
     openDetail(p);
-    if (extra !== null && extra !== undefined) searchFlash('detail-captures', q);
+    if (extra !== null && extra !== undefined) searchFlash(extra === 'step' ? 'detail-steps' : extra === 'file' ? 'detail-files' : 'detail-captures', q);
   } else if (kind === 'shop') {
     if (extra) state.activeShopId = extra;
     showTab('shopping');
@@ -6460,6 +6554,11 @@ function processVoice(text) {
     handleReminderVoice(text);
     return;
   }
+  // PROJECTS REBUILT (10 Oct 2026): "Note for my boat refit project: …", "Idea for
+  // the boat refit: …", "Next step for the boat refit: …" and "Start a project
+  // called …" are dealt with here, before "Note…" and the time rule, so the words
+  // land in the project they name. Anything else goes on as before.
+  if (projVoiceEarly(text)) return;
   // FIX 3 (3 Aug): a leading "note" — or a "make/take a note" anywhere — wins
   // over task words and times alike. Dave's principle: nothing wrong if a task
   // ends up in notes by mistake; it is still saved. Conservative variant set
@@ -6887,20 +6986,12 @@ function processVoice(text) {
     renderGoals();
     showTab('goals', null);
     showToast(`Goal added: "${g}" — set your target in Goals`);
-  } else if (/\bproject\b/i.test(t)) {
-    // Project capture — e.g. "start a project called boat refit".
-    let pj = text.replace(/^\s*(?:start|create|new|add|make|begin)\s+/i,'')
-                 .replace(/\ba\s+project\b/i,'').replace(/\bthe\s+project\b/i,'').replace(/\bproject\b/i,'')
-                 .replace(/^\s*(?:called|named|for|to|:)\s+/i,'').replace(/\s{2,}/g,' ').trim();
-    if (!pj) { showToast('Tell me the project name — e.g. "start a project called boat refit"'); return; }
-    if (!vtPracticeMode && !isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
-      showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`); showUpgrade(); return;
-    }
-    state.projects = state.projects || [];
-    state.projects.push({ id: Date.now(), name: pj, desc: '', icon: '📁', status: 'Planning', progress: 0, tags: [], captures: [] });
-    renderProjects();
-    showTab('projects', null);
-    showToast(`Project created: "${pj}"`);
+  } else if (/\bprojects?\b/i.test(t) && !/\b(?:priority|task|tasks|to-?\s?do)\b/i.test(t)) {
+    // PROJECTS REBUILT (10 Oct 2026): a sentence naming a project is filed into it
+    // as a note, or the planner asks which. It never makes a project: starting one
+    // is "start / create / new … project" (projVoiceEarly). A sentence that says
+    // task or priority goes on to the task branch.
+    projVoiceLate(text);
   } else if (t.includes('add') || t.includes('task') || t.includes('priority') || t.includes('to do') || t.includes('to-do')) {
     voiceCreateTask(text, t);
   } else if (logHabitByVoice(t)) {
@@ -8953,7 +9044,7 @@ function addTask() {
 
 function toggleTask(id) {
   const t = state.tasks.find(x => x.id === id);
-  if (t) { t.done = !t.done; renderTasks(); renderCalStrip(); }
+  if (t) { t.done = !t.done; projTaskTicked(t); renderTasks(); renderCalStrip(); }
 }
 
 // ============================================================
@@ -9091,6 +9182,8 @@ function editRole(idx) {
 function openEditModal(title, fields, opts) {
   opts = opts || {};
   document.getElementById('edit-modal-title').textContent = title;
+  const _editDel = document.getElementById('edit-modal-delete');
+  if (_editDel) _editDel.style.display = '';   // editProject() hides it; every other caller shows it
   // Notes-only: a full-size reader/editor. Every other caller keeps the compact sheet.
   const sheet = document.querySelector('#edit-modal .modal-sheet');
   const isFull = opts.size === 'full';
@@ -9197,7 +9290,7 @@ function saveEdit() {
   const v2 = v2El ? v2El.value.trim() : '';
   if (editCtx.kind === 'task') {
     const t = state.tasks.find(x => x.id === editCtx.id);
-    if (t) { if (!v1) { showToast('Task can\u2019t be empty'); return; } t.text = v1; t.p = v2 || t.p; }
+    if (t) { if (!v1) { showToast('Task can\u2019t be empty'); return; } t.text = v1; t.p = v2 || t.p; projTaskEdited(t); }
     renderTasks(); renderCalStrip();
   } else if (editCtx.kind === 'note') {
     commitNoteEdit(editCtx.id);
@@ -9211,6 +9304,24 @@ function saveEdit() {
       a.location = v2;
     }
     renderAppointments(); renderScheduleGrid(); renderCalStrip();
+  } else if (editCtx.kind === 'step') {
+    const st = projStep(editCtx.id);
+    if (st) {
+      if (!v1) { showToast('Step can\u2019t be empty'); return; }
+      st.text = v1;
+      const tt = projStepTask(st);
+      if (tt) { tt.text = v1; renderTasks(); }
+    }
+    renderProjectDetail();
+  } else if (editCtx.kind === 'proj') {
+    const p = currentProject;
+    if (p) {
+      if (!v1) { showToast('Project needs a name'); return; }
+      p.name = v1; p.desc = v2;
+      p.target = (document.getElementById('edit-f3') || {}).value || '';
+      p.status = (document.getElementById('edit-f4') || {}).value || p.status;
+    }
+    renderProjectDetail(); renderProjects(); renderTasks();
   } else if (editCtx.kind === 'capture') {
     const c = currentProject && currentProject.captures[editCtx.idx];
     if (c) { if (!v1) { showToast('Title can\u2019t be empty'); return; } c.title = v1; c.body = v2; }
@@ -9256,6 +9367,7 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'note') { state.notes = state.notes.filter(x => x.id !== editCtx.id); cleanupItemReminders('note', editCtx.id); renderNotes(); }
   else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); cleanupItemReminders('appt', editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
   else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
+  else if (editCtx.kind === 'step') { projDeleteStep(editCtx.id); }
   else if (editCtx.kind === 'shopping') { var _l = activeShopList(); _l.items = _l.items.filter(function(x){ return x.id !== editCtx.id; }); renderShopping(); }
   else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
   else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
@@ -9288,7 +9400,7 @@ function renderTasks() {
     }
     d.innerHTML = `
       <div class="priority-badge p${t.p}">${t.p}</div>
-      <div class="task-text">${t.text}${carryTag}</div>
+      <div class="task-text">${projTaskChip(t)}${t.text}${carryTag}</div>
       <button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('task',${t.id})"><i class="ti ti-bell"></i></button>
       <button class="row-edit" title="Edit" onclick="event.stopPropagation();editTask(${t.id})"><i class="ti ti-pencil"></i></button>
       <div class="task-check${t.done ? ' done' : ''}"></div>`;
@@ -9734,21 +9846,6 @@ function deleteHabit(id) {
   state.habits = state.habits.filter(x => x.id !== id);
   renderHabits(); showToast('Habit removed');
 }
-function deleteProject(id) {
-  if (!confirm('Delete this project and everything in it?')) return;
-  state.projects = state.projects.filter(p => p.id !== id);
-  if (currentProject && currentProject.id === id) { currentProject = null; try { closeDetail(); } catch (e) {} }
-  renderProjects(); showToast('Project deleted');
-}
-function editProject() {
-  if (!currentProject) return;
-  const name = prompt('Project name:', currentProject.name); if (name === null) return;
-  if (name.trim()) currentProject.name = name.trim();
-  const desc = prompt('Description:', currentProject.desc || ''); if (desc !== null) currentProject.desc = desc.trim();
-  const dn = document.getElementById('detail-name'); if (dn) dn.textContent = currentProject.icon + ' ' + currentProject.name;
-  const dd = document.getElementById('detail-desc'); if (dd) dd.textContent = currentProject.desc || '';
-  renderProjects(); showToast('Project updated');
-}
 function deleteReflection(date) {
   if (!confirm('Delete this reflection?')) return;
   state.reflections = state.reflections.filter(r => r.date !== date);
@@ -9812,6 +9909,706 @@ function renderGoals() {
 }
 
 // ============================================================
+// PROJECTS, REBUILT (10 Oct 2026 · brief VFP_APPROOM_BRIEF_Projects_Rebuild v1, part 1)
+// A project is a job: its top (name, what done looks like, target date, status,
+// progress worked out from the steps ticked), next steps, files, and one dated
+// notes list. Everything stays inside the planner save, in the same shape as
+// before with new fields added, so an older copy of the app still open on
+// another device reads it and keeps it:
+//   desc       the one line "what done looks like" (the old description carries over)
+//   target     'YYYY-MM-DD' or ''
+//   status     Planning | Active | On hold | Done
+//   steps      [{ id, text, done, created, taskId }], in order
+//   nextStepId the step marked as next; a ticked or missing one falls to the first open step
+//   files      [{ id, name, type, size, storagePath, created }], private bucket
+//   captures   the notes list, as before; old "doc" entries read as document references
+//   progress   kept equal to the share of steps ticked, for older copies of the app
+// A step put on a day is an ordinary task carrying projId + stepId, so it carries
+// forward as tasks do; ticking either one ticks the other.
+// ============================================================
+const PROJ_STATUSES = ['Planning', 'Active', 'On hold', 'Done'];
+let projIdSeq = 0;
+function projNewId() { projIdSeq = (projIdSeq + 1) % 1000; return Date.now() * 1000 + projIdSeq; }
+function projEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+// Fill the new fields on an older project. Nothing that exists is changed.
+function projFix(p) {
+  if (!p) return p;
+  if (!Array.isArray(p.steps)) p.steps = [];
+  if (!Array.isArray(p.files)) p.files = [];
+  if (!Array.isArray(p.captures)) p.captures = [];
+  if (!Array.isArray(p.tags)) p.tags = [];
+  if (typeof p.target !== 'string') p.target = '';
+  if (!p.status) p.status = 'Planning';
+  return p;
+}
+function projProgress(p) {
+  const n = (p.steps || []).length;
+  return n ? Math.round(100 * p.steps.filter(s => s.done).length / n) : 0;
+}
+function projSync(p) { projFix(p); p.progress = projProgress(p); return p; }
+function projNextStep(p) {
+  const open = (p.steps || []).filter(s => !s.done);
+  return open.find(s => s.id === p.nextStepId) || open[0] || null;
+}
+// The task a step was put on a day as. A task deleted from the day unlinks here.
+function projStepTask(s) {
+  if (!s || s.taskId == null) return null;
+  const t = state.tasks.find(x => x.id === s.taskId);
+  if (!t) s.taskId = null;
+  return t || null;
+}
+function projById(id) { return (state.projects || []).find(x => x.id === id) || null; }
+function projFindStep(projId, stepId) {
+  const p = projById(projId);
+  const s = p && (p.steps || []).find(x => x.id === stepId);
+  return s ? { p, s } : null;
+}
+function projDayLabel(dk) {
+  if (!dk) return '';
+  if (dk === dateKey(today)) return 'Today';
+  const tm = new Date(today); tm.setDate(tm.getDate() + 1);
+  if (dk === dateKey(tm)) return 'Tomorrow';
+  const d = new Date(dk + 'T12:00:00');
+  const fmt = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== today.getFullYear()) fmt.year = 'numeric';
+  return d.toLocaleDateString('en-GB', fmt);
+}
+function projTargetLabel(dk) {
+  if (!dk) return '';
+  const d = new Date(dk + 'T12:00:00');
+  if (isNaN(d)) return '';
+  const fmt = { day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== today.getFullYear()) fmt.year = 'numeric';
+  return d.toLocaleDateString('en-GB', fmt);
+}
+// The project's name on a task that came from one of its steps (day list, week view).
+function projTaskChip(t) {
+  if (!t || t.projId == null) return '';
+  const p = projById(t.projId);
+  if (!p) return '';
+  return `<span class="proj-chip">${projEsc(p.icon || '')} ${projEsc(p.name)}</span>`;
+}
+// Called whenever a task is ticked or unticked on a day: its step follows.
+function projTaskTicked(t) {
+  if (!t || t.projId == null || t.stepId == null) return;
+  const f = projFindStep(t.projId, t.stepId);
+  if (!f) return;
+  f.s.done = !!t.done;
+  projSync(f.p);
+  if (currentProject === f.p) renderProjectDetail();
+}
+// Called when a task's words are edited on the day: the step's words follow.
+function projTaskEdited(t) {
+  if (!t || t.projId == null || t.stepId == null) return;
+  const f = projFindStep(t.projId, t.stepId);
+  if (f) f.s.text = t.text;
+}
+
+// ---- the list of projects ----------------------------------------------
+function createProject() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { showToast('Please enter a project name'); return; }
+  if (!isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
+    showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`);
+    showUpgrade();
+    return;
+  }
+  const desc = document.getElementById('np-desc').value.trim();
+  const target = (document.getElementById('np-target') || {}).value || '';
+  const icon = document.getElementById('np-icon').textContent;
+  state.projects.push(projSync({
+    id: Date.now(), name, desc, icon, status: 'Planning',
+    progress: 0, tags: [], captures: [], steps: [], files: [], target, nextStepId: null
+  }));
+  document.getElementById('np-name').value = '';
+  document.getElementById('np-desc').value = '';
+  if (document.getElementById('np-target')) document.getElementById('np-target').value = '';
+  document.getElementById('new-proj-form').classList.add('hidden');
+  renderProjects();
+  showToast('Project "' + name + '" created!');
+}
+
+function renderProjects() {
+  const el = document.getElementById('proj-list');
+  el.innerHTML = '';
+  (state.projects || []).forEach(p => {
+    projSync(p);
+    const card = document.createElement('div');
+    card.className = 'proj-card';
+    const next = projNextStep(p);
+    const doneN = p.steps.filter(s => s.done).length;
+    card.innerHTML = `
+      <div class="proj-top-bar"></div>
+      <div class="proj-header">
+        <div class="proj-emoji">${projEsc(p.icon)}</div>
+        <div class="proj-info">
+          <div class="proj-name">${projEsc(p.name)}</div>
+          <div style="font-size:11px;color:var(--text-on-navy-soft);margin-top:2px">${p.desc ? projEsc(p.desc) : 'No description'}</div>
+        </div>
+        <div class="proj-status-badge">${projEsc(p.status)}</div>
+      </div>
+      <div class="proj-prog"><div class="proj-prog-fill" style="width:${p.progress}%"></div></div>
+      ${next ? `<div class="proj-next"><i class="ti ti-arrow-right"></i><span>Next: ${projEsc(next.text)}</span></div>` : ''}
+      <div class="proj-stats">
+        <div class="pstat"><div class="pstat-n">${doneN}/${p.steps.length}</div><div class="pstat-l">Steps</div></div>
+        <div class="pstat"><div class="pstat-n">${p.files.length}</div><div class="pstat-l">Files</div></div>
+        <div class="pstat"><div class="pstat-n">${p.captures.length}</div><div class="pstat-l">Notes</div></div>
+        <div class="pstat"><div class="pstat-n">${p.target ? projEsc(projTargetLabel(p.target)) : '—'}</div><div class="pstat-l">Target</div></div>
+      </div>
+      ${p.tags.length ? `<div class="proj-tags">${p.tags.map(t => `<span class="ptag">#${projEsc(t)}</span>`).join('')}</div>` : ''}`;
+    card.style.position = 'relative';
+    const pdel = document.createElement('button');
+    pdel.innerHTML = '×'; pdel.title = 'Delete project';
+    pdel.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(0,0,0,.06);border:none;color:var(--text-mid);width:24px;height:24px;border-radius:50%;font-size:15px;line-height:1;cursor:pointer;z-index:3';
+    pdel.onclick = (e) => { e.stopPropagation(); deleteProject(p.id); };
+    card.appendChild(pdel);
+    card.onclick = () => openDetail(p);
+    el.appendChild(card);
+  });
+}
+
+// ---- one project ---------------------------------------------------------
+function openDetail(p) {
+  currentProject = projSync(p);
+  renderProjectDetail();
+  document.getElementById('proj-detail').classList.add('open');
+}
+
+function renderProjectDetail() {
+  const p = currentProject;
+  if (!p) return;
+  projSync(p);
+  document.getElementById('detail-name').textContent = p.icon + ' ' + p.name;
+  document.getElementById('detail-desc').textContent = p.status + ' · ' + p.progress + '% complete';
+  renderProjectTop();
+  renderDetailSteps();
+  renderDetailFiles();
+  renderDetailCaptures();
+}
+
+function renderProjectTop() {
+  const el = document.getElementById('detail-top');
+  const p = currentProject;
+  if (!el || !p) return;
+  const doneN = p.steps.filter(s => s.done).length;
+  el.innerHTML = `
+    <div class="ptop-row"><span class="ptop-lab">Done looks like</span><span class="ptop-val">${p.desc ? projEsc(p.desc) : '<span class="ptop-empty">Not set</span>'}</span></div>
+    <div class="ptop-row"><span class="ptop-lab">Target date</span><span class="ptop-val">${p.target ? projEsc(projTargetLabel(p.target)) : '<span class="ptop-empty">Not set</span>'}</span></div>
+    <div class="ptop-status">${PROJ_STATUSES.map(s => `<button type="button" class="pstat-btn${p.status === s ? ' on' : ''}" onclick="setProjStatus('${s}')">${s}</button>`).join('')}</div>
+    <div class="proj-prog big"><div class="proj-prog-fill" style="width:${p.progress}%"></div></div>
+    <div class="ptop-prog-l">${p.steps.length ? `${doneN} of ${p.steps.length} steps done · ${p.progress}%` : 'Progress shows here once the project has steps'}</div>`;
+}
+
+function setProjStatus(s) {
+  if (!currentProject || !PROJ_STATUSES.includes(s)) return;
+  currentProject.status = s;
+  renderProjectDetail();
+}
+
+function editProject() {
+  if (!currentProject) return;
+  const p = currentProject;
+  editCtx = { kind: 'proj' };
+  const opts = PROJ_STATUSES.map(s => [s, s]);
+  if (!PROJ_STATUSES.includes(p.status)) opts.unshift([p.status, p.status]);
+  openEditModal('Edit project', [
+    { id: 'edit-f1', label: 'Name', value: p.name, mic: true },
+    { id: 'edit-f2', label: 'Done looks like', value: p.desc || '', mic: true },
+    { id: 'edit-f3', label: 'Target date', value: p.target || '', type: 'date' },
+    { id: 'edit-f4', label: 'Status', value: p.status, type: 'select', options: opts }
+  ]);
+  const del = document.getElementById('edit-modal-delete');
+  if (del) del.style.display = 'none';   // deleting a project has its own button and confirm
+}
+
+// Deleting a project also removes its stored photos and files, so they stop
+// counting against the free allowance, and takes its steps off the days.
+async function deleteProject(id) {
+  const p = projById(id);
+  if (!p) return;
+  if (!confirm('Delete this project and everything in it?')) return;
+  const paths = [];
+  (p.captures || []).forEach(c => { if (c.storagePath) paths.push(c.storagePath); });
+  (p.files || []).forEach(f => { if (f.storagePath) paths.push(f.storagePath); });
+  if (paths.length && !isDemo) {
+    if (!sb) { showToast('Couldn\'t delete the stored files — try again'); return; }
+    const { error } = await sb.storage.from('project-captures').remove(paths);
+    if (error) { showToast('Couldn\'t delete the stored files — try again'); return; }
+    paths.forEach(x => { delete photoUrlCache[x]; });
+  }
+  state.tasks = state.tasks.filter(t => !(t.projId === id && t.stepId != null && !t.done));
+  state.tasks.forEach(t => { if (t.projId === id) { delete t.projId; delete t.stepId; } });
+  state.projects = state.projects.filter(x => x.id !== id);
+  if (currentProject && currentProject.id === id) { currentProject = null; try { closeDetail(); } catch (e) {} }
+  renderProjects(); renderTasks(); renderCalStrip();
+  try { persistNow(); } catch (e) {}
+  showToast('Project deleted');
+}
+
+// ---- next steps ----------------------------------------------------------
+function projAddStep(p, text) {
+  projFix(p);
+  const s = { id: projNewId(), text: String(text).trim(), done: false, created: Date.now(), taskId: null };
+  p.steps.push(s);
+  projSync(p);
+  return s;
+}
+function addStep() {
+  const inp = document.getElementById('step-inp');
+  const text = (inp.value || '').trim();
+  if (!text || !currentProject) return;
+  projAddStep(currentProject, text);
+  inp.value = '';
+  renderProjectDetail();
+}
+function projStep(stepId) { return currentProject ? (currentProject.steps || []).find(s => s.id === stepId) : null; }
+function toggleStep(stepId) {
+  const s = projStep(stepId);
+  if (!s) return;
+  s.done = !s.done;
+  const t = projStepTask(s);
+  if (t) { t.done = s.done; renderTasks(); renderCalStrip(); }
+  renderProjectDetail();
+}
+function moveStep(stepId, dir) {
+  const p = currentProject; if (!p) return;
+  const i = p.steps.findIndex(s => s.id === stepId), j = i + dir;
+  if (i < 0 || j < 0 || j >= p.steps.length) return;
+  const tmp = p.steps[i]; p.steps[i] = p.steps[j]; p.steps[j] = tmp;
+  renderProjectDetail();
+}
+function markNextStep(stepId) {
+  const s = projStep(stepId);
+  if (!s || s.done) return;
+  currentProject.nextStepId = stepId;
+  renderProjectDetail();
+}
+function editStep(stepId) {
+  const s = projStep(stepId);
+  if (!s) return;
+  editCtx = { kind: 'step', id: stepId };
+  openEditModal('Edit step', [{ id: 'edit-f1', label: 'Step', value: s.text, mic: true }]);
+}
+function projDeleteStep(stepId) {
+  const p = currentProject; if (!p) return;
+  const s = projStep(stepId); if (!s) return;
+  const t = projStepTask(s);
+  if (t) { state.tasks = state.tasks.filter(x => x.id !== t.id); try { cleanupItemReminders('task', t.id); } catch (e) {} renderTasks(); renderCalStrip(); }
+  p.steps = p.steps.filter(x => x.id !== stepId);
+  if (p.nextStepId === stepId) p.nextStepId = null;
+  renderProjectDetail();
+}
+
+function renderDetailSteps() {
+  const el = document.getElementById('detail-steps');
+  const p = currentProject;
+  if (!el || !p) return;
+  if (!p.steps.length) {
+    el.innerHTML = '<div class="pempty">No steps yet — add the first one below.</div>';
+    return;
+  }
+  const next = projNextStep(p);
+  el.innerHTML = '';
+  p.steps.forEach((s, i) => {
+    const t = projStepTask(s);
+    const d = document.createElement('div');
+    d.className = 'step-row' + (s.done ? ' done' : '') + (next && next.id === s.id ? ' is-next' : '');
+    d.innerHTML = `
+      <div class="task-check${s.done ? ' done' : ''}" onclick="toggleStep(${s.id})" title="Tick"></div>
+      <div class="step-main" onclick="editStep(${s.id})">
+        <div class="step-text">${projEsc(s.text)}</div>
+        <div class="step-tags">${next && next.id === s.id ? '<span class="step-next">Next step</span>' : ''}${t ? `<span class="step-day"><i class="ti ti-calendar"></i>${projEsc(projDayLabel(t.date))}</span>` : ''}</div>
+      </div>
+      <div class="step-acts">
+        ${!s.done && !(next && next.id === s.id) ? `<button type="button" title="Make this the next step" onclick="markNextStep(${s.id})"><i class="ti ti-star"></i></button>` : ''}
+        ${!s.done ? `<button type="button" title="Put on a day" onclick="openStepDay(${s.id})"><i class="ti ti-calendar-plus"></i></button>` : ''}
+        <button type="button" title="Move up" onclick="moveStep(${s.id},-1)"${i === 0 ? ' disabled' : ''}><i class="ti ti-arrow-up"></i></button>
+        <button type="button" title="Move down" onclick="moveStep(${s.id},1)"${i === p.steps.length - 1 ? ' disabled' : ''}><i class="ti ti-arrow-down"></i></button>
+      </div>`;
+    el.appendChild(d);
+  });
+}
+
+// ---- a step onto a day ----------------------------------------------------
+let stepDayCtx = null;
+function openStepDay(stepId) {
+  const s = projStep(stepId);
+  if (!s || !currentProject) return;
+  stepDayCtx = { projId: currentProject.id, stepId };
+  const t = projStepTask(s);
+  document.getElementById('step-day-sub').textContent = s.text;
+  const inp = document.getElementById('step-day-date');
+  inp.value = t ? t.date : dateKey(today);
+  document.getElementById('step-day-off').style.display = t ? '' : 'none';
+  document.getElementById('step-day-modal').classList.add('open');
+}
+function closeStepDay() { document.getElementById('step-day-modal').classList.remove('open'); stepDayCtx = null; }
+function stepDayPick(which) {
+  if (which === 'today') return stepDaySet(dateKey(today));
+  if (which === 'tomorrow') { const d = new Date(today); d.setDate(d.getDate() + 1); return stepDaySet(dateKey(d)); }
+  const v = document.getElementById('step-day-date').value;
+  if (!v) { showToast('Choose a day first'); return; }
+  stepDaySet(v);
+}
+function stepDaySet(dk) {
+  if (!stepDayCtx) return;
+  const f = projFindStep(stepDayCtx.projId, stepDayCtx.stepId);
+  if (!f) { closeStepDay(); return; }
+  if (projPutStepOnDay(f.p, f.s, dk)) closeStepDay();
+}
+function stepDayOff() {
+  if (!stepDayCtx) return;
+  const f = projFindStep(stepDayCtx.projId, stepDayCtx.stepId);
+  if (f) {
+    const t = projStepTask(f.s);
+    if (t) { state.tasks = state.tasks.filter(x => x.id !== t.id); try { cleanupItemReminders('task', t.id); } catch (e) {} }
+    f.s.taskId = null;
+    renderTasks(); renderCalStrip();
+    if (currentProject === f.p) renderProjectDetail();
+    showToast('Taken off the day');
+  }
+  closeStepDay();
+}
+// Puts (or moves) a step onto a day as a task with the project's name. Free plan:
+// the day's task limit applies as it does to any task. Returns true when placed.
+function projPutStepOnDay(p, s, dk) {
+  let t = projStepTask(s);
+  if (t && t.date === dk) return true;
+  if (!isPremium() && state.tasks.filter(x => x.date === dk && (!t || x.id !== t.id)).length >= 5) {
+    showToast('Free plan: up to 5 tasks per day — upgrade for unlimited');
+    showUpgrade();
+    return false;
+  }
+  if (t) { t.date = dk; t.origDate = dk; }
+  else {
+    let id = Date.now();
+    while (state.tasks.some(x => x.id === id)) id++;
+    t = { id, text: s.text, p: 'B', done: !!s.done, date: dk, origDate: dk, projId: p.id, stepId: s.id };
+    state.tasks.push(t);
+    s.taskId = id;
+  }
+  renderTasks(); renderCalStrip();
+  if (currentProject === p) renderProjectDetail();
+  showToast('On ' + (dk === dateKey(today) ? 'today' : projDayLabel(dk)) + ': "' + s.text.slice(0, 30) + '"');
+  try { persistNow(); } catch (e) {}
+  return true;
+}
+
+// ---- files ----------------------------------------------------------------
+// Real attachments in the private `project-captures` bucket, beside the photos.
+// The server issues a one-use upload pass only after its count check, and the
+// bucket itself holds the size and the types (api/project-photo-upload.js, mode
+// 'file'). The free allowance is one count shared with photos until Dave rules.
+const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const FILE_TYPES = {
+  pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  heic: 'image/heic', heif: 'image/heif', doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+};
+function projFileType(file) {
+  const ext = String((file && file.name) || '').split('.').pop().toLowerCase();
+  const byExt = FILE_TYPES[ext] || '';
+  const t = String((file && file.type) || '').toLowerCase();
+  if (t && Object.values(FILE_TYPES).includes(t)) return t;
+  return byExt;
+}
+function projFileIcon(type) {
+  if (type === 'application/pdf') return 'ti-file-type-pdf';
+  if (/^image\//.test(type)) return 'ti-photo';
+  if (/word/.test(type)) return 'ti-file-type-doc';
+  if (/excel|sheet/.test(type)) return 'ti-file-spreadsheet';
+  return 'ti-file';
+}
+function projSize(n) {
+  if (!n && n !== 0) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+function addProjectFile() {
+  if (!currentProject) return;
+  document.getElementById('file-capture-input').click();
+}
+async function onFilePicked(inp) {
+  const file = inp.files && inp.files[0];
+  inp.value = '';
+  if (!file || !currentProject) return;
+  const proj = currentProject;
+  const type = projFileType(file);
+  if (!type) { showToast('That kind of file can\'t be added — PDF, pictures, Word or Excel'); return; }
+  if (file.size > FILE_MAX_BYTES) { showToast('That file is too large — 10 MB max'); return; }
+  const entry = { id: projNewId(), name: String(file.name || 'File').slice(0, 120), type, size: file.size, created: Date.now() };
+  if (isDemo) {
+    entry.demoUrl = URL.createObjectURL(file);
+    proj.files.unshift(entry);
+    if (currentProject === proj) renderProjectDetail();
+    showToast('File added (demo — not saved)');
+    return;
+  }
+  if (!sb || !authUserId) { showToast('Sign in to add files'); return; }
+  // A courtesy: the server is the authority and enforces the same count.
+  if (!isPremium() && photoCount() >= FREE_PHOTO_LIMIT) { showPhotoUpgrade(); return; }
+  showToast('Adding file…');
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    const resp = await fetch('/api/project-photo-upload', {
+      method: 'POST', headers,
+      body: JSON.stringify({ mode: 'file', projectId: String(proj.id), contentType: type, size: file.size })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 402) { showPhotoUpgrade(); return; }
+    if (!resp.ok || !data.path || !data.token) { showToast(data.error || 'File didn\'t upload — try again'); return; }
+    const up = await sb.storage.from('project-captures').uploadToSignedUrl(data.path, data.token, file, { contentType: type });
+    if (up.error) { showToast('File didn\'t upload — try again'); return; }
+    entry.storagePath = data.path;
+  } catch (e) {
+    showToast('File didn\'t upload — try again');
+    return;
+  }
+  proj.files.unshift(entry);
+  if (currentProject === proj) renderProjectDetail();
+  try { persistNow(); } catch (e) {}
+  showToast('File saved to the project');
+}
+async function openProjectFile(fileId, ev) {
+  const f = currentProject && (currentProject.files || []).find(x => x.id === fileId);
+  if (!f) return;
+  if (f.demoUrl) { window.open(f.demoUrl, '_blank', 'noopener'); return; }
+  if (!f.storagePath) { showToast('Couldn\'t open that file — try again'); return; }
+  const w = window.open('', '_blank');   // opened now, while the tap still counts, then pointed at the file
+  // PDFs and pictures open in the browser; Word and Excel download under their own name.
+  let url = null;
+  if (f.type === 'application/pdf' || /^image\//.test(f.type)) url = await photoSignedUrl(f.storagePath);
+  else if (sb) {
+    const { data } = await sb.storage.from('project-captures').createSignedUrl(f.storagePath, 300, { download: f.name });
+    url = data && data.signedUrl;
+  }
+  if (!url) { if (w) w.close(); showToast('Couldn\'t open that file — try again'); return; }
+  if (w) { try { w.opener = null; } catch (e) {} w.location.href = url; }
+  else location.href = url;
+}
+async function deleteProjectFile(fileId) {
+  const p = currentProject; if (!p) return;
+  const f = (p.files || []).find(x => x.id === fileId); if (!f) return;
+  if (!confirm('Delete "' + f.name + '"?')) return;
+  if (f.storagePath && !isDemo) {
+    if (!sb) { showToast('Couldn\'t delete the stored file — try again'); return; }
+    const { error } = await sb.storage.from('project-captures').remove([f.storagePath]);
+    if (error) { showToast('Couldn\'t delete the stored file — try again'); return; }
+    delete photoUrlCache[f.storagePath];
+  }
+  if (f.demoUrl) { try { URL.revokeObjectURL(f.demoUrl); } catch (e) {} }
+  p.files = p.files.filter(x => x.id !== fileId);
+  renderProjectDetail();
+  try { persistNow(); } catch (e) {}
+  showToast('File deleted');
+}
+function renderDetailFiles() {
+  const el = document.getElementById('detail-files');
+  const p = currentProject;
+  if (!el || !p) return;
+  const q = document.getElementById('file-quota');
+  if (q) {
+    if (isDemo || isPremium()) q.style.display = 'none';
+    else { q.textContent = projQuotaText(); q.style.display = ''; }
+  }
+  if (!p.files.length) { el.innerHTML = '<div class="pempty">No files yet — quotes, plans, receipts, manuals.</div>'; return; }
+  el.innerHTML = p.files.map(f => `
+    <div class="capture-item file-row">
+      <div class="cap-icon"><i class="ti ${projFileIcon(f.type)}"></i></div>
+      <div class="cap-info" onclick="openProjectFile(${f.id}, event)" style="cursor:pointer"><div class="cap-title">${projEsc(f.name)}</div><div class="cap-meta">${projEsc(projSize(f.size))}${f.created ? ' · ' + projEsc(capDayLabel(f.created)) : ''}</div></div>
+      <button type="button" class="file-btn" onclick="openProjectFile(${f.id}, event)">Open</button>
+      <button type="button" class="file-btn" title="Delete" onclick="deleteProjectFile(${f.id})"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+}
+
+// ---- filing by voice, using the project's name ---------------------------
+// "Note for my boat refit project: …", "Add to my garden shed project: …",
+// "Idea for the boat refit: …", "Next step for the boat refit: book the haul-out
+// on Friday". The project is matched by its name. If none matches, or two could,
+// the planner asks which; it never makes a project. Starting one stays explicit:
+// "Start a project called …" (and create, new).
+const PROJ_STOP = new Set(['the', 'my', 'our', 'a', 'an', 'project', 'projects']);
+function projNorm(w) { return String(w || '').toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, ''); }
+function projTokens(s) { return String(s || '').split(/\s+/).map(projNorm).filter(Boolean); }
+function projNameTokens(name) { return projTokens(name).filter(w => !PROJ_STOP.has(w)); }
+function projSame(a, b) { return a === b || a.replace(/s$/, '') === b.replace(/s$/, ''); }
+// Does the project's name open these words? Returns how many original words it used.
+function projPrefix(words, nameToks) {
+  if (!nameToks.length) return 0;
+  let i = 0, k = 0;
+  while (i < words.length && k < nameToks.length) {
+    const w = projNorm(words[i]);
+    if (!w) { i++; continue; }
+    if (k === 0 && (w === 'the' || w === 'my' || w === 'our')) { i++; continue; }
+    if (!projSame(w, nameToks[k])) return 0;
+    i++; k++;
+  }
+  return k === nameToks.length ? i : 0;
+}
+// After the name: an optional "project", then the separator, then the words.
+function projAfterName(words, i) {
+  if (i < words.length && /^projects?[:,.;!?]*$/i.test(words[i])) i++;
+  let rest = words.slice(i).join(' ');
+  rest = rest.replace(/^[\s:;,.\-–—]+/, '').replace(/^that\s+/i, '').trim();
+  return rest;
+}
+// Which project do these words (the part after "for my …") name?
+// Returns { cands, words } — one candidate means filed; none or several means ask.
+function projResolve(rest) {
+  const words = String(rest || '').trim().split(/\s+/).filter(Boolean);
+  const list = state.projects || [];
+  let best = 0, cands = [], after = '';
+  list.forEach(p => {
+    const n = projPrefix(words, projNameTokens(p.name));
+    if (!n) return;
+    const len = projNameTokens(p.name).length;
+    if (len > best) { best = len; cands = [p]; after = projAfterName(words, n); }
+    else if (len === best) cands.push(p);
+  });
+  if (cands.length) return { cands, words: after, said: /\bprojects?\b/i.test(rest) };
+  // The person said "<something> project" and no name opens the words: a shorter
+  // name ("the boat project" for "Boat refit") still counts when only one project
+  // holds every word they said.
+  const m = String(rest).match(/^(.*?)\bprojects?\b[\s:;,.\-–—]*(?:that\s+)?(.*)$/i);
+  if (m) {
+    const said = projNameTokens(m[1]);
+    const hit = said.length ? list.filter(p => { const nt = projNameTokens(p.name); return said.every(w => nt.some(x => projSame(x, w))); }) : [];
+    return { cands: hit, words: m[2].trim(), said: true, loose: true };
+  }
+  const sep = String(rest).match(/^[^:;,\-–—]*[:;,\-–—]\s*(.*)$/);
+  return { cands: [], words: sep ? sep[1].trim() : String(rest).trim(), said: false };
+}
+// A spoken day on a step: today, tomorrow, a weekday ("on Friday", "next Friday"), next week.
+function projDayFromWords(words) {
+  let w = String(words || ''), dk = null;
+  const t = w.toLowerCase();
+  const days = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+  const strip = re => { w = w.replace(re, ' ').replace(/\s{2,}/g, ' ').replace(/\s+([.,;:!?])/g, '$1').trim().replace(/[\s,;:]+$/, ''); };
+  let m;
+  if (/\btoday\b/.test(t)) { dk = dateKey(today); strip(/\b(?:for\s+|on\s+)?today\b/i); }
+  else if (/\btomorrow\b/.test(t)) { const d = new Date(today); d.setDate(d.getDate() + 1); dk = dateKey(d); strip(/\b(?:for\s+|on\s+)?tomorrow\b/i); }
+  else if (/\bnext\s+week\b/.test(t)) { const d = new Date(today); d.setDate(d.getDate() + 7); dk = dateKey(d); strip(/\b(?:for\s+)?next\s+week\b/i); }
+  else if ((m = t.match(/\b(?:on\s+)?(?:this\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) {
+    const d = new Date(today);
+    let diff = (days[m[1]] - d.getDay() + 7) % 7;
+    if (diff === 0) diff = 7;   // a weekday name means the next one, as the task path reads it
+    d.setDate(d.getDate() + diff);
+    dk = dateKey(d);
+    strip(/\b(?:on\s+)?(?:this\s+|next\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+  }
+  return { dk, words: w.replace(/\s+\.+$/, '').trim() };
+}
+let projPickCtx = null;
+function projAsk(kind, words, cands, heard) {
+  projPickCtx = { kind, words, heard };
+  const list = state.projects || [];
+  const order = cands.concat(list.filter(p => !cands.includes(p)));
+  document.getElementById('proj-pick-heard').textContent = 'Heard: "' + heard + '"';
+  const wrap = document.getElementById('proj-pick-list');
+  wrap.innerHTML = order.length
+    ? order.map(p => `<button type="button" class="proj-pick-btn" onclick="projPicked(${p.id})">${projEsc(p.icon || '')} ${projEsc(p.name)}</button>`).join('')
+    : '<div class="pempty">No projects yet.</div>';
+  document.getElementById('proj-pick-modal').classList.add('open');
+}
+function closeProjPick() { document.getElementById('proj-pick-modal').classList.remove('open'); projPickCtx = null; }
+function projPicked(id) {
+  const ctx = projPickCtx, p = projById(id);
+  closeProjPick();
+  if (ctx && p) projFile(p, ctx.kind, ctx.words);
+}
+// Files the words into the project as a note, an idea or a next step, and shows it.
+function projFile(p, kind, words) {
+  projFix(p);
+  words = String(words || '').replace(/\s{2,}/g, ' ').trim();
+  if (!words) { showToast('Say the words after the project\'s name'); return; }
+  const now = Date.now();
+  const time = new Date(now).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  let msg;
+  if (kind === 'step') {
+    const day = projDayFromWords(words);
+    const s = projAddStep(p, day.words || words);
+    msg = 'Next step added to ' + p.name;
+    showTab('projects', null);
+    openDetail(p);
+    if (day.dk) { if (projPutStepOnDay(p, s, day.dk)) return; }
+  } else {
+    const isIdea = kind === 'idea';
+    const long = words.length > 80;
+    p.captures.unshift({
+      id: projNewId(), type: isIdea ? 'idea' : 'note',
+      title: long ? words.slice(0, 77) + '…' : words, meta: 'Spoken · ' + time,
+      body: long ? words : '', icon: isIdea ? 'ti-bulb' : 'ti-notes', created: now
+    });
+    msg = (isIdea ? 'Idea' : 'Note') + ' saved to ' + p.name;
+    showTab('projects', null);
+    openDetail(p);
+  }
+  try { persistNow(); } catch (e) {}
+  showToast(msg);
+}
+// Starting a project by voice: only "start / create / new / begin / make / add a project …".
+function projVoiceStart(rawName) {
+  const pj = String(rawName || '').replace(/^\s*(?:called|named|for|to|:)\s+/i, '').replace(/[.!?]+$/, '').replace(/\s{2,}/g, ' ').trim();
+  if (!pj) { showToast('Tell me the project name — e.g. "start a project called boat refit"'); return; }
+  if (!vtPracticeMode && !isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
+    showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`); showUpgrade(); return;
+  }
+  state.projects = state.projects || [];
+  state.projects.push({ id: Date.now(), name: pj, desc: '', icon: '📁', status: 'Planning', progress: 0, tags: [], captures: [], steps: [], files: [], target: '', nextStepId: null });
+  renderProjects();
+  showTab('projects', null);
+  showToast(`Project created: "${pj}"`);
+}
+// Early in processVoice, before "Note…", search and the time rule. True = dealt with.
+function projVoiceEarly(text) {
+  const mStart = text.match(/^\s*(?:start|create|begin|make|add)\s+(?:a\s+|an\s+)?(?:new\s+)?project\b[\s,:]*(.*)$/i)
+              || text.match(/^\s*new\s+project\b[\s,:]*(.*)$/i);
+  if (mStart) { projVoiceStart(mStart[1]); return true; }
+  let kind = null, rest = null;
+  const m = text.match(/^\s*(next\s+step|step|notes?|idea|add(?:\s+(?:an?\s+)?(?:note|idea|step|next\s+step))?)\s+(?:for|to|in|into|on)\s+(.+)$/i);
+  if (m) {
+    const lead = m[1].toLowerCase();
+    kind = /step/.test(lead) ? 'step' : /idea/.test(lead) ? 'idea' : 'note';
+    rest = m[2];
+  } else {
+    const m2 = text.match(/^\s*add\s+(.+?)\s+(?:to|in|into|for)\s+((?:my\s+|the\s+|our\s+)?.+?\s+projects?\b.*)$/i);
+    if (!m2) return false;
+    kind = 'note';
+    const r = projResolve(m2[2]);
+    const words = (m2[1] + (r.words ? ': ' + r.words : '')).trim();
+    if (r.cands.length === 1) projFile(r.cands[0], kind, words);
+    else projAsk(kind, words, r.cands, text);
+    return true;
+  }
+  const r = projResolve(rest);
+  if (r.cands.length === 1) { projFile(r.cands[0], kind, r.words); return true; }
+  // No project named and "project" not said: the sentence is not about a project
+  // ("Note for my wife: …", "Add to my shopping list: …"), so it goes on as before.
+  if (!r.cands.length && !r.said && kind !== 'step') return false;
+  projAsk(kind, r.words, r.cands, text);
+  return true;
+}
+// Where the old project branch was: any other sentence with "project" in it.
+// It is filed as a note into the project it names, or the planner asks. It never
+// makes a project (starting one was dealt with above).
+function projVoiceLate(text) {
+  const r = projResolve(text.replace(/^\s*(?:add|put|note|notes|idea|save|capture)\b[\s,:]*/i, ''));
+  if (r.cands.length === 1) projFile(r.cands[0], 'note', r.words);
+  else projAsk('note', r.words || text, r.cands, text);
+}
+
+// ---- search: steps and files are found too ---------------------------------
+function projSearchHits(p, has, hits) {
+  (p.steps || []).forEach(s => { if (has(s.text)) hits.push({ kind: 'project', id: p.id, extra: 'step', text: s.text + ' — ' + p.name, date: null }); });
+  (p.files || []).forEach(f => { if (has(f.name)) hits.push({ kind: 'project', id: p.id, extra: 'file', text: f.name + ' — ' + p.name, date: null }); });
+}
+
+// ============================================================
 // PROJECTS TAB
 // ============================================================
 function showNewProjForm() {
@@ -9829,67 +10626,8 @@ function cycleIcon() {
   document.getElementById('np-icon').textContent = ICONS[state.iconIdx];
 }
 
-function createProject() {
-  const name = document.getElementById('np-name').value.trim();
-  if (!name) { showToast('Please enter a project name'); return; }
-  if (!isPremium() && (state.projects || []).length >= FREE_PROJECT_LIMIT) {
-    showToast(`Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited`);
-    showUpgrade();
-    return;
-  }
-  const desc = document.getElementById('np-desc').value.trim();
-  const icon = document.getElementById('np-icon').textContent;
-  state.projects.push({
-    id: Date.now(), name, desc, icon, status: 'Planning',
-    progress: 0, tags: [], captures: []
-  });
-  document.getElementById('np-name').value = '';
-  document.getElementById('np-desc').value = '';
-  document.getElementById('new-proj-form').classList.add('hidden');
-  renderProjects();
-  showToast('Project "' + name + '" created!');
-}
 
-function renderProjects() {
-  const el = document.getElementById('proj-list');
-  el.innerHTML = '';
-  state.projects.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'proj-card';
-    card.innerHTML = `
-      <div class="proj-top-bar"></div>
-      <div class="proj-header">
-        <div class="proj-emoji">${p.icon}</div>
-        <div class="proj-info">
-          <div class="proj-name">${p.name}</div>
-          <div style="font-size:11px;color:var(--text-on-navy-soft);margin-top:2px">${p.desc || 'No description'}</div>
-        </div>
-        <div class="proj-status-badge">${p.status}</div>
-      </div>
-      <div class="proj-stats">
-        <div class="pstat"><div class="pstat-n">${p.captures.length}</div><div class="pstat-l">Items</div></div>
-        <div class="pstat"><div class="pstat-n">${p.captures.filter(c=>c.type==='voice').length}</div><div class="pstat-l">Voice</div></div>
-      </div>
-      ${p.tags.length ? `<div class="proj-tags">${p.tags.map(t=>`<span class="ptag">#${t}</span>`).join('')}</div>` : ''}`;
-    card.style.position = 'relative';
-    const pdel = document.createElement('button');
-    pdel.innerHTML = '×'; pdel.title = 'Delete project';
-    pdel.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(0,0,0,.06);border:none;color:var(--text-mid);width:24px;height:24px;border-radius:50%;font-size:15px;line-height:1;cursor:pointer;z-index:3';
-    pdel.onclick = (e) => { e.stopPropagation(); deleteProject(p.id); };
-    card.appendChild(pdel);
-    card.onclick = () => openDetail(p);
-    el.appendChild(card);
-  });
-}
 
-function openDetail(p) {
-  currentProject = p;
-  document.getElementById('detail-name').textContent = p.icon + ' ' + p.name;
-  document.getElementById('detail-desc').textContent = (p.desc || '') + ' · ' + p.status + ' · ' + p.progress + '% complete';
-  renderDetailCaptures();
-  renderDetailTasks();
-  document.getElementById('proj-detail').classList.add('open');
-}
 
 function closeDetail() {
   document.getElementById('proj-detail').classList.remove('open');
@@ -9897,8 +10635,11 @@ function closeDetail() {
   renderProjects();
 }
 
-const CAP_ICONS = { voice: 'ti-microphone', photo: 'ti-camera', doc: 'ti-file-text', link: 'ti-link', convo: 'ti-message-circle', idea: 'ti-bulb' };
-const CAP_NAMES = { voice: 'Voice memo', photo: 'Photo', doc: 'Document', link: 'Web link', convo: 'Conversation', idea: 'Idea' };
+const CAP_ICONS = { voice: 'ti-microphone', photo: 'ti-camera', doc: 'ti-file-text', link: 'ti-link', convo: 'ti-message-circle', idea: 'ti-bulb', note: 'ti-notes' };
+const CAP_NAMES = { voice: 'Voice memo', photo: 'Photo', doc: 'Document', link: 'Web link', convo: 'Conversation', idea: 'Idea', note: 'Note' };
+// The kind shown on each entry in a project's notes list. Old "Document" entries
+// were never files: they read as document references (10 Oct 2026).
+function capKindLabel(c) { return c.type === 'doc' ? 'Document reference' : (CAP_NAMES[c.type] || 'Note'); }
 
 // Capture flow: real input via modal. Photo opens the camera/file input (28 Jul).
 const CAP_CONFIG = {
@@ -9916,6 +10657,8 @@ function capture(type) {
     document.getElementById('photo-capture-input').click();
     return;
   }
+  // The Document button attaches a real file now (10 Oct 2026, brief item 3).
+  if (type === 'doc') { addProjectFile(); return; }
   const cfg = CAP_CONFIG[type];
   if (!cfg) return;
   captureType = type;
@@ -9947,28 +10690,34 @@ const FREE_PHOTO_LIMIT = 3;
 // (each stored object is exactly one capture with a storagePath, and delete
 // removes both together). Demo photos don't count: they never upload.
 function photoCount() {
+  // Photos AND files (10 Oct 2026): one count shared until Dave rules, the same
+  // objects the server counts in the bucket.
   let n = 0;
-  (state.projects || []).forEach(p => (p.captures || []).forEach(c => {
-    if (c.type === 'photo' && c.storagePath) n++;
-  }));
+  (state.projects || []).forEach(p => {
+    (p.captures || []).forEach(c => { if (c.type === 'photo' && c.storagePath) n++; });
+    (p.files || []).forEach(f => { if (f.storagePath) n++; });
+  });
   return n;
 }
 
 // The remaining-allowance chip on the Photo tile — visible for free accounts
 // BEFORE the limit bites. Paid and demo see nothing.
+function projQuotaText() {
+  const left = Math.max(0, FREE_PHOTO_LIMIT - photoCount());
+  return left > 0 ? `${left} of ${FREE_PHOTO_LIMIT} photos or files left` : 'Upgrade for more';
+}
 function updatePhotoQuota() {
   const el = document.getElementById('photo-quota');
   if (!el) return;
   if (isDemo || isPremium()) { el.style.display = 'none'; return; }
-  const left = Math.max(0, FREE_PHOTO_LIMIT - photoCount());
-  el.textContent = left > 0 ? `${left} of ${FREE_PHOTO_LIMIT} photos left` : 'Upgrade for more';
+  el.textContent = projQuotaText();
   el.style.display = '';
 }
 
 // Plain and unapologetic: photos come with Premium, here's what it costs,
 // here's the button (the existing Premium upgrade modal shows the prices).
 function showPhotoUpgrade() {
-  showToast(`Your ${FREE_PHOTO_LIMIT} free photos are used — photos are unlimited on Premium`);
+  showToast(`Your ${FREE_PHOTO_LIMIT} free photos and files are used — unlimited on Premium`);
   showUpgrade();
 }
 
@@ -10180,7 +10929,7 @@ function saveCapture() {
   const title = v1 || cfg.title;
   const meta = v2 ? v2.slice(0, 60) : (cfg.title + ' · ' + time);
   currentProject.captures.unshift({
-    type: captureType, title, meta, body: v2 || '', icon: CAP_ICONS[captureType], created: now.getTime()
+    id: projNewId(), type: captureType, title, meta, body: v2 || '', icon: CAP_ICONS[captureType], created: now.getTime()
   });
   renderDetailCaptures();
   closeCapture();
@@ -10206,7 +10955,7 @@ function renderDetailCaptures() {
       ${isPhoto
         ? `<img class="cap-thumb" data-idx="${idx}" alt="Project photo" onclick="event.stopPropagation();openPhotoViewer(${idx})" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--ice)">`
         : `<div class="cap-icon"><i class="ti ${c.icon}"></i></div>`}
-      <div class="cap-info"><div class="cap-title">${c.title}</div><div class="cap-meta">${c.meta}${c.created ? ' · ' + capDayLabel(c.created) : ''}</div></div>
+      <div class="cap-info"><div class="cap-title">${c.title}</div><div class="cap-meta"><span class="cap-kind">${capKindLabel(c)}</span> · ${c.meta}${c.created ? ' · ' + capDayLabel(c.created) : ''}</div></div>
       <i class="ti ti-chevron-down cap-chev" style="font-size:14px;color:var(--text-light);transition:transform 0.15s"></i>
       <div class="cap-detail" style="display:none;width:100%;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text);line-height:1.5"></div>`;
     if (isPhoto) {
@@ -10271,23 +11020,7 @@ async function deleteCapture(idx) {
   showToast('Item deleted');
 }
 
-function renderDetailTasks() {
-  const el = document.getElementById('detail-tasks');
-  const projTasks = state.tasks.filter(t => t.projId === currentProject?.id);
-  if (!projTasks.length) {
-    el.innerHTML = '<div style="font-size:13px;color:var(--text-light);padding:4px 0">No tasks linked to this project yet.</div>';
-    return;
-  }
-  el.innerHTML = '';
-  projTasks.forEach(t => {
-    const d = document.createElement('div');
-    d.className = 'task-row' + (t.done ? ' done' : '');
-    d.style.marginBottom = '6px';
-    d.innerHTML = `<div class="priority-badge p${t.p}">${t.p}</div><div class="task-text">${t.text}</div>`;
-    d.onclick = () => toggleTask(t.id);
-    el.appendChild(d);
-  });
-}
+function renderDetailTasks() { renderDetailSteps(); }   // the old "Linked tasks" card is now Next steps
 
 // ============================================================
 // NOTES TAB
@@ -12755,7 +13488,7 @@ function renderWeek() {
       body += `<div class="week-item" style="cursor:pointer" onclick="openApptPopup(${a.id})"><span class="week-time">${fmt12(a.timeStart)}</span><span class="week-appt">${a.title}</span><span style="margin-left:auto;color:var(--appt-text)">›</span></div>`;
     });
     tasks.forEach(t => {
-      body += `<div class="week-item"><span class="priority-badge p${t.p}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">${t.p}</span><span class="week-task">${t.text}</span></div>`;
+      body += `<div class="week-item"><span class="priority-badge p${t.p}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center">${t.p}</span><span class="week-task">${projTaskChip(t)}${t.text}</span></div>`;
     });
     if (!appts.length && !tasks.length) body = `<div class="week-empty">Nothing planned</div>`;
     const counts = `${appts.length ? appts.length + ' appt' + (appts.length > 1 ? 's' : '') : ''}` +
