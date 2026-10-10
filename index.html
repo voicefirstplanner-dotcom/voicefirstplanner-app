@@ -1129,9 +1129,8 @@ html, body {
 .step-tags:not(:empty) { margin-top: 3px; }
 .step-next { font-size: 10px; font-weight: 700; color: var(--on-accent); background: var(--orange); border-radius: 8px; padding: 1px 6px; }
 .step-day { font-size: 11px; color: var(--appt-text); display: inline-flex; gap: 3px; align-items: center; }
-.step-acts { display: flex; gap: 0; flex-shrink: 0; }
-.step-acts button { background: none; border: none; color: var(--text-mid); cursor: pointer; padding: 4px 3px; font-size: 16px; line-height: 1; }
-.step-acts button[disabled] { opacity: .3; cursor: default; }
+.step-do { flex-shrink: 0; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--appt-text); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.step-do:hover { border-color: var(--orange); }
 .step-add { display: flex; gap: 6px; margin-top: 6px; }
 .pempty { font-size: 13px; color: var(--text-light); text-align: center; padding: 10px; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -9919,7 +9918,7 @@ function renderGoals() {
 //   target     'YYYY-MM-DD' or ''
 //   status     Planning | Active | On hold | Done
 //   steps      [{ id, text, done, created, taskId }], in order
-//   nextStepId the step marked as next; a ticked or missing one falls to the first open step
+//   nextStepId no longer read (10 Oct 20:52, ruling A): the top unticked step is the next step
 //   files      [{ id, name, type, size, storagePath, created }], private bucket
 //   captures   the notes list, as before; old "doc" entries read as document references
 //   progress   kept equal to the share of steps ticked, for older copies of the app
@@ -9948,7 +9947,7 @@ function projProgress(p) {
 function projSync(p) { projFix(p); p.progress = projProgress(p); return p; }
 function projNextStep(p) {
   const open = (p.steps || []).filter(s => !s.done);
-  return open.find(s => s.id === p.nextStepId) || open[0] || null;
+  return open[0] || null;   // ruling A: the order on screen is the plan
 }
 // The task a step was put on a day as. A task deleted from the day unlinks here.
 function projStepTask(s) {
@@ -10170,24 +10169,31 @@ function toggleStep(stepId) {
   if (t) { t.done = s.done; renderTasks(); renderCalStrip(); }
   renderProjectDetail();
 }
-function moveStep(stepId, dir) {
+// "Do next": the step goes to the top of the list, so it is the next step.
+function doNextStep(stepId) {
   const p = currentProject; if (!p) return;
-  const i = p.steps.findIndex(s => s.id === stepId), j = i + dir;
-  if (i < 0 || j < 0 || j >= p.steps.length) return;
-  const tmp = p.steps[i]; p.steps[i] = p.steps[j]; p.steps[j] = tmp;
+  const i = p.steps.findIndex(s => s.id === stepId);
+  if (i < 0 || p.steps[i].done) return;
+  const st = p.steps.splice(i, 1)[0];
+  p.steps.unshift(st);
+  p.nextStepId = null;
   renderProjectDetail();
-}
-function markNextStep(stepId) {
-  const s = projStep(stepId);
-  if (!s || s.done) return;
-  currentProject.nextStepId = stepId;
-  renderProjectDetail();
+  try { persistNow(); } catch (e) {}
 }
 function editStep(stepId) {
   const s = projStep(stepId);
   if (!s) return;
   editCtx = { kind: 'step', id: stepId };
-  openEditModal('Edit step', [{ id: 'edit-f1', label: 'Step', value: s.text, mic: true }]);
+  const t = projStepTask(s);
+  openEditModal('Edit step', [{ id: 'edit-f1', label: 'Step', value: s.text, mic: true }], {
+    extra: s.done ? null : (wrap) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin:-2px 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+      row.innerHTML = `<button type="button" class="step-do" onclick="closeEditModal({skipSave:true});openStepDay(${stepId})"><i class="ti ti-calendar-plus"></i> Put on a day</button>`
+        + (t ? `<span class="step-day"><i class="ti ti-calendar"></i>${projEsc(projDayLabel(t.date))}</span>` : '');
+      wrap.appendChild(row);
+    }
+  });
 }
 function projDeleteStep(stepId) {
   const p = currentProject; if (!p) return;
@@ -10219,12 +10225,7 @@ function renderDetailSteps() {
         <div class="step-text">${projEsc(s.text)}</div>
         <div class="step-tags">${next && next.id === s.id ? '<span class="step-next">Next step</span>' : ''}${t ? `<span class="step-day"><i class="ti ti-calendar"></i>${projEsc(projDayLabel(t.date))}</span>` : ''}</div>
       </div>
-      <div class="step-acts">
-        ${!s.done && !(next && next.id === s.id) ? `<button type="button" title="Make this the next step" onclick="markNextStep(${s.id})"><i class="ti ti-star"></i></button>` : ''}
-        ${!s.done ? `<button type="button" title="Put on a day" onclick="openStepDay(${s.id})"><i class="ti ti-calendar-plus"></i></button>` : ''}
-        <button type="button" title="Move up" onclick="moveStep(${s.id},-1)"${i === 0 ? ' disabled' : ''}><i class="ti ti-arrow-up"></i></button>
-        <button type="button" title="Move down" onclick="moveStep(${s.id},1)"${i === p.steps.length - 1 ? ' disabled' : ''}><i class="ti ti-arrow-down"></i></button>
-      </div>`;
+      ${!s.done && !(next && next.id === s.id) ? `<button type="button" class="step-do" onclick="doNextStep(${s.id})">Do next</button>` : ''}`;
     el.appendChild(d);
   });
 }
@@ -10531,7 +10532,7 @@ function projFile(p, kind, words) {
   let msg;
   if (kind === 'step') {
     const day = projDayFromWords(words);
-    const s = projAddStep(p, day.words || words);
+    const s = projAddStep(p, (day.words || words).replace(/\s*\.+$/, '').trim() || words);
     msg = 'Next step added to ' + p.name;
     showTab('projects', null);
     openDetail(p);
