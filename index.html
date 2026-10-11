@@ -5789,7 +5789,7 @@ async function confirmBudgetCapture() {
   const amount = Math.round((Number(document.getElementById('budcap-amount').value) || 0) * 100) / 100;
   const weekStart = document.getElementById('budcap-week').value;
   if (!lineId) { showToast('Choose a budget line first'); return; }
-  if (!(amount > 0)) { showToast('Enter an amount'); return; }
+  if (!(amount > 0)) { showToast('Enter the amount'); return; }
   const l = budget.lines.find(x => String(x.id) === lineId);
   if (!l) { showToast('That line is gone'); return; }
   closeBudgetCapture();
@@ -10762,10 +10762,10 @@ function projMoneySave() {
   if (editCtx.kind === 'pm-budget') {
     const raw = val('edit-f1');
     if (!raw) { p.money.budget = null; }
-    else { const n = projAmt(raw); if (!isFinite(n) || n < 0) { showToast('Enter an amount'); return false; } p.money.budget = n; }
+    else { const n = projAmt(raw); if (!isFinite(n) || n < 0) { showToast('Enter the amount'); return false; } p.money.budget = n; }
   } else if (editCtx.kind === 'pm-spend') {
     const amt = projAmt(val('edit-f2'));
-    if (!isFinite(amt) || amt <= 0) { showToast('Enter how much'); return false; }
+    if (!isFinite(amt) || amt <= 0) { showToast('Enter the amount'); return false; }
     const rec = { what: val('edit-f1') || 'Spend', amount: amt, paidTo: val('edit-f3'), date: val('edit-f4') };
     const s = editCtx.id == null ? null : p.money.spends.find(x => x.id === editCtx.id);
     if (s) Object.assign(s, rec);
@@ -10952,7 +10952,7 @@ function projApplyMoney(p, kind, payload) {
   let msg = '';
   if (kind === 'm-spend') {
     p.money.spends.unshift({ id: projNewId(), what: payload.what, amount: payload.amount, paidTo: payload.paidTo, date: dateKey(today), created: Date.now() });
-    msg = `Spend saved to ${p.name}: ${fmtMoney(payload.amount)} ${payload.what}`;
+    msg = `Spend saved to ${p.name}: ${payload.what}, ${fmtMoney(payload.amount)}`;
   } else if (kind === 'm-quote') {
     p.money.quotes.push({ id: projNewId(), from: payload.from, amount: payload.amount, includes: payload.includes, chosen: false, created: Date.now() });
     msg = `Quote saved to ${p.name}: ${payload.from}, ${fmtMoney(payload.amount)}`;
