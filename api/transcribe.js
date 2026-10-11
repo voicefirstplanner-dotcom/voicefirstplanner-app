@@ -1,4 +1,6 @@
 // api/transcribe.js
+// 11 Oct 2026 (brief Signout_and_Voice_Faults v1): a refused recording answers 422 with the
+// app's existing "Couldn't make out any words — try again"; the service's reason is logged.
 // Receives a short audio clip from the app and returns the transcribed text.
 // Request  (POST, JSON):  { audio: "<base64>", mime: "audio/webm" }
 //          Header:        Authorization: Bearer <supabase access token>   (signed-in users)
@@ -161,7 +163,15 @@ export default async function handler(req, res) {
 
     if (!r.ok) {
       const detail = await r.text().catch(() => '');
-      console.error(`transcribe upstream fail actor=${who.actor} status=${r.status}`);
+      // 11 Oct 2026: the speech service's own reason goes in the log, so the next
+      // failure names itself (it used to log the status only).
+      console.error(`transcribe upstream fail actor=${who.actor} status=${r.status} mime=${type} bytes=${buffer.length} detail=${detail.slice(0, 300).replace(/\s+/g, ' ')}`);
+      // The service refused the recording itself (too short, silent, unreadable —
+      // e.g. a Mac recording from an iPhone microphone over Continuity). That is
+      // not an outage: the app says, in its existing words, to try again.
+      if (r.status >= 400 && r.status < 500 && ![401, 403, 429].includes(r.status)) {
+        return res.status(422).json({ error: "Couldn't make out any words — try again", reason: 'audio_refused' });
+      }
       return res.status(502).json({ error: 'Transcription failed', detail: detail.slice(0, 300) });
     }
 
