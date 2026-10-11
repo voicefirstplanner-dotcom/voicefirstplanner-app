@@ -3669,6 +3669,14 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <button class="modal-close-btn" onclick="closeReminders()">Close</button>
   </div>
 </div>
+<div class="modal-overlay" id="session-ended-modal" role="alertdialog" aria-labelledby="session-ended-title" aria-describedby="session-ended-text">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="session-ended-title">Signed out on this device</div>
+    <div class="modal-sub" id="session-ended-text">Your sign-in here has ended, so this device can't save your changes or use voice. Sign in again to continue.</div>
+    <button class="modal-cta" onclick="vfpSignInAgain()">Sign in again</button>
+  </div>
+</div>
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -4026,6 +4034,76 @@ const sb = (SB_CONFIGURED && window.supabase)
 let authUserId = null;   // cached id of the signed-in user
 let isDemo = false;      // demo mode = nothing persists
 
+// ============================================================
+// SIGNING OUT, AND A SIGN-IN THAT HAS ENDED (11 Oct 2026 · brief Signout_and_Voice_Faults v1)
+// · Sign out signs out THIS device only (scope 'local'). Supabase's default is
+//   'global', which ended the sign-in on every device.
+// · When this device's sign-in has ended for any other reason (signed out
+//   elsewhere by an older copy of the app, a password change, the sign-in
+//   revoked), the app says so with one sheet and one button, instead of
+//   failing quietly or with "Invalid session".
+// It is noticed: when the app opens or comes back to the screen, when a save
+// is refused, when voice is refused, and when Supabase reports SIGNED_OUT.
+// ============================================================
+const VFP_SIGNED_IN_KEY = 'vfp-signed-in';   // this device was signed in (cleared by Sign out)
+let vfpSigningOut = false;                    // our own Sign out is under way: not an ended sign-in
+let vfpSessionEndedShown = false;
+let vfpLastSessionCheck = 0;
+
+function vfpMarkSignedIn(on) {
+  try { if (on) localStorage.setItem(VFP_SIGNED_IN_KEY, '1'); else localStorage.removeItem(VFP_SIGNED_IN_KEY); } catch (e) {}
+}
+function vfpWasSignedIn() {
+  try { return localStorage.getItem(VFP_SIGNED_IN_KEY) === '1'; } catch (e) { return false; }
+}
+
+// The sheet. Shown once; its only way out is Sign in again.
+function vfpSessionEnded() {
+  if (vfpSigningOut || isDemo || !sb || vfpSessionEndedShown) return;
+  vfpSessionEndedShown = true;
+  try { if (typeof stopRecording === 'function') stopRecording(); } catch (e) {}
+  try { if (typeof resetVoiceButton === 'function') resetVoiceButton(); } catch (e) {}
+  const m = document.getElementById('session-ended-modal');
+  if (m) m.classList.add('open');
+}
+async function vfpSignInAgain() {
+  vfpSigningOut = true;
+  // The sign-in is already gone; this only clears what this device still holds.
+  try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+  vfpMarkSignedIn(true);   // so the sign-in screen says why it is showing (another tab may have cleared it)
+  location.reload();
+}
+
+// Ask Supabase whether this device's sign-in still stands. Only a clear "no"
+// counts: a network failure (offline, a blip) is not an ended sign-in.
+async function vfpCheckSession(force) {
+  if (!sb || isDemo || !authUserId || vfpSigningOut || vfpSessionEndedShown) return;
+  const now = Date.now();
+  if (now - vfpLastSessionCheck < (force ? 5000 : 60000)) return;
+  vfpLastSessionCheck = now;
+  try {
+    const { error } = await sb.auth.getUser();
+    if (vfpSignInEndedError(error)) vfpSessionEnded();
+  } catch (e) {}
+}
+function vfpSignInEndedError(error) {
+  if (!error) return false;
+  const name = String(error.name || ''), code = String(error.code || ''), status = Number(error.status || 0);
+  if (name === 'AuthRetryableFetchError') return false;   // offline or a blip: not an ended sign-in
+  return name === 'AuthSessionMissingError' || status === 401 || status === 403
+    || /session_not_found|refresh_token_not_found|refresh_token_already_used|session_expired|bad_jwt/.test(code);
+}
+
+if (sb) {
+  // Supabase says the sign-in is over (a refresh refused, the session missing).
+  // Do nothing heavy in here: just show the sheet.
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT' && authUserId && !vfpSigningOut && !isDemo) setTimeout(vfpSessionEnded, 0);
+  });
+  // Back on the screen after a while: check, at most once a minute.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) vfpCheckSession(false); });
+}
+
 // Which parts of `state` get saved. Transient UI bits are left out.
 const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket','projects',
                     'notes','shoppingLists','activeShopId','happenedLog','reflections','aiInterest','values',
@@ -4110,7 +4188,7 @@ async function persistNow() {
       { user_id: authUserId, data: snapshot, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
-    if (error) { console.warn('Supabase save error:', error.message); return; }
+    if (error) { console.warn('Supabase save error:', error.message); vfpCheckSession(true); return; }
     lastSavedJSON = json;
   } finally {
     saving = false;    // whatever happens, the flag clears
@@ -4161,7 +4239,10 @@ async function restoreSession() {
     try { history.replaceState({}, '', location.pathname); } catch (e) {}   // the error leaves the address bar
     if (!session) { authMsg(AUTH_RETURN_ERROR, true); return; }
   }
-  if (!session) return;
+  if (!session) {
+    if (vfpWasSignedIn()) { vfpMarkSignedIn(false); authMsg('Your sign-in on this device has ended. Sign in again to continue.', false); }
+    return;
+  }
   authUserId = session.user.id;
   const meta = session.user.user_metadata || {};
   const email = session.user.email || '';
@@ -4972,8 +5053,12 @@ function demoToSignUp() {
 
 async function signOut() {
   if (sb && !isDemo) {
+    vfpSigningOut = true;
+    vfpMarkSignedIn(false);   // a chosen sign-out: the sign-in screen has nothing to explain
     try { await persistNow(); } catch (e) {}
-    await sb.auth.signOut();
+    // 11 Oct 2026: this device only. Supabase's default ('global') ended the
+    // sign-in on every device the person uses.
+    try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
   }
   // Full reset of in-memory state so the next person starts clean.
   location.reload();
@@ -4986,6 +5071,7 @@ function launchApp() {
   document.getElementById('user-badge').textContent = (state.user?.name || 'You').split(' ')[0];
   document.getElementById('set-name').textContent = state.user?.name || 'User';
   document.getElementById('set-email').textContent = state.user?.email || '';
+  if (sb && !isDemo && authUserId) { vfpMarkSignedIn(true); setTimeout(() => vfpCheckSession(true), 1500); }
   checkCarryForward();   // roll incomplete past tasks to today AFTER saved state has loaded
   sweepMissedReminders(); // Stage 2 addendum: report anything that fell due while the app was closed
   backfillRecurRules();  // Stage 1: build missing series rules from stored rows — additive only
@@ -6119,7 +6205,7 @@ async function startRecording(onText, onStart, onStop, onError) {
       if (text) { onText(text); }
       else { showToast('Couldn\'t make out any words — try again'); if (onError) onError('notext'); }
     } catch (err) {
-      showToast((err && err.userMessage) || 'Voice service is unavailable right now — try again in a moment'); if (onError) onError('neterr');
+      if (!(err && err.vfpSilent)) showToast((err && err.userMessage) || 'Voice service is unavailable right now — try again in a moment'); if (onError) onError('neterr');
     }
   };
   try { mediaRecorder.start(); }
@@ -6137,7 +6223,7 @@ function stopRecording() {
 }
 
 // Send the recorded audio to our own server, which transcribes it and returns text.
-async function transcribeBlob(blob) {
+async function transcribeBlob(blob, retried) {
   const b64 = await new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
@@ -6158,6 +6244,17 @@ async function transcribeBlob(blob) {
     headers,
     body: JSON.stringify({ audio: b64, mime: blob.type || 'audio/webm' })
   });
+  if (resp.status === 401 && sb && !isDemo && authUserId) {
+    // 11 Oct 2026: the token may only be stale. Refresh it once and send the
+    // voice again. If the sign-in itself has ended, say so with the sheet.
+    if (!retried) {
+      let fresh = null;
+      try { const { data: rd, error: re } = await sb.auth.refreshSession(); if (!re && rd && rd.session) fresh = rd.session; } catch (e) {}
+      if (fresh) return transcribeBlob(blob, true);
+    }
+    vfpSessionEnded();
+    const err = new Error('signed out'); err.vfpSilent = true; throw err;
+  }
   if (resp.status === 429 || resp.status === 401) {
     // Show the server's own message rather than a generic failure.
     let msg = resp.status === 429 ? 'Voice limit reached — try again shortly' : 'Sign in to use voice';
@@ -6165,10 +6262,13 @@ async function transcribeBlob(blob) {
     const err = new Error(msg); err.userMessage = msg; throw err;
   }
   if (!resp.ok) {
-    // Fix 1 (27 Jul): surface the server's own reason instead of a generic
-    // "unavailable" — the next failure names itself.
-    let msg = 'Voice service error (' + resp.status + ')';
-    try { const j = await resp.json(); if (j && j.error) msg = j.error + ' (' + resp.status + ')'; } catch (e) {}
+    // 11 Oct 2026 (brief: no technical message on a voice attempt): the server's reason
+    // goes to the console and the server log; the person gets the app's existing words.
+    // 422 = the speech service refused the recording itself (too short, silent, unreadable).
+    let why = '';
+    try { const j = await resp.json(); if (j && j.error) why = j.error; } catch (e) {}
+    console.warn('voice: /api/transcribe ' + resp.status + (why ? ' ' + why : ''));
+    const msg = resp.status === 422 ? 'Couldn\'t make out any words — try again' : 'Voice service is unavailable right now — try again in a moment';
     const err = new Error(msg); err.userMessage = msg; throw err;
   }
   const data = await resp.json();
