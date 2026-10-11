@@ -1122,6 +1122,10 @@ html, body {
 .pquota { margin-left: auto; padding-left: 16px; font-size: 13px; color: var(--text); white-space: nowrap; }
 .pquota b { font-weight: 700; }
 .pquota.full b { color: var(--danger-text); }
+/* PROJECT PAGE VOICE (11 Oct 2026): the orange button and its line; the message on top. */
+.proj-voice-line { font-size: 12px; color: var(--text-on-navy-soft); text-align: center; margin-top: 6px; line-height: 1.4; }
+.toast.toast-float { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; right: auto; width: min(398px, calc(100vw - 32px)); box-sizing: border-box; transform: translateX(-50%); z-index: 60; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.upgrade-reason { font-size: 14px; font-weight: 600; color: var(--navy); background: var(--card); border-left: 3px solid var(--orange); border-radius: 0 8px 8px 0; padding: 8px 12px; margin: 10px 0 12px; }
 /* PROJECTS PART 2 (11 Oct 2026): the Money card and the Materials card. */
 .pm-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 .pm-box { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--card); font-family: var(--font); text-align: left; min-width: 0; }
@@ -3320,12 +3324,18 @@ body.pv #demo-banner { position: relative; z-index: 3; }
   </div>
 
   <!-- PROJECT DETAIL OVERLAY -->
+  <div class="toast toast-float" id="toast-float" role="status" aria-live="polite"></div>
   <div class="detail-overlay" id="proj-detail">
     <div class="detail-header">
       <button class="detail-back" onclick="closeDetail()"><i class="ti ti-arrow-left"></i> All projects</button>
       <div class="detail-name" id="detail-name"></div>
       <div class="detail-desc" id="detail-desc"></div>
       <div style="display:flex;gap:8px;margin-top:8px"><button class="detail-back" onclick="editProject()" style="background:rgba(255,255,255,.12);color:var(--accent-on-navy-tint)"><i class="ti ti-pencil"></i> Edit</button><button class="detail-back" onclick="deleteProject(currentProject.id)" style="background:rgba(255,138,138,.2);color:var(--danger-on-navy)"><i class="ti ti-trash"></i> Delete</button></div>
+      <button class="voice-btn" id="proj-voice-btn" onclick="toggleProjVoice()" style="margin-top:12px">
+        <i class="ti ti-microphone"></i>
+        <span class="voice-btn-text" id="proj-voice-text">Tap to speak your plan</span>
+      </button>
+      <div class="proj-voice-line" id="proj-voice-line"></div>
     </div>
     <div class="detail-body">
       <!-- PROJECTS REBUILT (10 Oct 2026): the top, next steps and files, then the
@@ -3357,7 +3367,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
           <input class="task-inp" id="material-inp" placeholder="Add a material…" onkeydown="if(event.key==='Enter')addMaterial()" style="flex:1;min-width:0">
           <button class="add-btn" onclick="addMaterial()">Add</button>
         </div>
-        <div class="mat-actions"><button type="button" class="step-do" id="material-send-all" onclick="sendAllMaterials()" style="display:none"><i class="ti ti-shopping-cart"></i> Send all to shopping list</button></div>
+        <div class="mat-actions"><button type="button" class="step-do" id="material-send-all" onclick="sendAllMaterials()" style="display:none"><i class="ti ti-shopping-cart"></i> Send all to hardware list</button></div>
       </div>
       <div class="card" style="margin-bottom:10px">
         <div class="card-label">Capture</div>
@@ -3669,6 +3679,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="pro-price">$3.99 <span>a month USD</span></div>
     <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">$3.99 a month billed annually at $47.88, or $7.99 month to month — save 50%</div>
     <div id="lifetime-offer-line" style="font-size:12px;color:var(--text-light);margin-bottom:4px">Launch offer: $99 once for lifetime access — first 1,000 members</div>
+    <div class="upgrade-reason" id="upgrade-reason" style="display:none"></div>
     <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.monthly)">Get Premium — $7.99/mo</button>
     <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.annual)">Premium Annual — $3.99/mo, billed $47.88 · save 50%</button>
     <button id="lifetime-buy-btn" class="modal-cta" style="margin-top:8px;background:var(--navy);color:var(--on-navy)" onclick="startCheckout(STRIPE_PRICES.lifetime)">Lifetime — $99 once</button>
@@ -6164,6 +6175,8 @@ function resetVoiceButton() {
   const b = document.getElementById('voice-btn'); if (b) b.classList.remove('voice-listening');
   const a = document.getElementById('app'); if (a) a.classList.remove('voice-listening');
   const t = document.getElementById('voice-btn-text'); if (t) t.textContent = 'Tap to speak your plan';
+  const pb = document.getElementById('proj-voice-btn'); if (pb) pb.classList.remove('voice-listening');
+  const pt = document.getElementById('proj-voice-text'); if (pt) pt.textContent = 'Tap to speak your plan';
 }
 
 // Main orange microphone button: tap to start, tap again to finish.
@@ -6583,6 +6596,9 @@ function processVoice(text) {
   const t = text.toLowerCase();
   document.getElementById('voice-hint').textContent = 'Heard: "' + heardAs + '"';
   hintLocked = true;   // this line is the user's confirmation — it stays put
+  // PROJECT PAGE VOICE (11 Oct 2026): said with the project page's button, the
+  // sentence goes to that project unless it names another one.
+  if (projScopeId != null) { const sid = projScopeId; projScopeId = null; if (projVoiceScoped(text, sid)) return; }
   // Reminder intent — intercept before appointment parsing.
   if (/\bremind me\b/i.test(t) || /\bset (?:a |an )?reminder\b/i.test(t) || /^\s*reminder\b/i.test(t)) {
     handleReminderVoice(text);
@@ -10117,6 +10133,7 @@ function renderProjectDetail() {
   if (!p) return;
   projSync(p);
   document.getElementById('detail-name').textContent = p.icon + ' ' + p.name;
+  const pvl = document.getElementById('proj-voice-line'); if (pvl) pvl.textContent = 'Anything you say here goes to ' + p.name + '.';
   document.getElementById('detail-desc').textContent = p.status + ' · ' + p.progress + '% complete';
   renderProjectTop();
   renderDetailSteps();
@@ -10820,15 +10837,24 @@ function editMaterial(id) {
   editCtx = { kind: 'pm-material', id };
   openEditModal('Edit material', [{ id: 'edit-f1', label: 'Material', value: m.text, mic: true }]);
 }
-// Sends materials to the planner's Shopping list (the default list, as "my
-// shopping list" does by voice). ids = null sends every one not yet sent and not bought.
+// Sends materials to the planner's Hardware list (Management 14:04, Dave's ruling).
+// Paid: the list named Hardware, made the first time. Free: the upgrade sheet (ruling C);
+// the server holds a free account to one list, so a Hardware list can't be added around it.
+// ids = null sends every one not yet sent and not bought.
+const PROJ_HW_LIST = 'Hardware';
 function projSendMaterials(p, ids) {
   projMoneyFix(p);
+  if (!isPremium()) { showUpgrade('Sending materials to a hardware list is on Premium.'); return 0; }
   const pick = p.materials.filter(m => !m.bought && (ids ? ids.includes(m.id) : !m.onList));
   if (!pick.length) { showToast('Nothing to send — every material is on the list or bought'); return 0; }
-  const n = addShoppingItems(pick.map(m => m.text).join(', '), { defaultList: true, silent: true });
-  if (n) pick.forEach(m => { m.onList = true; });
-  showToast(n === 1 ? `Sent "${pick[0].text}" to your shopping list` : `Sent ${n} materials to your shopping list`);
+  const want = PROJ_HW_LIST.toLowerCase();
+  const list = shopLists().find(l => String(l.name || '').trim().toLowerCase() === want) || addShopList(PROJ_HW_LIST, { silent: true });
+  if (!list) return 0;
+  let n = 0;
+  const base = Date.now();
+  pick.forEach(m => { list.items.push({ id: base + n, text: m.text, done: false }); m.onList = true; m.list = PROJ_HW_LIST; n++; });
+  try { renderShopping(); } catch (e) {}
+  showToast(n === 1 ? `Sent "${pick[0].text}" to your hardware list` : `Sent ${n} materials to your hardware list`);
   try { persistNow(); } catch (e) {}
   return n;
 }
@@ -10847,8 +10873,8 @@ function renderDetailMaterials() {
     <div class="step-row${m.bought ? ' done' : ''}">
       <div class="task-check${m.bought ? ' done' : ''}" onclick="toggleMaterial(${m.id})" title="Bought"></div>
       <div class="step-main" onclick="editMaterial(${m.id})"><div class="step-text">${projEsc(m.text)}</div>
-        ${m.onList && !m.bought ? '<div class="step-tags"><span class="step-day"><i class="ti ti-shopping-cart"></i>On shopping list</span></div>' : ''}</div>
-      ${!m.bought && !m.onList ? `<button type="button" class="step-do" onclick="sendMaterial(${m.id})"><i class="ti ti-shopping-cart"></i> To shopping list</button>` : ''}
+        ${m.onList && !m.bought ? `<div class="step-tags"><span class="step-day"><i class="ti ti-shopping-cart"></i>${m.list === PROJ_HW_LIST ? 'On hardware list' : 'On shopping list'}</span></div>` : ''}</div>
+      ${!m.bought && !m.onList ? `<button type="button" class="step-do" onclick="sendMaterial(${m.id})"><i class="ti ti-shopping-cart"></i> To hardware list</button>` : ''}
     </div>`).join('');
 }
 
@@ -10971,6 +10997,104 @@ function projApplyMoney(p, kind, payload) {
   openDetail(p);
   try { persistNow(); } catch (e) {}
   showToast(msg);
+}
+
+
+// ============================================================
+// PROJECTS: VOICE ON THE PROJECT PAGE (11 Oct 2026 · Management 14:04, Dave's ruling)
+// The project page has its own orange button. A sentence said with it goes to that
+// project without its name: a spend, a quote, the budget, materials, a next step, an
+// idea or a note. Anything else is kept as a note in the project, so nothing is lost
+// ("Anything you say here goes to <project>"). The one exception: a sentence that
+// names another project goes where it says, exactly as from the main button.
+// "Start a project called …" still starts a project.
+// ============================================================
+let projScopeId = null;   // set only for the one sentence said with the project page's button
+function toggleProjVoice() {
+  if (voiceActive) { stopRecording(); return; }
+  const p = currentProject;
+  if (!p) return;
+  const id = p.id;
+  startRecording(
+    (text) => { projScopeId = id; try { processVoice(text); } finally { projScopeId = null; } resetVoiceButton(); },
+    () => {
+      const b = document.getElementById('proj-voice-btn'); if (b) b.classList.add('voice-listening');
+      const a = document.getElementById('app'); if (a) a.classList.add('voice-listening');
+      const t = document.getElementById('proj-voice-text'); if (t) t.textContent = 'Listening… tap to finish';
+      hintLocked = false;
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'Speak now, then tap the mic again';
+    },
+    () => {
+      const t = document.getElementById('proj-voice-text'); if (t) t.textContent = 'Got it — writing that down…';
+      const h = document.getElementById('voice-hint'); if (h) h.textContent = 'One moment…';
+    },
+    () => resetVoiceButton()
+  );
+}
+// True = the sentence went into the project. False = it goes on as from the main button.
+function projVoiceScoped(text, id) {
+  const p = projById(id);
+  if (!p) return false;
+  projFix(p); projMoneyFix(p);
+  // Starting a project stays a command wherever it is said.
+  if (/^\s*(?:start|create|begin|make|add)\s+(?:a\s+|an\s+)?(?:new\s+)?project\b/i.test(text) || /^\s*new\s+project\b/i.test(text)) return false;
+  // "this project" / "the project" mean this one.
+  let w = String(text)
+    .replace(/\s*\b(?:for|on|to|in|into|of)\s+(?:this|the)\s+project(?:'s)?\b/gi, ' ')
+    .replace(/\b(?:this|the)\s+project(?:'s)?\s+(?=materials?\b|budget\b)/gi, 'the ')
+    .replace(/\bthis\s+project(?:'s)?\b/gi, ' ')
+    .replace(/\s{2,}/g, ' ').trim();
+  // Another project named: it goes there (or the planner asks), as from the main button.
+  const f = projFindNamed(w);
+  if (f) {
+    if (!(f.cands.length === 1 && f.cands[0] === p)) return false;
+    w = f.rest || w;
+  } else {
+    const m0 = w.match(/^\s*(?:next\s+step|step|notes?|idea)\s+(?:for|to|in|into|on)\s+(.+)$/i);
+    if (m0) { const r = projResolve(m0[1]); if (r.cands.length && !(r.cands.length === 1 && r.cands[0] === p)) return false; if (r.cands.length) w = w.slice(0, w.length - m0[1].length) + r.words; }
+  }
+  w = projCleanWords(w);
+  if (!w) { showToast('Say the words after the project\'s name'); return true; }
+  const t = w.toLowerCase();
+  // A next step, an idea or a note, said as one.
+  let m = w.match(/^\s*(?:add\s+(?:an?\s+)?)?(next\s+step|step|idea|notes?|noted)\b(?:\s+(?:for|to|in|into|on)\b)?[\s:,.;\-–—]*(.*)$/i);
+  if (m) { projFile(p, /step/i.test(m[1]) ? 'step' : /idea/i.test(m[1]) ? 'idea' : 'note', m[2]); return true; }
+  // Materials: send them, or add to them.
+  if (/^\s*send\b/.test(t) && /\bmaterials?\b/.test(t)) { projApplyMoney(p, 'm-send', null); return true; }
+  if ((/^\s*(?:add|put)\b/.test(t) && /\bmaterials?\b/.test(t)) || /^\s*materials?\b/.test(t)) {
+    const items = projCleanWords(w.replace(/^\s*(?:add|put)\s+/i, '')
+      .replace(/\s*\b(?:to|on|onto|in|into|for)\s+(?:the\s+|my\s+|our\s+)?materials?(?:\s+list)?\b/i, ' ')
+      .replace(/^\s*materials?(?:\s+list)?\s*[:,\-–—]?\s*/i, ''));
+    if (items) { projApplyMoney(p, 'm-add', items); return true; }
+  }
+  // Money: a quote, the budget, or a spend.
+  const amt0 = (typeof budgetParseAmount === 'function') ? budgetParseAmount(t) : null;
+  if (/^\s*(?:add\s+)?(?:a\s+)?quote\b/.test(t)) {
+    const q = projParseQuote(w);
+    if (q) { projApplyMoney(p, 'm-quote', q); return true; }
+  } else if (/\bbudget\b/.test(t)) {
+    const a = budgetParseAmount(w);
+    if (a && a.amount > 0) { projApplyMoney(p, 'm-budget', a.amount); return true; }
+  } else if (/\b(?:spent|spend|paid|pay|bought|cost|costs)\b/.test(t) || !!(amt0 && amt0.moneyShape && !/^\s*add\b/.test(t))) {
+    const s = projParseSpend(w);
+    if (s) { projApplyMoney(p, 'm-spend', s); return true; }
+  }
+  // Anything else: a note in the project.
+  projFile(p, 'note', w);
+  return true;
+}
+// The usual message spot is in the top bar. When something covers it (the project page,
+// an open sheet), the same message shows on top of the screen instead.
+function toastCovered(t) {
+  try {
+    if (document.querySelector('.modal-overlay.open')) return true;
+    const d = document.getElementById('proj-detail');
+    if (d && d.classList.contains('open')) return true;
+    const r = t.getBoundingClientRect();
+    if (!r.width || !r.height) return true;
+    const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !el || !el.closest('.topbar');
+  } catch (e) { return false; }
 }
 
 // ---- search: steps and files are found too ---------------------------------
@@ -12320,9 +12444,16 @@ function handleCheckoutReturn() {
 }
 // -------------------------------------------------------------------------
 
-function showUpgrade() {
+function showUpgrade(reason) {
   applyLifetimeVisibility();
+  // 11 Oct 2026: a line saying why the sheet opened, when the caller gives one. Every
+  // other caller passes nothing, and the sheet is as it was.
+  const why = document.getElementById('upgrade-reason');
+  const r = (typeof reason === 'string') ? reason : '';
+  if (why) { why.textContent = r; why.style.display = r ? '' : 'none'; }
   document.getElementById('upgrade-modal').classList.add('open');
+  // On a phone the sheet opens showing its lower part, so the reason is also shown on top.
+  if (r) showToast(r);
 }
 
 // Belt and braces: hide the surfaces AND refuse the price in startCheckout(), so a
@@ -13795,10 +13926,14 @@ function parseReminderVoice(text) {
 }
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
+  let t = document.getElementById('toast');
+  const tf = document.getElementById('toast-float');
+  if (tf && toastCovered(t)) t = tf;
+  // A new message gets its full time: the last one's timer no longer cuts it short.
+  if (t._vfpTimer) clearTimeout(t._vfpTimer);
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  t._vfpTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
 // ============================================================
