@@ -1122,6 +1122,20 @@ html, body {
 .pquota { margin-left: auto; padding-left: 16px; font-size: 13px; color: var(--text); white-space: nowrap; }
 .pquota b { font-weight: 700; }
 .pquota.full b { color: var(--danger-text); }
+/* PROJECTS PART 2 (11 Oct 2026): the Money card and the Materials card. */
+.pm-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.pm-box { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--card); font-family: var(--font); text-align: left; min-width: 0; }
+button.pm-box { cursor: pointer; }
+button.pm-box:hover { border-color: var(--orange); }
+.pm-lab { font-size: 11px; font-weight: 600; color: var(--text-mid); }
+.pm-val { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pm-over { color: var(--danger-text); }
+.pm-sub { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 6px; font-size: 12px; font-weight: 700; color: var(--text-mid); text-transform: uppercase; letter-spacing: .04em; }
+.pm-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; cursor: pointer; }
+.pm-row.chosen { border: 1px solid var(--orange); }
+.pm-main { flex: 1; min-width: 0; }
+.pm-amt { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.mat-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
 .pquota-up { background: none; border: none; padding: 0; margin: 0; font: inherit; font-weight: 700; color: var(--appt-text); text-decoration: underline; cursor: pointer; }
 .pstat-btn { border: 1px solid var(--border); background: var(--card); color: var(--text-mid); border-radius: 14px; padding: 4px 11px; font-family: var(--font); font-size: 12px; cursor: pointer; }
 .pstat-btn.on { background: var(--navy); border-color: var(--navy); color: var(--on-navy-ice); font-weight: 600; }
@@ -3330,6 +3344,20 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div id="detail-files"></div>
         <button class="new-proj-btn" style="margin-top:6px" onclick="addProjectFile()"><i class="ti ti-paperclip"></i> Add a file</button>
         <input type="file" id="file-capture-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" style="display:none" onchange="onFilePicked(this)">
+      </div>
+      <!-- PROJECTS PART 2 (11 Oct 2026): money and materials -->
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-label">Money</div>
+        <div id="detail-money"></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-label">Materials</div>
+        <div id="detail-materials"></div>
+        <div class="step-add">
+          <input class="task-inp" id="material-inp" placeholder="Add a material…" onkeydown="if(event.key==='Enter')addMaterial()" style="flex:1;min-width:0">
+          <button class="add-btn" onclick="addMaterial()">Add</button>
+        </div>
+        <div class="mat-actions"><button type="button" class="step-do" id="material-send-all" onclick="sendAllMaterials()" style="display:none"><i class="ti ti-shopping-cart"></i> Send all to shopping list</button></div>
       </div>
       <div class="card" style="margin-bottom:10px">
         <div class="card-label">Capture</div>
@@ -5995,7 +6023,7 @@ function searchGo(kind, id, extra) {
     showTab('projects');
     renderProjects();
     openDetail(p);
-    if (extra !== null && extra !== undefined) searchFlash(extra === 'step' ? 'detail-steps' : extra === 'file' ? 'detail-files' : 'detail-captures', q);
+    if (extra !== null && extra !== undefined) searchFlash(extra === 'step' ? 'detail-steps' : extra === 'file' ? 'detail-files' : extra === 'money' ? 'detail-money' : extra === 'materials' ? 'detail-materials' : 'detail-captures', q);
   } else if (kind === 'shop') {
     if (extra) state.activeShopId = extra;
     showTab('shopping');
@@ -6498,7 +6526,7 @@ function addHelpChips() {
 }
 
 // Auto-attach a speak-mic to every free-text field listed here.
-const MIC_FIELDS = ['step-inp','focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2','ap-title','ap-with','ap-location','ap-notes'];
+const MIC_FIELDS = ['material-inp','step-inp','focus-input','appt-title','appt-location','task-inp','np-name','np-desc','note-title-inp','note-body-inp','note-cl-inp','note-edit-cl-inp','capture-input-1','capture-input-2','ap-title','ap-with','ap-location','ap-notes'];
 function attachFieldMics() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return; // no recording support → skip
   MIC_FIELDS.forEach(id => {
@@ -9310,6 +9338,8 @@ function saveEdit() {
       a.location = v2;
     }
     renderAppointments(); renderScheduleGrid(); renderCalStrip();
+  } else if (/^pm-/.test(editCtx.kind)) {
+    if (!projMoneySave()) return;
   } else if (editCtx.kind === 'step') {
     const st = projStep(editCtx.id);
     if (st) {
@@ -9374,6 +9404,7 @@ function deleteFromEdit() {
   else if (editCtx.kind === 'appt') { state.appointments = state.appointments.filter(x => x.id !== editCtx.id); cleanupItemReminders('appt', editCtx.id); renderAppointments(); renderScheduleGrid(); renderCalStrip(); }
   else if (editCtx.kind === 'capture') { if (currentProject) currentProject.captures.splice(editCtx.idx, 1); renderDetailCaptures(); }
   else if (editCtx.kind === 'step') { projDeleteStep(editCtx.id); }
+  else if (/^pm-/.test(editCtx.kind)) { projMoneyDelete(); }
   else if (editCtx.kind === 'shopping') { var _l = activeShopList(); _l.items = _l.items.filter(function(x){ return x.id !== editCtx.id; }); renderShopping(); }
   else if (editCtx.kind === 'bucket') { state.bucket = (state.bucket || []).filter(x => x.id !== editCtx.id); renderBucket(); }
   else if (editCtx.kind === 'value') { const old = state.values[editCtx.idx]; state.values.splice(editCtx.idx, 1); if (state.inactiveValues) state.inactiveValues.delete(old); renderValues(); }
@@ -9945,6 +9976,7 @@ function projFix(p) {
   if (!Array.isArray(p.tags)) p.tags = [];
   if (typeof p.target !== 'string') p.target = '';
   if (!p.status) p.status = 'Planning';
+  projMoneyFix(p);   // part 2: money and materials (empty until used)
   return p;
 }
 function projProgress(p) {
@@ -10089,6 +10121,8 @@ function renderProjectDetail() {
   renderProjectTop();
   renderDetailSteps();
   renderDetailFiles();
+  renderDetailMoney();
+  renderDetailMaterials();
   renderDetailCaptures();
 }
 
@@ -10532,7 +10566,8 @@ function closeProjPick() { document.getElementById('proj-pick-modal').classList.
 function projPicked(id) {
   const ctx = projPickCtx, p = projById(id);
   closeProjPick();
-  if (ctx && p) projFile(p, ctx.kind, ctx.words);
+  if (ctx && p && /^m-/.test(ctx.kind)) projApplyMoney(p, ctx.kind, ctx.payload);
+  else if (ctx && p) projFile(p, ctx.kind, ctx.words);
 }
 // Files the words into the project as a note, an idea or a next step, and shows it.
 function projFile(p, kind, words) {
@@ -10582,6 +10617,10 @@ function projVoiceEarly(text) {
   const mStart = text.match(/^\s*(?:start|create|begin|make|add)\s+(?:a\s+|an\s+)?(?:new\s+)?project\b[\s,:]*(.*)$/i)
               || text.match(/^\s*new\s+project\b[\s,:]*(.*)$/i);
   if (mStart) { projVoiceStart(mStart[1]); return true; }
+  // Part 2: a spend, a quote, a budget or materials for a named project. Runs before
+  // the weekly Budget's own voice check, so a spend for a project never opens the
+  // Budget sheet; a sentence that names no project goes on to it exactly as before.
+  if (projVoiceMoney(text)) return true;
   let kind = null, rest = null;
   const m = text.match(/^\s*(next\s+step|step|notes?|idea|add(?:\s+(?:an?\s+)?(?:note|idea|step|next\s+step))?)\s+(?:for|to|in|into|on)\s+(.+)$/i);
   if (m) {
@@ -10615,10 +10654,333 @@ function projVoiceLate(text) {
   else projAsk('note', r.words || text, r.cands, text);
 }
 
+// ============================================================
+// PROJECTS PART 2 (11 Oct 2026 · brief VFP_APPROOM_BRIEF_Projects_Rebuild v1, part 2)
+// Money and materials for each project, by tap and by voice. Kept inside the
+// project in the planner save (new fields only, so older copies keep them):
+//   money      { budget: number|null,
+//                spends: [{ id, what, amount, paidTo, date, created }],
+//                quotes: [{ id, from, amount, includes, chosen, created }] }
+//   materials  [{ id, text, bought, onList, created }]
+// The project's money is its own: no link to the weekly Budget page or its lines
+// (Pricing v10.2.1 §5A). Amounts show in the planner's currency (budCur()).
+// ============================================================
+function projMoneyFix(p) {
+  if (!p.money || typeof p.money !== 'object') p.money = {};
+  if (!Array.isArray(p.money.spends)) p.money.spends = [];
+  if (!Array.isArray(p.money.quotes)) p.money.quotes = [];
+  if (p.money.budget === undefined) p.money.budget = null;
+  if (!Array.isArray(p.materials)) p.materials = [];
+  return p;
+}
+function projSpent(p) { return (p.money.spends || []).reduce((a, s) => a + (Number(s.amount) || 0), 0); }
+function projAmt(v) { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? Math.round(n * 100) / 100 : NaN; }
+function projShortDate(dk) {
+  if (!dk) return '';
+  const d = new Date(dk + 'T12:00:00'); if (isNaN(d)) return '';
+  const f = { day: 'numeric', month: 'short' }; if (d.getFullYear() !== today.getFullYear()) f.year = 'numeric';
+  return d.toLocaleDateString('en-GB', f);
+}
+
+// ---- the Money card ---------------------------------------------------------
+function renderDetailMoney() {
+  const el = document.getElementById('detail-money');
+  const p = currentProject;
+  if (!el || !p) return;
+  projMoneyFix(p);
+  const m = p.money, spent = projSpent(p);
+  const hasBudget = m.budget != null && isFinite(m.budget);
+  const left = hasBudget ? m.budget - spent : null;
+  const chosen = m.quotes.find(q => q.chosen);
+  el.innerHTML = `
+    <div class="pm-sum">
+      <button type="button" class="pm-box" onclick="projEditBudget()"><span class="pm-lab">Budget</span><span class="pm-val">${hasBudget ? projEsc(fmtMoney(m.budget)) : '<span class="ptop-empty">Not set</span>'}</span></button>
+      <div class="pm-box"><span class="pm-lab">Spent</span><span class="pm-val">${projEsc(fmtMoney(spent))}</span></div>
+      <div class="pm-box"><span class="pm-lab">Left</span><span class="pm-val${left != null && left < 0 ? ' pm-over' : ''}">${left == null ? '—' : projEsc(fmtMoney(left))}</span></div>
+    </div>
+    <div class="pm-sub"><span>Spends</span><button type="button" class="step-do" onclick="projEditSpend(null)"><i class="ti ti-plus"></i> Add a spend</button></div>
+    ${m.spends.length ? m.spends.map(s => `
+      <div class="pm-row" onclick="projEditSpend(${s.id})">
+        <div class="pm-main"><div class="step-text">${projEsc(s.what || 'Spend')}</div>
+          <div class="cap-meta">${[s.paidTo ? 'Paid to ' + projEsc(s.paidTo) : '', s.date ? projEsc(projShortDate(s.date)) : ''].filter(Boolean).join(' · ')}</div></div>
+        <div class="pm-amt">${projEsc(fmtMoney(s.amount))}</div>
+      </div>`).join('') : '<div class="pempty">No spends yet.</div>'}
+    <div class="pm-sub"><span>Quotes</span><button type="button" class="step-do" onclick="projEditQuote(null)"><i class="ti ti-plus"></i> Add a quote</button></div>
+    ${m.quotes.length ? m.quotes.map(q => `
+      <div class="pm-row${q.chosen ? ' chosen' : ''}">
+        <div class="pm-main" onclick="projEditQuote(${q.id})"><div class="step-text">${projEsc(q.from || 'Quote')}${q.chosen ? ' <span class="step-next">Chosen</span>' : ''}</div>
+          <div class="cap-meta">${projEsc(q.includes || '')}</div></div>
+        <div class="pm-amt">${projEsc(fmtMoney(q.amount))}</div>
+        ${q.chosen ? '' : `<button type="button" class="step-do" onclick="projChooseQuote(${q.id})">Choose</button>`}
+      </div>`).join('') : '<div class="pempty">No quotes yet.</div>'}`;
+}
+function projChooseQuote(id) {
+  const p = currentProject; if (!p) return;
+  projMoneyFix(p);
+  p.money.quotes.forEach(q => { q.chosen = q.id === id; });
+  renderDetailMoney();
+  try { persistNow(); } catch (e) {}
+}
+// Budget, spends and quotes are edited in the app's own edit sheet.
+function projEditBudget() {
+  const p = currentProject; if (!p) return;
+  projMoneyFix(p);
+  editCtx = { kind: 'pm-budget' };
+  openEditModal('Project budget', [{ id: 'edit-f1', label: 'What the project should cost (' + budCur() + ')', value: p.money.budget == null ? '' : String(p.money.budget), type: 'number' }]);
+  const del = document.getElementById('edit-modal-delete'); if (del) del.style.display = 'none';
+}
+function projEditSpend(id) {
+  const p = currentProject; if (!p) return;
+  projMoneyFix(p);
+  const s = id == null ? null : p.money.spends.find(x => x.id === id);
+  editCtx = { kind: 'pm-spend', id: s ? s.id : null };
+  openEditModal(s ? 'Edit spend' : 'Add a spend', [
+    { id: 'edit-f1', label: 'What it was', value: s ? s.what : '', mic: true },
+    { id: 'edit-f2', label: 'How much (' + budCur() + ')', value: s ? String(s.amount) : '', type: 'number' },
+    { id: 'edit-f3', label: 'Paid to', value: s ? (s.paidTo || '') : '', mic: true },
+    { id: 'edit-f4', label: 'Date', value: s ? (s.date || '') : dateKey(today), type: 'date' }
+  ]);
+  if (!s) { const del = document.getElementById('edit-modal-delete'); if (del) del.style.display = 'none'; }
+}
+function projEditQuote(id) {
+  const p = currentProject; if (!p) return;
+  projMoneyFix(p);
+  const q = id == null ? null : p.money.quotes.find(x => x.id === id);
+  editCtx = { kind: 'pm-quote', id: q ? q.id : null };
+  openEditModal(q ? 'Edit quote' : 'Add a quote', [
+    { id: 'edit-f1', label: 'Who gave it', value: q ? q.from : '', mic: true },
+    { id: 'edit-f2', label: 'Amount (' + budCur() + ')', value: q ? String(q.amount) : '', type: 'number' },
+    { id: 'edit-f3', label: 'What’s included', value: q ? (q.includes || '') : '', mic: true, big: true }
+  ]);
+  if (!q) { const del = document.getElementById('edit-modal-delete'); if (del) del.style.display = 'none'; }
+}
+// Called from saveEdit() for the pm- kinds. Returns false to keep the sheet open.
+function projMoneySave() {
+  const p = currentProject; if (!p || !editCtx) return true;
+  projMoneyFix(p);
+  const val = id => ((document.getElementById(id) || {}).value || '').trim();
+  if (editCtx.kind === 'pm-budget') {
+    const raw = val('edit-f1');
+    if (!raw) { p.money.budget = null; }
+    else { const n = projAmt(raw); if (!isFinite(n) || n < 0) { showToast('Enter an amount'); return false; } p.money.budget = n; }
+  } else if (editCtx.kind === 'pm-spend') {
+    const amt = projAmt(val('edit-f2'));
+    if (!isFinite(amt) || amt <= 0) { showToast('Enter how much'); return false; }
+    const rec = { what: val('edit-f1') || 'Spend', amount: amt, paidTo: val('edit-f3'), date: val('edit-f4') };
+    const s = editCtx.id == null ? null : p.money.spends.find(x => x.id === editCtx.id);
+    if (s) Object.assign(s, rec);
+    else p.money.spends.unshift(Object.assign({ id: projNewId(), created: Date.now() }, rec));
+  } else if (editCtx.kind === 'pm-quote') {
+    const amt = projAmt(val('edit-f2'));
+    if (!isFinite(amt) || amt <= 0) { showToast('Enter the amount'); return false; }
+    const rec = { from: val('edit-f1') || 'Quote', amount: amt, includes: val('edit-f3') };
+    const q = editCtx.id == null ? null : p.money.quotes.find(x => x.id === editCtx.id);
+    if (q) Object.assign(q, rec);
+    else p.money.quotes.push(Object.assign({ id: projNewId(), created: Date.now(), chosen: false }, rec));
+  } else if (editCtx.kind === 'pm-material') {
+    const m = p.materials.find(x => x.id === editCtx.id);
+    if (m) { const t = val('edit-f1'); if (!t) { showToast('Material can’t be empty'); return false; } m.text = t; }
+  }
+  renderDetailMoney(); renderDetailMaterials();
+  return true;
+}
+function projMoneyDelete() {
+  const p = currentProject; if (!p || !editCtx) return;
+  projMoneyFix(p);
+  if (editCtx.kind === 'pm-spend') p.money.spends = p.money.spends.filter(x => x.id !== editCtx.id);
+  else if (editCtx.kind === 'pm-quote') p.money.quotes = p.money.quotes.filter(x => x.id !== editCtx.id);
+  else if (editCtx.kind === 'pm-material') p.materials = p.materials.filter(x => x.id !== editCtx.id);
+  renderDetailMoney(); renderDetailMaterials();
+}
+
+// ---- the Materials card -----------------------------------------------------
+function projAddMaterials(p, raw) {
+  projMoneyFix(p);
+  const items = (typeof parseShoppingItems === 'function' ? parseShoppingItems(raw) : [String(raw || '').trim()]).filter(Boolean);
+  items.forEach(t => p.materials.push({ id: projNewId(), text: t, bought: false, onList: false, created: Date.now() }));
+  return items;
+}
+function addMaterial() {
+  const inp = document.getElementById('material-inp');
+  const raw = (inp.value || '').trim();
+  if (!raw || !currentProject) return;
+  projAddMaterials(currentProject, raw);
+  inp.value = '';
+  renderDetailMaterials();
+}
+function toggleMaterial(id) {
+  const m = currentProject && currentProject.materials.find(x => x.id === id);
+  if (!m) return;
+  m.bought = !m.bought;
+  renderDetailMaterials();
+}
+function editMaterial(id) {
+  const m = currentProject && currentProject.materials.find(x => x.id === id);
+  if (!m) return;
+  editCtx = { kind: 'pm-material', id };
+  openEditModal('Edit material', [{ id: 'edit-f1', label: 'Material', value: m.text, mic: true }]);
+}
+// Sends materials to the planner's Shopping list (the default list, as "my
+// shopping list" does by voice). ids = null sends every one not yet sent and not bought.
+function projSendMaterials(p, ids) {
+  projMoneyFix(p);
+  const pick = p.materials.filter(m => !m.bought && (ids ? ids.includes(m.id) : !m.onList));
+  if (!pick.length) { showToast('Nothing to send — every material is on the list or bought'); return 0; }
+  const n = addShoppingItems(pick.map(m => m.text).join(', '), { defaultList: true, silent: true });
+  if (n) pick.forEach(m => { m.onList = true; });
+  showToast(n === 1 ? `Sent "${pick[0].text}" to your shopping list` : `Sent ${n} materials to your shopping list`);
+  try { persistNow(); } catch (e) {}
+  return n;
+}
+function sendMaterial(id) { if (currentProject) { projSendMaterials(currentProject, [id]); renderDetailMaterials(); } }
+function sendAllMaterials() { if (currentProject) { projSendMaterials(currentProject, null); renderDetailMaterials(); } }
+function renderDetailMaterials() {
+  const el = document.getElementById('detail-materials');
+  const p = currentProject;
+  if (!el || !p) return;
+  projMoneyFix(p);
+  const waiting = p.materials.filter(m => !m.bought && !m.onList).length;
+  const all = document.getElementById('material-send-all');
+  if (all) all.style.display = waiting ? '' : 'none';
+  if (!p.materials.length) { el.innerHTML = '<div class="pempty">No materials yet.</div>'; return; }
+  el.innerHTML = p.materials.map(m => `
+    <div class="step-row${m.bought ? ' done' : ''}">
+      <div class="task-check${m.bought ? ' done' : ''}" onclick="toggleMaterial(${m.id})" title="Bought"></div>
+      <div class="step-main" onclick="editMaterial(${m.id})"><div class="step-text">${projEsc(m.text)}</div>
+        ${m.onList && !m.bought ? '<div class="step-tags"><span class="step-day"><i class="ti ti-shopping-cart"></i>On shopping list</span></div>' : ''}</div>
+      ${!m.bought && !m.onList ? `<button type="button" class="step-do" onclick="sendMaterial(${m.id})"><i class="ti ti-shopping-cart"></i> To shopping list</button>` : ''}
+    </div>`).join('');
+}
+
+// ---- voice for money and materials --------------------------------------------
+// The project a money or materials sentence names, and the words without it.
+// A project is named by "<name> project", or by "for/on/to the <name>" with a
+// project's full name. Returns null when the sentence names no project at all,
+// so it goes on to the weekly Budget or the shopping list exactly as before.
+function projFindNamed(text) {
+  const list = state.projects || [];
+  const s = String(text || '');
+  // 1 · "<words> project" — the word project was said. The name is the words
+  //     between the last little word (for, on, to …) and "project".
+  const P = '(?:for|on|to|in|into|of|from)';
+  let mp = s.match(new RegExp('\\b' + P + '\\s+(?:(?:my|the|our)\\s+)?((?:(?!\\b' + P + '\\b)[^,.;:])*?)\\s+projects?\\b(?:\'s)?(?:\\s+(?:materials?|budget))?', 'i'))
+        || s.match(/^\s*(?:set|make|change|update|send|put|add)?\s*(?:(?:my|the|our)\s+)?([^,.;:]*?)\s+projects?\b(?:'s)?(?:\s+(?:materials?|budget))?/i);
+  if (mp) {
+    const r = projResolve(mp[1] + ' project');
+    return { cands: r.cands, said: true, rest: (s.slice(0, mp.index) + ' ' + s.slice(mp.index + mp[0].length)).replace(/\s{2,}/g, ' ').trim() };
+  }
+  // 2 · "for/on/to the <full project name>"
+  let best = null;
+  list.forEach(p => {
+    const nt = projNameTokens(p.name);
+    if (!nt.length) return;
+    const re = new RegExp('\\b(?:for|on|to|in|into|of)\\s+(?:my\\s+|the\\s+|our\\s+)?' + nt.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?').join('[^a-z0-9]+') + '\\b(?:\\s+materials?)?', 'i');
+    const mm = s.match(re);
+    if (mm && (!best || nt.length > best.len)) best = { p, mm, len: nt.length };
+  });
+  if (best) return { cands: [best.p], said: false, rest: (s.slice(0, best.mm.index) + ' ' + s.slice(best.mm.index + best.mm[0].length)).replace(/\s{2,}/g, ' ').trim() };
+  return null;
+}
+function projCleanWords(s) { return String(s || '').replace(/^[\s,.;:\-–—]+|[\s,.;:\-–—]+$/g, '').replace(/\s{2,}/g, ' ').trim(); }
+// "Spent $412.80 on timber for the deck project", "Paid Bunnings $412.80 for timber for the deck project"
+function projParseSpend(rest) {
+  const amt = budgetParseAmount(rest);
+  if (!amt || !(amt.amount > 0)) return null;
+  let w = rest.replace(amt.matched, ' ');
+  let paidTo = '';
+  let m = w.match(/^\s*(?:[Ii]\s+|[Ww]e\s+)?[Pp]aid\s+(?!for\b|on\b)([A-Za-z][\w&'’.-]*(?:\s+[A-Z0-9][\w&'’.-]*)*)/);
+  if (m) { paidTo = m[1]; w = w.replace(m[0], ' '); }
+  m = w.match(/\b(?:to|at|from)\s+([A-Z][\w&'’.-]*(?:\s+[A-Z0-9][\w&'’.-]*)*)/);
+  if (!paidTo && m) { paidTo = m[1]; w = w.replace(m[0], ' '); }
+  w = w.replace(/^\s*(?:i\s+|we\s+)?(?:just\s+)?(?:spent|spend|paid|pay|bought|cost|costs)\b/i, ' ')
+       .replace(/\b(?:dollars?|bucks|cents?)\b/gi, ' ')
+       .replace(/^\s*(?:on|for)\s+/i, ' ').replace(/\s+(?:on|for)\s*$/i, ' ');
+  w = projCleanWords(w.replace(/^\s*(?:on|for)\s+/i, ''));
+  return { amount: amt.amount, what: w ? w.charAt(0).toUpperCase() + w.slice(1) : 'Spend', paidTo: projCleanWords(paidTo) };
+}
+// "Quote for the deck project from Smith Builders, $4,500 for supply and install"
+function projParseQuote(rest) {
+  const amt = budgetParseAmount(rest);
+  if (!amt || !(amt.amount > 0)) return null;
+  let w = rest.replace(/^\s*(?:add\s+)?(?:a\s+)?quote\b/i, ' ');
+  let from = '';
+  const m = w.match(/\bfrom\s+(.+?)(?=\s*[,.;:]|\s+(?:for|of|at|is|was|came)\b|\s*(?:\$|\d)|$)/i);
+  if (m) { from = m[1]; w = w.replace(m[0], ' '); }
+  w = w.replace(amt.matched, ' ').replace(/\b(?:dollars?|bucks)\b/gi, ' ');
+  let includes = projCleanWords(projCleanWords(w).replace(/^(?:for|of|is|was|came\s+to)\s+/i, '').replace(/^(?:for|includes?|including|covering)\s+/i, ''));
+  return { amount: amt.amount, from: projCleanWords(from) || 'Quote', includes };
+}
+// Runs first in projVoiceEarly. True = dealt with.
+function projVoiceMoney(text) {
+  const t = text.toLowerCase();
+  // A note, idea or step for a project stays one, even with an amount in it.
+  if (/^\s*(?:next\s+step|step|notes?|idea)\b/.test(t)) return false;
+  const isMaterial = /\bmaterials?\b/.test(t);
+  const isQuote = /^\s*(?:add\s+)?(?:a\s+)?quote\b/.test(t);
+  const isBudget = /\bbudget\b/.test(t);
+  const amt0 = (typeof budgetParseAmount === 'function') ? budgetParseAmount(t) : null;
+  const isSpend = /\b(?:spent|spend|paid|pay|bought|cost|costs)\b/.test(t) || !!(amt0 && amt0.moneyShape && !/^\s*add\b/.test(t));
+  if (!isMaterial && !isQuote && !isBudget && !isSpend) return false;
+  const found = projFindNamed(text);
+  if (!found) return false;                       // no project named: Budget and shopping as before
+  let kind = null, payload = null;
+  if (isMaterial && /^\s*send\b/.test(t)) {
+    kind = 'm-send';
+  } else if (isMaterial) {
+    const items = projCleanWords(found.rest.replace(/^\s*(?:add|put)\s+/i, '').replace(/\b(?:to|on|onto|in|into|for)\s*$/i, '').replace(/^\s*materials?\s*(?:for)?\s*[:,]?\s*/i, ''));
+    if (!items) return false;
+    kind = 'm-add'; payload = items;
+  } else if (isQuote) {
+    payload = projParseQuote(found.rest);
+    if (!payload) return false;
+    kind = 'm-quote';
+  } else if (isBudget) {
+    const amt = budgetParseAmount(found.rest);
+    if (!amt || !(amt.amount > 0)) return false;
+    kind = 'm-budget'; payload = amt.amount;
+  } else {
+    payload = projParseSpend(found.rest);
+    if (!payload) return false;                   // "pay the builder" with no amount: not money
+    kind = 'm-spend';
+  }
+  if (found.cands.length === 1) projApplyMoney(found.cands[0], kind, payload);
+  else { projAsk(kind, '', found.cands, text); projPickCtx.payload = payload; }
+  return true;
+}
+function projApplyMoney(p, kind, payload) {
+  projFix(p); projMoneyFix(p);
+  let msg = '';
+  if (kind === 'm-spend') {
+    p.money.spends.unshift({ id: projNewId(), what: payload.what, amount: payload.amount, paidTo: payload.paidTo, date: dateKey(today), created: Date.now() });
+    msg = `Spend saved to ${p.name}: ${fmtMoney(payload.amount)} ${payload.what}`;
+  } else if (kind === 'm-quote') {
+    p.money.quotes.push({ id: projNewId(), from: payload.from, amount: payload.amount, includes: payload.includes, chosen: false, created: Date.now() });
+    msg = `Quote saved to ${p.name}: ${payload.from}, ${fmtMoney(payload.amount)}`;
+  } else if (kind === 'm-budget') {
+    p.money.budget = payload;
+    msg = `${p.name} budget set to ${fmtMoney(payload)}`;
+  } else if (kind === 'm-add') {
+    const items = projAddMaterials(p, payload);
+    msg = items.length === 1 ? `Added "${items[0]}" to ${p.name} materials` : `Added ${items.length} materials to ${p.name}`;
+  } else if (kind === 'm-send') {
+    showTab('projects', null); openDetail(p);
+    projSendMaterials(p, null); renderDetailMaterials();
+    return;
+  }
+  showTab('projects', null);
+  openDetail(p);
+  try { persistNow(); } catch (e) {}
+  showToast(msg);
+}
+
 // ---- search: steps and files are found too ---------------------------------
 function projSearchHits(p, has, hits) {
   (p.steps || []).forEach(s => { if (has(s.text)) hits.push({ kind: 'project', id: p.id, extra: 'step', text: s.text + ' — ' + p.name, date: null }); });
   (p.files || []).forEach(f => { if (has(f.name)) hits.push({ kind: 'project', id: p.id, extra: 'file', text: f.name + ' — ' + p.name, date: null }); });
+  const mo = p.money || {};
+  (mo.spends || []).forEach(x => { if (has(x.what) || has(x.paidTo)) hits.push({ kind: 'project', id: p.id, extra: 'money', text: (x.what || 'Spend') + ' — ' + p.name, date: null }); });
+  (mo.quotes || []).forEach(x => { if (has(x.from) || has(x.includes)) hits.push({ kind: 'project', id: p.id, extra: 'money', text: (x.from || 'Quote') + ' — ' + p.name, date: null }); });
+  (p.materials || []).forEach(x => { if (has(x.text)) hits.push({ kind: 'project', id: p.id, extra: 'materials', text: x.text + ' — ' + p.name, date: null }); });
 }
 
 // ============================================================
