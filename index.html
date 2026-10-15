@@ -1606,6 +1606,9 @@ button.pm-box:hover { border-color: var(--orange); }
 .course-btn i { font-size: 20px; color: var(--accent-on-light); }
 .course-link { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 32px; min-height: 32px; margin-left: 4px; border-radius: 8px; color: var(--accent-on-light); text-decoration: none; vertical-align: middle; font-size: 18px; }
 .detail-name .course-link { color: var(--accent-on-navy); font-size: 20px; }
+.course-name-head { font-size: 15px; font-weight: 700; color: var(--text); margin: 2px 2px 2px; }
+.course-name-line { font-size: 13px; color: var(--text-mid); margin: 0 2px 10px; line-height: 1.4; }
+.proj-course-btns { margin-bottom: 4px; }
 a.modal-cta.course-join { display: block; text-align: center; text-decoration: none; box-sizing: border-box; margin-top: 12px; }
 
 /* ============================================================
@@ -3127,6 +3130,8 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         </div>
       </div>
       <div id="proj-course-btns" class="proj-course-btns">
+        <div class="course-name-head">Bring in Real App, Real Business with AI</div>
+        <div class="course-name-line">The course on Skool, as projects in your planner.</div>
         <button type="button" class="course-btn" id="proj-course-btn-free" onclick="importBuiltInCourse('free')"><i class="ti ti-school"></i>Import the free course</button>
         <button type="button" class="course-btn" id="proj-course-btn-full" onclick="importBuiltInCourse('full')"><i class="ti ti-books"></i>Import the full course</button>
       </div>
@@ -3605,7 +3610,8 @@ body.pv #demo-banner { position: relative; z-index: 3; }
       </div>
       <!-- COURSE IMPORT (15 Oct 2026). A course file is read on this device and never uploaded. -->
       <div class="settings-section">
-        <div class="settings-section-title">Bring in a course</div>
+        <div class="settings-section-title">Bring in Real App, Real Business with AI</div>
+        <div class="course-name-line">The course on Skool, as projects in your planner.</div>
         <!-- 16 Oct: the two buttons, for every account -->
         <button type="button" class="course-btn" id="course-btn-free" onclick="importBuiltInCourse('free')"><i class="ti ti-school"></i>Import the free course</button>
         <button type="button" class="course-btn" id="course-btn-full" onclick="importBuiltInCourse('full')"><i class="ti ti-books"></i>Import the full course</button>
@@ -13459,7 +13465,7 @@ function courseOpenPreview(c) {
   if (c.notes.length && !fit.notesOut) parts.push(bit(c.notes.length, 'note'));
   let sub = 'Adds ' + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts[0]) + '.';
   if (c.projects.length) sub += ' Put each lesson on a day when you’re ready.';
-  document.getElementById('course-import-title').textContent = 'Bring in the ' + c.title;
+  document.getElementById('course-import-title').textContent = (courseDisplayTitle(c.id, c.title) !== c.title ? 'Bring in ' : 'Bring in the ') + courseDisplayTitle(c.id, c.title);
   document.getElementById('course-import-summary').textContent = sub;
   // under it: which steps moved (free plan, a full day), and the notes message when the note is left out
   const lines = [courseMovedLine(fit.tasks), fit.notesOut ? 'Free plan: up to 10 notes — upgrade for unlimited' : ''].filter(Boolean);
@@ -13508,7 +13514,7 @@ function commitCourseImport() {
   try { persistNow(); } catch (e) {}
   try { closeSettings(); } catch (e) {}
   if (c.projects.length) showTab('projects', null); else showTab('daily', null);
-  showToast(c.title + ' added to your planner');
+  showToast(courseDisplayTitle(c.id, c.title) + ' added to your planner');
 }
 
 // Has the member touched an item the course brought in?
@@ -13551,7 +13557,7 @@ function undoCourseImport(importId) {
   try { renderAll(); } catch (e) { try { renderTasks(); renderNotes(); renderProjects(); renderCalStrip(); } catch (e2) {} }
   renderCourseImportHistory();
   try { persistNow(); } catch (e) {}
-  showToast(rec.title + ' removed' + (kept ? ' · ' + kept + (kept === 1 ? ' item' : ' items') + ' you’d changed ' + (kept === 1 ? 'was' : 'were') + ' kept' : ''));
+  showToast(courseDisplayTitle(rec.course, rec.title) + ' removed' + (kept ? ' · ' + kept + (kept === 1 ? ' item' : ' items') + ' you’d changed ' + (kept === 1 ? 'was' : 'were') + ' kept' : ''));
 }
 
 function renderCourseImportHistory() {
@@ -13559,15 +13565,21 @@ function renderCourseImportHistory() {
   if (!el) return;
   el.innerHTML = (state.courseImports || []).slice().reverse().map(im => {
     const when = new Date(im.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    return '<div class="settings-row"><span class="settings-row-label">' + courseEsc(im.title) + ' · brought in ' + courseEsc(when) +
+    return '<div class="settings-row"><span class="settings-row-label">' + courseEsc(courseDisplayTitle(im.course, im.title)) + ' · brought in ' + courseEsc(when) +
       '</span>' + courseLinkIcon(im.link) + '<span class="settings-row-action" onclick="undoCourseImport(\'' + courseEsc(im.id) + '\')">Undo</span></div>';
   }).join('');
 }
 
 // ---- the two buttons, and the full course's upgrade sheet ----------------------
 const COURSE_FULL_ID = 'vfp-full-course-v1';
+// The course's name (brief 16 Oct 12:08). The two built-in courses are shown as
+// "Real App, Real Business with AI · Free course" / "… · Full course"; the import records keep their own titles.
+const COURSE_NAME = 'Real App, Real Business with AI';
+function courseDisplayTitle(id, title) {
+  return (id === 'vfp-free-course-v1' || id === COURSE_FULL_ID) ? COURSE_NAME + ' · ' + title : title;
+}
 const COURSE_JOIN_URL = 'https://www.skool.com/the-voice-first-life-8055/plans';   // link file, first row
-const COURSE_FULL_REASON = 'The full course comes with Real App, Real Business. Join on Skool to get it.';
+const COURSE_FULL_REASON = 'The full course comes with Real App, Real Business with AI. Join on Skool to get it.';
 function importBuiltInCourse(which) {
   const data = VFP_COURSES[which];
   if (!data) return;
