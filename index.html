@@ -1601,6 +1601,13 @@ button.pm-box:hover { border-color: var(--orange); }
 }
 .toast.show { opacity: 1; }
 
+/* Course import (16 Oct): the two buttons in Settings, and the ↗ beside a lesson, stage or course */
+.course-btn { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 13px 14px; border-radius: var(--radius); border: 1.5px solid var(--orange); background: var(--card); color: var(--text); font-family: var(--font); font-size: 15px; font-weight: 700; text-align: left; cursor: pointer; }
+.course-btn i { font-size: 20px; color: var(--accent-on-light); }
+.course-link { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 32px; min-height: 32px; margin-left: 4px; border-radius: 8px; color: var(--accent-on-light); text-decoration: none; vertical-align: middle; font-size: 18px; }
+.detail-name .course-link { color: var(--accent-on-navy); font-size: 20px; }
+a.modal-cta.course-join { display: block; text-align: center; text-decoration: none; box-sizing: border-box; margin-top: 12px; }
+
 /* ============================================================
    SETTINGS PANEL
    ============================================================ */
@@ -3119,6 +3126,10 @@ body.pv #demo-banner { position: relative; z-index: 3; }
           <button class="save-btn" onclick="createProject()" style="margin-top:0">Create project</button>
         </div>
       </div>
+      <div id="proj-course-btns" class="proj-course-btns">
+        <button type="button" class="course-btn" id="proj-course-btn-free" onclick="importBuiltInCourse('free')"><i class="ti ti-school"></i>Import the free course</button>
+        <button type="button" class="course-btn" id="proj-course-btn-full" onclick="importBuiltInCourse('full')"><i class="ti ti-books"></i>Import the full course</button>
+      </div>
       <div id="proj-list"></div>
     </div>
 
@@ -3592,6 +3603,17 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" style="display:none" onchange="handleCalFile(this)">
         <div id="cal-import-history"></div>
       </div>
+      <!-- COURSE IMPORT (15 Oct 2026). A course file is read on this device and never uploaded. -->
+      <div class="settings-section">
+        <div class="settings-section-title">Bring in a course</div>
+        <!-- 16 Oct: the two buttons, for every account -->
+        <button type="button" class="course-btn" id="course-btn-free" onclick="importBuiltInCourse('free')"><i class="ti ti-school"></i>Import the free course</button>
+        <button type="button" class="course-btn" id="course-btn-full" onclick="importBuiltInCourse('full')"><i class="ti ti-books"></i>Import the full course</button>
+        <div style="font-size:12px;color:var(--text-mid);padding:6px 2px 8px">Got a course file from VoiceFirstPlanner? Bring its lessons into your planner. Nothing you already have is changed.</div>
+        <div class="settings-row"><span class="settings-row-label">Course file</span><span class="settings-row-action" onclick="document.getElementById('course-import-file').click()">Choose file</span></div>
+        <input type="file" id="course-import-file" style="display:none" onchange="handleCourseFile(this)">
+        <div id="course-import-history"></div>
+      </div>
       <div class="settings-section">
         <div class="settings-section-title">App</div>
         <div class="settings-row"><span class="settings-row-label">VoiceFirstPlanner</span><span class="settings-row-value">v1.0.0</span></div>
@@ -3682,6 +3704,8 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-handle"></div>
     <div class="modal-title">Choose your plan</div>
     <div class="upgrade-reason" id="upgrade-reason" style="display:none"></div>
+    <a class="modal-cta course-join" id="upgrade-course-btn" style="display:none" href="https://www.skool.com/the-voice-first-life-8055/plans" target="_blank" rel="noopener" onclick="closeUpgrade()">See the course</a>
+    <div id="upgrade-plans">
     <div class="modal-sub">Voice-first planning, built around your values. Upgrade when you're ready.</div>
     <div style="font-weight:700;color:var(--navy);margin:14px 0 2px;font-size:15px">Premium <span style="font-weight:400;color:var(--text-light);font-size:13px">— available now</span></div>
     <div class="pro-feat"><i class="ti ti-check"></i>Unlimited tasks, habits, and projects</div>
@@ -3704,6 +3728,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div style="font-size:12px;color:var(--text-light);margin-bottom:4px">$7.42 a month billed annually at $89, or $12.99 month to month — save 43%</div>
     <button class="modal-cta" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
     <button class="modal-cta" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
+    </div>
     <button class="modal-close-btn" onclick="closeUpgrade()">Maybe later</button>
   </div>
 </div>
@@ -3742,6 +3767,17 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div id="cal-import-skipped" style="font-size:12px;color:var(--text-mid);padding:8px 2px 2px"></div>
     <button class="modal-cta" id="cal-import-accept" onclick="commitCalImport()">Add to my planner</button>
     <button class="modal-close-btn" onclick="closeCalImport()">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="course-import-modal" onclick="if(event.target===this)closeCourseImport()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="course-import-title">Bring in a course</div>
+    <div class="modal-sub" id="course-import-summary"></div>
+    <div class="modal-sub" id="course-import-limits" style="display:none;margin-top:-10px;padding:10px 12px;border-radius:8px;border:1px solid var(--orange);color:var(--text)"></div>
+    <button class="modal-cta" id="course-import-accept" onclick="commitCourseImport()">Add to my planner</button>
+    <button class="modal-close-btn" onclick="closeCourseImport()">Cancel</button>
   </div>
 </div>
 
@@ -4110,6 +4146,7 @@ const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket',
                     'roles','focus','onboardStep','selectedValues','voiceTutDone','reminders','habitMaxStreak',
                     'recurEnds','recurRules','focusByDate','inactiveValues','apptHintDismissed','calLastView','theme','reminderSound','viewMode',
                     'calImports',    // calendar import log — what each import added, for undo
+                    'courseImports', // course import log (15 Oct 2026) — what each course added, for "already in" and Undo
                     'budgetCurrency','budgetOpenWeek'];   // budget: display currency; the open week (delivery two)
 STATE_KEYS.push('whatsNewSeen');   // date of the newest "What's new" entry this person has tapped (8 Oct 2026)
 
@@ -9557,7 +9594,7 @@ function renderTasks() {
     }
     d.innerHTML = `
       <div class="priority-badge p${t.p}">${t.p}</div>
-      <div class="task-text">${projTaskChip(t)}${t.text}${carryTag}</div>
+      <div class="task-text">${projTaskChip(t)}${t.text}${carryTag}${courseLinkIcon(courseTaskLink(t))}</div>
       <button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('task',${t.id})"><i class="ti ti-bell"></i></button>
       <button class="row-edit" title="Edit" onclick="event.stopPropagation();editTask(${t.id})"><i class="ti ti-pencil"></i></button>
       <div class="task-check${t.done ? ' done' : ''}"></div>`;
@@ -10187,6 +10224,7 @@ function createProject() {
 }
 
 function renderProjects() {
+  try { renderCourseButtons(); } catch (e) {}
   const el = document.getElementById('proj-list');
   el.innerHTML = '';
   (state.projects || []).forEach(p => {
@@ -10236,7 +10274,7 @@ function renderProjectDetail() {
   const p = currentProject;
   if (!p) return;
   projSync(p);
-  document.getElementById('detail-name').textContent = p.icon + ' ' + p.name;
+  document.getElementById('detail-name').innerHTML = projEsc(p.icon + ' ' + p.name) + courseLinkIcon(p.link);
   const pvl = document.getElementById('proj-voice-line'); if (pvl) pvl.textContent = 'Anything you say here goes to ' + p.name + '.';
   document.getElementById('detail-desc').textContent = p.status + ' · ' + p.progress + '% complete';
   renderProjectTop();
@@ -10387,6 +10425,7 @@ function renderDetailSteps() {
         <div class="step-text">${projEsc(s.text)}</div>
         <div class="step-tags">${next && next.id === s.id ? '<span class="step-next">Next step</span>' : ''}${t ? `<span class="step-day"><i class="ti ti-calendar"></i>${projEsc(projDayLabel(t.date))}</span>` : ''}</div>
       </div>
+      ${courseLinkIcon(s.link)}
       ${!s.done && !(next && next.id === s.id) ? `<button type="button" class="step-do" onclick="doNextStep(${s.id})">Do next</button>` : ''}`;
     el.appendChild(d);
   });
@@ -12252,7 +12291,7 @@ function registerAiInterest() {
 // SETTINGS
 // ============================================================
 function openSettings() {
-  try { renderCalImportHistory(); } catch (e) {} document.getElementById('settings-overlay').classList.add('open'); const sr = document.getElementById('set-rem-sound'); if (sr) sr.checked = state.reminderSound !== false; renderLibrary(); }
+  try { renderCalImportHistory(); } catch (e) {} try { renderCourseImportHistory(); } catch (e) {} document.getElementById('settings-overlay').classList.add('open'); const sr = document.getElementById('set-rem-sound'); if (sr) sr.checked = state.reminderSound !== false; renderLibrary(); }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
 
 // ============================================================
@@ -12550,6 +12589,7 @@ function handleCheckoutReturn() {
 
 function showUpgrade(reason) {
   applyLifetimeVisibility();
+  { const pl = document.getElementById('upgrade-plans'), cb = document.getElementById('upgrade-course-btn'); if (pl) pl.style.display = ''; if (cb) cb.style.display = 'none'; }
   // 11 Oct 2026: a line saying why the sheet opened, when the caller gives one. Every
   // other caller passes nothing, and the sheet is as it was.
   const why = document.getElementById('upgrade-reason');
@@ -13267,6 +13307,304 @@ function undoCalImport(importId) {
   renderAppointments(); renderScheduleGrid(); renderCalStrip(); renderCalImportHistory();
   try { persistNow(); } catch (e) {}
   showToast(removed + (removed === 1 ? ' appointment removed' : ' appointments removed'));
+}
+
+
+// The two courses, built in (16 Oct): the same words and links as the two course files.
+const VFP_COURSES = {"free": {"format": "voicefirstplanner-course", "version": 1, "id": "vfp-free-course-v1", "title": "Free course", "tasks": [{"day": 1, "text": "Free course · Step 1 · Open your free planner", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=c633f78b060b4d54b7fcbc567a4a5565"}, {"day": 1, "text": "Free course · Step 2 · Plan your day out loud", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=de6e26a37ce246c89b04de115f689306"}, {"day": 2, "text": "Free course · Step 3 · Explore and count the features", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=2c48321352bc419ea017d5161823fdc3"}, {"day": 3, "text": "Free course · Step 4 · How the books are put together", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=70ffa0e2237843c7ada5138aa553ee8d"}, {"day": 4, "text": "Free course · Step 5 · Explore the website", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=7abe35d02db24180a559c507d2b17482"}, {"day": 5, "text": "Free course · Step 6 · What you liked and didn't", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=9de369db41784ed8ac20f69bc9a85a7a"}, {"day": 6, "text": "Free course · Step 7 · What would you do with yours?", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=d5ed62d9da5040268fbf9572d2f9fa49"}, {"day": 6, "text": "Free course · Step 8 · Next: Discover and Claim", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb?md=88aef80e3dc7430cb93cbf8d1e688a54"}], "notes": [{"title": "Features I found in the app", "checklist": ["Add a task by voice", "Add a task by hand"]}], "projects": [], "link": "https://www.skool.com/the-voice-first-life-8055/classroom/6ba84feb"}, "full": {"format": "voicefirstplanner-course", "version": 1, "id": "vfp-full-course-v1", "title": "Full course", "tasks": [], "notes": [], "projects": [{"name": "Solve it, build it, sell it", "steps": [{"text": "Solve it: Discover and Claim", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088"}, {"text": "Build it: Foundations and Frame", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c"}, {"text": "Sell it: Open House", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932"}, {"text": "Sell it: Open for Business", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849"}, {"text": "Sell it: Earn", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b"}]}, {"name": "Stage 1 · Discover and Claim", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088", "steps": [{"text": "Start with your pain or your passion", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=8266979e7ca347fdaea18e2bec83161d"}, {"text": "Let Claude get to know you", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=c26f00c92d064bcab3a05a76057e7474"}, {"text": "Turn it into a question", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=3058dfaa491f4fdd8f1b76c932e59389"}, {"text": "Research it with Claude", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=5b3769d549004739aaabf3a069a8a338"}, {"text": "Clarify the vision", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=c65cee7d8b1c432692380194cdffcb6c"}, {"text": "Name it, and check it's free", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=acb3e97db7444df8bf343640ede06864"}, {"text": "Claim your land", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/a39c4088?md=80ab92392bc044fda734240af3474a78"}]}, {"name": "Stage 2 · Foundations and Frame", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c", "steps": [{"text": "Put your land to work", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=769752b90237408684bef6a8fd866462"}, {"text": "Put the sign on your land", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=d798ca28cb2f41b294cba1af80fe9a67"}, {"text": "Why Google needs to find you early", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=63188ff04a4444478e90d5638a1b2151"}, {"text": "Set up Claude right from day one", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=5b6475e6ef8e4826be139f595d3c1d56"}, {"text": "Plan version 1", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=d20a9b0cced34005a30b9d1ea4d37f2b"}, {"text": "Brief Claude properly", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=0959d06afac94ca6a23d1cd98d96d157"}, {"text": "Build the main job", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=7d7768178f2e45baaa4abd0b5be743e1"}, {"text": "Sign-in and saving", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=ec09abdf355a427dbfd4844fbe0a5d51"}, {"text": "Sign-up and welcome emails", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=7aae8e6d18db42449b3cf4da698a25ee"}, {"text": "Email addresses on your own domain", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=3767d80d638a41598e4866c5363f7600"}, {"text": "Test it against real life", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=e0a9d4a94b2e44b58db118424be7e148"}, {"text": "Show it to one person", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/576d8b1c?md=e0891824a09a47b9aae5fe56ddab2c7d"}]}, {"name": "Stage 3 · Open House", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932", "steps": [{"text": "Choose the street you want to live on", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=fd0cae6e066948b994af4719ed1094d4"}, {"text": "The real website, built to sell", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=c4d790f0419c415d81eef71a3c7d5d3d"}, {"text": "Put website changes live safely", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=da9431fd01fb460998306985b16a9f10"}, {"text": "A blog and news page", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=8cc66f0518754b4b8a272ad8d832e7b1"}, {"text": "Social pages set up properly", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=98ef84d338ba47a99ab4137dcf93a926"}, {"text": "Your social accounts, one by one", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=9c55edeea20d419b9c41e8fff3ef9e8a"}, {"text": "Film that shows the product working", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=c26359991fb549bd8dcd42a1b34df4f9"}, {"text": "Films the way ours are made", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=f677713bfdd346759fabe603bc253916"}, {"text": "An AI presenter and an AI voice", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=b644ca45ab3d43d587496d39f0797777"}, {"text": "Upload a film everywhere", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=8e6c569902784732bc05321d8621cca3"}, {"text": "Books and PDFs for your app", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/b1d9f932?md=144a298acc8943519233839e407599cc"}]}, {"name": "Stage 4 · Open for Business", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849", "steps": [{"text": "Pricing and the offer", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=ccf88acaa0b948ef9ff3fcce1f206336"}, {"text": "Taking money without breaking things", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=0662a4c5916d4672a942e4764f600a57"}, {"text": "Who gets what", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=9fad449b3fd24c69bd309d0b7395d59d"}, {"text": "After the sale", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=35012722711e46afaf09d05b3fcc8646"}, {"text": "Sales emails", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=4474b3928eb749f58b03c37536a98b84"}, {"text": "Records, and only saying what's true", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=640adb08e9ab43eca14fa6fe7e750fad"}, {"text": "Your AI rooms", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=aa14e34011de495a8f54a937bdc1f11c"}, {"text": "Save a job you repeat as a skill", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=64ab49b2c078408da1a2b2755d5c8152"}, {"text": "Open the doors", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=9d89513c79e84950ad035cae9d5e9500"}, {"text": "Ask for real reviews", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=a05426dae01840e8bf3e2e8334766c8c"}, {"text": "Read your numbers", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/11a6c849?md=0d9dc4d7549d44a28f4904e538fb2337"}]}, {"name": "Stage 5 · Earn", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b", "steps": [{"text": "Sell digital products in shops", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b?md=ac3744b0e7f14dea94b3f306d33a4e0d"}, {"text": "Affiliates", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b?md=a4bebb5e674c4ae78af110f5915deced"}, {"text": "Your Earn page", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b?md=32a9a898eb0a4cc3aee03f123741b674"}, {"text": "Recommend the tools you use", "link": "https://www.skool.com/the-voice-first-life-8055/classroom/3d33bf2b?md=035300657c2d4a45b722e3dc7109daa7"}]}]}};
+
+// ============================================================================
+// COURSE IMPORT (15 Oct 2026 · brief VFP_APP_ROOM_BRIEF_Course_Import v1)
+// A course file (.json, format "voicefirstplanner-course") brings a course into
+// the planner: dated tasks (day 1 = the day it is brought in), notes with a
+// checklist, and projects whose steps are the lessons (no day set: the member
+// puts each lesson on a day). Read on this device; nothing is uploaded.
+// · Nothing the member already has is changed. Everything added is tagged with
+//   the import's id (courseImport), and state.courseImports records what came in.
+// · The same course twice: refused while it is in the planner.
+// · Free plan: the limits stay as they are (brief Course_Import_Free_Limits v1,
+//   16 Oct). The server holds the same limits, so nothing is added that it would drop.
+//   - Projects: if the course's projects would not fit, NOTHING is added: the app's
+//     own 2-projects message and the upgrade sheet.
+//   - Tasks: each goes on its planned day if that day has room (fewer than 5 tasks,
+//     counted the way the app and the server count them: every task dated that day).
+//     If the day is full it goes on the next day with room. The sheet says which moved.
+//   - Notes: if the notes would go over 10, the tasks still go in and the notes are
+//     left out; the sheet shows the app's own free-plan notes message.
+// · Undo (Settings): takes out only what that import added AND the member has
+//   not touched; anything ticked, edited, put on a day or added to stays.
+// · Two buttons (brief Course_Import_Buttons_And_Links v1, 16 Oct 10:25), for every
+//   account: "Import the free course" and "Import the full course". The two courses are
+//   built in (VFP_COURSES below, the same words and links as the two course files).
+//   The full course is Premium and above; a free account gets the upgrade sheet with
+//   one button to the course's join page on Skool. The server's 2-project limit holds
+//   a free account to 2 projects whatever the app does.
+// · Links: each imported lesson (a step, or a Free course task) and each stage
+//   project carries its Skool link, opened with the ↗ beside it. Only links to
+//   https://www.skool.com/ are kept.
+// ============================================================================
+const COURSE_FORMAT = 'voicefirstplanner-course';
+let coursePreview = null;
+
+function courseEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+const COURSE_LINK_RE = /^https:\/\/www\.skool\.com\/[A-Za-z0-9\-._~\/?=&%#]*$/;
+function courseLink(v) { return typeof v === 'string' && v.length <= 300 && COURSE_LINK_RE.test(v) ? v : ''; }
+// "bad" means the file named a link that isn't a Skool link: not a course file.
+function courseLinkBad(v) { return v != null && v !== '' && !courseLink(v); }
+function courseStr(v, max) { return typeof v === 'string' && v.trim() && v.trim().length <= (max || 200) ? v.trim() : null; }
+
+// Read and check a course file. Anything unexpected: not a course file, nothing added.
+function parseCourseFile(text) {
+  let c;
+  try { c = JSON.parse(String(text || '').replace(/^﻿/, '')); } catch (e) { return null; }
+  if (!c || c.format !== COURSE_FORMAT || c.version !== 1) return null;
+  const id = courseStr(c.id, 80), title = courseStr(c.title, 80);
+  if (!id || !title || courseLinkBad(c.link)) return null;
+  const tasks = [], notes = [], projects = [];
+  for (const t of (Array.isArray(c.tasks) ? c.tasks : [])) {
+    const text = courseStr(t && t.text), day = t && t.day;
+    if (!text || !Number.isInteger(day) || day < 1 || day > 60 || courseLinkBad(t.link)) return null;
+    tasks.push({ day, text, link: courseLink(t.link) });
+  }
+  for (const n of (Array.isArray(c.notes) ? c.notes : [])) {
+    const nt = courseStr(n && n.title);
+    if (!nt) return null;
+    const items = (Array.isArray(n.checklist) ? n.checklist : []).map(x => courseStr(x));
+    if (items.some(x => !x)) return null;
+    notes.push({ title: nt, body: typeof n.body === 'string' ? n.body.slice(0, 4000) : '', checklist: items });
+  }
+  for (const p of (Array.isArray(c.projects) ? c.projects : [])) {
+    const name = courseStr(p && p.name, 120);
+    if (!name || courseLinkBad(p.link)) return null;
+    // a step is its words, or { text, link }
+    const steps = [];
+    for (const x of (Array.isArray(p.steps) ? p.steps : [])) {
+      const text = courseStr(x && typeof x === 'object' ? x.text : x), link = x && typeof x === 'object' ? x.link : null;
+      if (!text || courseLinkBad(link)) return null;
+      steps.push({ text, link: courseLink(link) });
+    }
+    projects.push({ name, link: courseLink(p.link), steps });
+  }
+  if (!tasks.length && !notes.length && !projects.length) return null;
+  if (tasks.length > 200 || notes.length > 50 || projects.length > 50) return null;
+  return { id, title, link: courseLink(c.link), tasks, notes, projects };
+}
+
+function courseDayKey(day) { const d = new Date(today); d.setDate(d.getDate() + day - 1); return dateKey(d); }
+function courseActive(courseId) { return (state.courseImports || []).find(im => im.course === courseId) || null; }
+
+// Where everything would go, worked out before anything is added.
+// refuse: the app's own limit message when nothing can be added (else null).
+// tasks: [{ text, date, moved }]; notesOut: the notes don't fit (free plan).
+const COURSE_DAY_LIMIT = 5;          // the free plan's 5 tasks a day (Pricing v10.3 §5)
+function courseFit(c) {
+  const free = !isPremium();
+  if (free && c.id === COURSE_FULL_ID) return { refuse: COURSE_FULL_REASON, skool: true };   // Premium and above
+  if (free && c.projects.length && (state.projects || []).length + c.projects.length > FREE_PROJECT_LIMIT)
+    return { refuse: `Free plan: ${FREE_PROJECT_LIMIT} projects on the free plan — upgrade for unlimited` };
+  const notesOut = free && c.notes.length > 0 && (state.notes || []).length + c.notes.length > 10;
+  if (notesOut && !c.tasks.length && !c.projects.length) return { refuse: 'Free plan: up to 10 notes — upgrade for unlimited' };
+  const count = {};                    // tasks on each day: what the planner holds, then what is placed
+  const onDay = k => { if (!(k in count)) count[k] = (state.tasks || []).filter(t => t.date === k).length; return count[k]; };
+  const tasks = c.tasks.map(t => {
+    const planned = courseDayKey(t.day);
+    let k = planned;
+    if (free) { let n = t.day; while (onDay(k) >= COURSE_DAY_LIMIT && n < t.day + 366) { n++; k = courseDayKey(n); } }
+    onDay(k); count[k]++;
+    return { text: t.text, link: t.link, date: k, moved: k !== planned };
+  });
+  return { refuse: null, tasks, notesOut };
+}
+// "Step 3" from "Free course · Step 3 · How the books are put together"; any other task by its text.
+function courseStepName(text) { const m = /\bStep \d+\b/.exec(text); return m ? m[0] : text; }
+// The line saying which steps moved, grouped by the day they went to:
+// "Free plan: 5 tasks a day. Moved to the next day with room: Step 1 and Step 2 → Tomorrow · Step 3 → Sat 18 Oct"
+function courseMovedLine(tasks) {
+  const groups = [];
+  tasks.filter(t => t.moved).forEach(t => {
+    let g = groups.find(x => x.date === t.date);
+    if (!g) groups.push(g = { date: t.date, names: [] });
+    g.names.push(courseStepName(t.text));
+  });
+  if (!groups.length) return '';
+  const and = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0];
+  return 'Free plan: 5 tasks a day. Moved to the next day with room: ' + groups.map(g => and(g.names) + ' → ' + projDayLabel(g.date)).join(' · ');
+}
+
+function handleCourseFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => showToast('That isn\'t a VoiceFirstPlanner course file — nothing was added');
+  reader.onload = () => courseOpenPreview(parseCourseFile(reader.result));
+  reader.readAsText(file);
+}
+function courseOpenPreview(c) {
+  if (!c) { showToast('That isn\'t a VoiceFirstPlanner course file — nothing was added'); return; }
+  if (courseActive(c.id)) { showToast('This course is already in your planner'); return; }
+  const fit = courseFit(c);
+  if (fit.refuse) { if (fit.skool) showCourseUpgrade(); else { showToast(fit.refuse); showUpgrade(); } return; }
+  coursePreview = c;
+  const steps = c.projects.reduce((n, p) => n + p.steps.length, 0);   // (steps are { text, link })
+  // the days the tasks span, from the first day one lands on to the last (a full day moves the start, or adds a day)
+  const keys = fit.tasks.map(t => t.date).sort();
+  const first = keys[0], dayN = k => Math.round(new Date(k + 'T12:00:00') / 864e5);
+  const days = keys.length ? dayN(keys[keys.length - 1]) - dayN(first) + 1 : 0;
+  const startLabel = !keys.length || first === dateKey(today) ? 'today' : (projDayLabel(first) === 'Tomorrow' ? 'tomorrow' : projDayLabel(first));
+  const bit = (n, s) => n + ' ' + s + (n === 1 ? '' : 's');
+  const parts = [];
+  if (c.tasks.length) parts.push(bit(c.tasks.length, 'task') + ' over ' + bit(days, 'day') + ', starting ' + startLabel);
+  if (c.projects.length) parts.push(bit(c.projects.length, 'project') + ' with ' + bit(steps, 'step'));
+  if (c.notes.length && !fit.notesOut) parts.push(bit(c.notes.length, 'note'));
+  let sub = 'Adds ' + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts[0]) + '.';
+  if (c.projects.length) sub += ' Put each lesson on a day when you’re ready.';
+  document.getElementById('course-import-title').textContent = 'Bring in the ' + c.title;
+  document.getElementById('course-import-summary').textContent = sub;
+  // under it: which steps moved (free plan, a full day), and the notes message when the note is left out
+  const lines = [courseMovedLine(fit.tasks), fit.notesOut ? 'Free plan: up to 10 notes — upgrade for unlimited' : ''].filter(Boolean);
+  const lim = document.getElementById('course-import-limits');
+  lim.innerHTML = lines.map(l => '<div>' + courseEsc(l) + '</div>').join('');
+  lim.style.display = lines.length ? '' : 'none';
+  document.getElementById('course-import-modal').classList.add('open');
+}
+function closeCourseImport() { coursePreview = null; document.getElementById('course-import-modal').classList.remove('open'); }
+
+// The one write.
+function commitCourseImport() {
+  const c = coursePreview; if (!c) return;
+  if (courseActive(c.id)) { closeCourseImport(); showToast('This course is already in your planner'); return; }
+  const fit = courseFit(c);          // worked out again: the planner may have changed while the sheet was open
+  if (fit.refuse) { closeCourseImport(); if (fit.skool) showCourseUpgrade(); else { showToast(fit.refuse); showUpgrade(); } return; }
+  const importId = 'course' + Date.now();
+  const rec = { id: importId, course: c.id, title: c.title, link: c.link || '', at: Date.now(), tasks: [], notes: [], projects: [] };
+  const base = Date.now();
+  fit.tasks.forEach((t, i) => {
+    const date = t.date;
+    const task = { id: base + i, text: t.text, p: 'A', done: false, date, origDate: date, courseImport: importId };
+    if (t.link) task.link = t.link;
+    state.tasks.push(task);
+    rec.tasks.push({ id: task.id, text: t.text });
+  });
+  state.notes = state.notes || [];
+  (fit.notesOut ? [] : c.notes).slice().reverse().forEach((n, i) => {
+    const nid = base + 500 + i;
+    state.notes.unshift({ id: nid, created: nid, title: n.title, body: n.body || '', tags: [], checklist: n.checklist.map(x => ({ text: x, done: false })), courseImport: importId });
+    rec.notes.push({ id: nid, title: n.title, body: n.body || '', checklist: n.checklist.slice() });
+  });
+  state.projects = state.projects || [];
+  c.projects.forEach((p, i) => {
+    const proj = { id: base + 1000 + i, name: p.name, desc: '', icon: '🎓', status: 'Planning', progress: 0, tags: [], captures: [], steps: [], files: [], target: '', nextStepId: null, courseImport: importId };
+    if (p.link) proj.link = p.link;
+    p.steps.forEach(s => { const st = projAddStep(proj, s.text); if (s.link) st.link = s.link; });
+    state.projects.push(proj);
+    rec.projects.push({ id: proj.id, name: p.name, steps: p.steps.map(s => s.text) });
+  });
+  state.courseImports = state.courseImports || [];
+  state.courseImports.push(rec);
+  closeCourseImport();
+  try { renderAll(); } catch (e) { try { renderTasks(); renderNotes(); renderProjects(); renderCalStrip(); } catch (e2) {} }
+  renderCourseImportHistory();
+  try { persistNow(); } catch (e) {}
+  try { closeSettings(); } catch (e) {}
+  if (c.projects.length) showTab('projects', null); else showTab('daily', null);
+  showToast(c.title + ' added to your planner');
+}
+
+// Has the member touched an item the course brought in?
+function courseTaskTouched(t, r) { return !!t.done || t.text !== r.text; }
+function courseNoteTouched(n, r) {
+  const cl = Array.isArray(n.checklist) ? n.checklist : [];
+  return n.title !== r.title || (n.body || '') !== (r.body || '') || cl.length !== r.checklist.length
+    || cl.some((x, i) => !!x.done || x.text !== r.checklist[i]);
+}
+function courseProjectTouched(p, r) {
+  const steps = p.steps || [];
+  const m = p.money || {};
+  return p.name !== r.name || (p.desc || '') !== '' || (p.target || '') !== '' || (p.status || 'Planning') !== 'Planning'
+    || steps.length !== r.steps.length || steps.some((s, i) => !!s.done || !!s.taskId || s.text !== r.steps[i])
+    || (p.files || []).length > 0 || (p.captures || []).length > 0 || (p.materials || []).length > 0
+    || (m.spends || []).length > 0 || (m.quotes || []).length > 0 || (m.budget != null);
+}
+
+function undoCourseImport(importId) {
+  const rec = (state.courseImports || []).find(im => im.id === importId);
+  if (!rec) return;
+  let removed = 0, kept = 0;
+  const tr = new Map(rec.tasks.map(r => [r.id, r])), nr = new Map(rec.notes.map(r => [r.id, r])), pr = new Map(rec.projects.map(r => [r.id, r]));
+  state.tasks = (state.tasks || []).filter(t => {
+    if (t.courseImport !== importId || !tr.has(t.id)) return true;
+    if (courseTaskTouched(t, tr.get(t.id))) { kept++; return true; }
+    removed++; return false;
+  });
+  state.notes = (state.notes || []).filter(n => {
+    if (n.courseImport !== importId || !nr.has(n.id)) return true;
+    if (courseNoteTouched(n, nr.get(n.id))) { kept++; return true; }
+    removed++; return false;
+  });
+  state.projects = (state.projects || []).filter(p => {
+    if (p.courseImport !== importId || !pr.has(p.id)) return true;
+    if (courseProjectTouched(p, pr.get(p.id))) { kept++; return true; }
+    removed++; return false;
+  });
+  state.courseImports = (state.courseImports || []).filter(im => im.id !== importId);
+  try { renderAll(); } catch (e) { try { renderTasks(); renderNotes(); renderProjects(); renderCalStrip(); } catch (e2) {} }
+  renderCourseImportHistory();
+  try { persistNow(); } catch (e) {}
+  showToast(rec.title + ' removed' + (kept ? ' · ' + kept + (kept === 1 ? ' item' : ' items') + ' you’d changed ' + (kept === 1 ? 'was' : 'were') + ' kept' : ''));
+}
+
+function renderCourseImportHistory() {
+  const el = document.getElementById('course-import-history');
+  if (!el) return;
+  el.innerHTML = (state.courseImports || []).slice().reverse().map(im => {
+    const when = new Date(im.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return '<div class="settings-row"><span class="settings-row-label">' + courseEsc(im.title) + ' · brought in ' + courseEsc(when) +
+      '</span>' + courseLinkIcon(im.link) + '<span class="settings-row-action" onclick="undoCourseImport(\'' + courseEsc(im.id) + '\')">Undo</span></div>';
+  }).join('');
+}
+
+// ---- the two buttons, and the full course's upgrade sheet ----------------------
+const COURSE_FULL_ID = 'vfp-full-course-v1';
+const COURSE_JOIN_URL = 'https://www.skool.com/the-voice-first-life-8055/plans';   // link file, first row
+const COURSE_FULL_REASON = 'The full course comes with Real App, Real Business. Join on Skool to get it.';
+function importBuiltInCourse(which) {
+  const data = VFP_COURSES[which];
+  if (!data) return;
+  courseOpenPreview(parseCourseFile(JSON.stringify(data)));
+}
+// The app's usual upgrade sheet, with the course's join page in place of the planner's own plans.
+function showCourseUpgrade() {
+  showUpgrade(COURSE_FULL_REASON);
+  const plans = document.getElementById('upgrade-plans'), btn = document.getElementById('upgrade-course-btn');
+  if (plans) plans.style.display = 'none';
+  if (btn) btn.style.display = '';
+}
+// ↗ beside a lesson, a stage, or a course: opens the Skool page in a new tab
+// (from the Home Screen app, the device's browser). Taps on it don't tick or open the row.
+function courseLinkIcon(link) {
+  const u = courseLink(link);
+  if (!u) return '';
+  return '<a class="course-link" href="' + courseEsc(u) + '" target="_blank" rel="noopener" aria-label="Open in Skool" title="Open in Skool" onclick="event.stopPropagation()"><i class="ti ti-external-link"></i></a>';
+}
+// A task's link: its own (a Free course task), or the lesson's when a lesson was put on a day.
+function courseTaskLink(t) {
+  if (!t) return '';
+  if (t.link) return t.link;
+  if (t.projId != null && t.stepId != null) { const f = projFindStep(t.projId, t.stepId); if (f && f.s.link) return f.s.link; }
+  return '';
+}
+
+// The Projects page (16 Oct 11:35): the same two buttons. A button stands aside while
+// its course is in the planner, and comes back after Undo; Settings always shows both.
+function renderCourseButtons() {
+  const box = document.getElementById('proj-course-btns');
+  if (!box) return;
+  const f = document.getElementById('proj-course-btn-free'), u = document.getElementById('proj-course-btn-full');
+  const fIn = !!courseActive('vfp-free-course-v1'), uIn = !!courseActive(COURSE_FULL_ID);
+  if (f) f.style.display = fIn ? 'none' : '';
+  if (u) u.style.display = uIn ? 'none' : '';
+  box.style.display = fIn && uIn ? 'none' : '';
 }
 
 // ============================================================================
