@@ -1609,6 +1609,8 @@ button.pm-box:hover { border-color: var(--orange); }
 .course-name-head { font-size: 15px; font-weight: 700; color: var(--text); margin: 2px 2px 2px; }
 .course-name-line { font-size: 13px; color: var(--text-mid); margin: 0 2px 10px; line-height: 1.4; }
 .proj-course-btns { margin-bottom: 4px; }
+.course-row-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 10px; }
+.course-row-actions .course-link { margin-left: 0; }
 a.modal-cta.course-join { display: block; text-align: center; text-decoration: none; box-sizing: border-box; margin-top: 12px; }
 
 /* ============================================================
@@ -3705,7 +3707,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">Choose your plan</div>
+    <div class="modal-title" id="upgrade-title">Choose your plan</div>
     <div class="upgrade-reason" id="upgrade-reason" style="display:none"></div>
     <a class="modal-cta course-join" id="upgrade-course-btn" style="display:none" href="https://www.skool.com/the-voice-first-life-8055/plans" target="_blank" rel="noopener" onclick="closeUpgrade()">See the course</a>
     <div id="upgrade-plans">
@@ -12592,7 +12594,7 @@ function handleCheckoutReturn() {
 
 function showUpgrade(reason) {
   applyLifetimeVisibility();
-  { const pl = document.getElementById('upgrade-plans'), cb = document.getElementById('upgrade-course-btn'); if (pl) pl.style.display = ''; if (cb) cb.style.display = 'none'; }
+  { const pl = document.getElementById('upgrade-plans'), cb = document.getElementById('upgrade-course-btn'), tt = document.getElementById('upgrade-title'); if (pl) pl.style.display = ''; if (cb) cb.style.display = 'none'; if (tt) tt.textContent = 'Choose your plan'; }
   // 11 Oct 2026: a line saying why the sheet opened, when the caller gives one. Every
   // other caller passes nothing, and the sheet is as it was.
   const why = document.getElementById('upgrade-reason');
@@ -13554,7 +13556,7 @@ function renderCourseImportHistory() {
   el.innerHTML = (state.courseImports || []).slice().reverse().map(im => {
     const when = new Date(im.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return '<div class="settings-row"><span class="settings-row-label">' + courseEsc(courseDisplayTitle(im.course, im.title)) + ' · brought in ' + courseEsc(when) +
-      '</span>' + courseLinkIcon(im.link) + '<span class="settings-row-action" onclick="undoCourseImport(\'' + courseEsc(im.id) + '\')">Undo</span></div>';
+      '</span><span class="course-row-actions">' + courseLinkIcon(im.link) + '<span class="settings-row-action" onclick="undoCourseImport(\'' + courseEsc(im.id) + '\')">Undo</span></span></div>';
   }).join('');
 }
 
@@ -13575,7 +13577,10 @@ function importBuiltInCourse(which) {
 }
 // The app's usual upgrade sheet, with the course's join page in place of the planner's own plans.
 function showCourseUpgrade() {
-  showUpgrade(COURSE_FULL_REASON);
+  showUpgrade();   // no reason passed, so no banner at the top: the sentence is said once, on the sheet (16 Oct 12:46)
+  const why = document.getElementById('upgrade-reason'), title = document.getElementById('upgrade-title');
+  if (why) { why.textContent = COURSE_FULL_REASON; why.style.display = ''; }
+  if (title) title.textContent = 'Get the full course';
   const plans = document.getElementById('upgrade-plans'), btn = document.getElementById('upgrade-course-btn');
   if (plans) plans.style.display = 'none';
   if (btn) btn.style.display = '';
