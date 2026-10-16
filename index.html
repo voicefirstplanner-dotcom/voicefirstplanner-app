@@ -3608,16 +3608,13 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <input type="file" id="cal-import-file" accept=".ics,text/calendar" style="display:none" onchange="handleCalFile(this)">
         <div id="cal-import-history"></div>
       </div>
-      <!-- COURSE IMPORT (15 Oct 2026). A course file is read on this device and never uploaded. -->
+      <!-- COURSE IMPORT (15 Oct 2026; since 16 Oct 12:29 by the two buttons only, the course built in). -->
       <div class="settings-section">
         <div class="settings-section-title">Bring in Real App, Real Business with AI</div>
         <div class="course-name-line">The course on Skool, as projects in your planner.</div>
         <!-- 16 Oct: the two buttons, for every account -->
         <button type="button" class="course-btn" id="course-btn-free" onclick="importBuiltInCourse('free')"><i class="ti ti-school"></i>Import the free course</button>
         <button type="button" class="course-btn" id="course-btn-full" onclick="importBuiltInCourse('full')"><i class="ti ti-books"></i>Import the full course</button>
-        <div style="font-size:12px;color:var(--text-mid);padding:6px 2px 8px">Got a course file from VoiceFirstPlanner? Bring its lessons into your planner. Nothing you already have is changed.</div>
-        <div class="settings-row"><span class="settings-row-label">Course file</span><span class="settings-row-action" onclick="document.getElementById('course-import-file').click()">Choose file</span></div>
-        <input type="file" id="course-import-file" style="display:none" onchange="handleCourseFile(this)">
         <div id="course-import-history"></div>
       </div>
       <div class="settings-section">
@@ -13437,17 +13434,8 @@ function courseMovedLine(tasks) {
   return 'Free plan: 5 tasks a day. Moved to the next day with room: ' + groups.map(g => and(g.names) + ' → ' + projDayLabel(g.date)).join(' · ');
 }
 
-function handleCourseFile(input) {
-  const file = input.files && input.files[0];
-  input.value = '';
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onerror = () => showToast('That isn\'t a VoiceFirstPlanner course file — nothing was added');
-  reader.onload = () => courseOpenPreview(parseCourseFile(reader.result));
-  reader.readAsText(file);
-}
 function courseOpenPreview(c) {
-  if (!c) { showToast('That isn\'t a VoiceFirstPlanner course file — nothing was added'); return; }
+  if (!c) return;   // the built-in course always reads (16 Oct 12:29: no file route, so no "not a course file" message)
   if (courseActive(c.id)) { showToast('This course is already in your planner'); return; }
   const fit = courseFit(c);
   if (fit.refuse) { if (fit.skool) showCourseUpgrade(); else { showToast(fit.refuse); showUpgrade(); } return; }
