@@ -9255,7 +9255,9 @@ function editTask(id) {
   editCtx = { kind: 'task', id };
   openEditModal('Edit task', [
     { id: 'edit-f1', label: 'Task', value: t.text, mic: true },
-    { id: 'edit-f2', label: 'Priority', value: t.p, type: 'select', options: [['A','A \u2014 must do today'],['B','B \u2014 should do'],['C','C \u2014 nice to do']] }
+    { id: 'edit-f2', label: 'Priority', value: t.p, type: 'select', options: [['A','A \u2014 must do today'],['B','B \u2014 should do'],['C','C \u2014 nice to do']] },
+    // 19 Oct (brief Move_Task_To_Another_Day v1): the task's day, as the appointment card shows its date
+    { id: 'edit-f3', label: 'Date', value: t.date || dateKey(today), type: 'date' }
   ]);
 }
 
@@ -9484,10 +9486,34 @@ function saveEdit() {
   const v2El = document.getElementById('edit-f2');
   const v1 = v1El ? v1El.value.trim() : '';
   const v2 = v2El ? v2El.value.trim() : '';
+  let movedTo = null;   // 19 Oct: set when the save moves a task to another day
   if (editCtx.kind === 'task') {
     const t = state.tasks.find(x => x.id === editCtx.id);
-    if (t) { if (!v1) { showToast('Task can\u2019t be empty'); return; } t.text = v1; t.p = v2 || t.p; projTaskEdited(t); }
+    if (t) {
+      if (!v1) { showToast('Task can\u2019t be empty'); return; }
+      const dEl = document.getElementById('edit-f3');
+      const was = t.date || dateKey(today);
+      const to = (dEl && dEl.value) || was;
+      // Free plan: moving a task onto a day is the same check as adding one there (addTask,
+      // projPutStepOnDay): every task dated that day counts, this one aside. A full day:
+      // nothing is saved, the sheet closes and the upgrade sheet opens, as when adding.
+      if (to !== was && !isPremium() && state.tasks.filter(x => x.date === to && x.id !== t.id).length >= 5) {
+        closeEditModal({ skipSave: true });
+        showToast('Free plan: up to 5 tasks per day \u2014 upgrade for unlimited');
+        showUpgrade();
+        return;
+      }
+      t.text = v1; t.p = v2 || t.p; projTaskEdited(t);
+      // The move. The day counts from here, as when a step is put on a day (origDate).
+      if (to !== was) { t.date = to; t.origDate = to; movedTo = to; }
+    }
     renderTasks(); renderCalStrip();
+    if (movedTo) {
+      try { renderScheduleGrid(); } catch (e) {}
+      try { renderWeek(); } catch (e) {}
+      if (t && t.projId != null && currentProject && currentProject.id === t.projId) { try { renderProjectDetail(); } catch (e) {} }
+      try { persistNow(); } catch (e) {}
+    }
   } else if (editCtx.kind === 'note') {
     commitNoteEdit(editCtx.id);
   } else if (editCtx.kind === 'appt') {
@@ -9543,7 +9569,7 @@ function saveEdit() {
     if (r) { if (!v1) { showToast('Role needs a name'); return; } r.name = v1; r.def = v2; }
     renderValues();
   }
-  showToast('Saved');
+  showToast(movedTo ? 'Moved to ' + fmtDateLabel(movedTo) : 'Saved');
   closeEditModal({ skipSave: true });
 }
 
