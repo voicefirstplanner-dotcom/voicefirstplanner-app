@@ -12658,6 +12658,34 @@ function openFeedback() {
   document.getElementById('feedback-modal').classList.add('open');
 }
 function closeFeedback() { document.getElementById('feedback-modal').classList.remove('open'); }
+// 19 Oct 2026 (brief Feedback_Email v1): once the feedback row is saved, ask the server to
+// email Dave a copy (api/_lib/feedback-email.js, reached through api/library-download.js:
+// Vercel's Hobby plan allows 12 functions and api/ holds 12). Fire and forget: the member's
+// thank-you, its timing and what is saved are exactly as before, whatever happens here.
+// Not stored anywhere: the section they were on, the view, their time zone, Home Screen app.
+function feedbackEmail(kind, message) {
+  try {
+    if (!sb || isDemo) return;
+    const sec = document.querySelector('.sec.active');
+    const fb = {
+      kind, message,
+      tab: sec && sec.id ? sec.id.replace(/^sec-/, '') : null,
+      view: document.body.classList.contains('pv') ? 'planner' : 'classic',
+      tz: (Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
+      standalone: !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone)
+    };
+    const body = JSON.stringify({ feedback: fb });
+    sb.auth.getSession().then(({ data }) => {
+      const t = data && data.session && data.session.access_token;
+      if (!t) return;
+      return fetch('/api/library-download', {
+        method: 'POST', keepalive: body.length < 60000,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+        body
+      });
+    }).catch(() => {});
+  } catch (e) {}
+}
 async function submitFeedback() {
   const msgEl = document.getElementById('fb-message');
   const msg = (msgEl ? msgEl.value : '').trim();
@@ -12673,6 +12701,7 @@ async function submitFeedback() {
       user_id: authUserId || null, kind: fbKind, message: msg, context
     });
     if (error) { showToast('Could not send — please try again'); return; }
+    feedbackEmail(fbKind, msg);   // 19 Oct: a copy to Dave by email, after the save; nothing waits on it
     showToast('Thanks — feedback sent!');
     closeFeedback();
   } catch (e) {
