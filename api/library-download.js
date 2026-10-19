@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from './_lib/token.js';
+import { sendFeedbackEmail } from './_lib/feedback-email.js';   // 19 Oct 2026: see that file
 
 // Service-role client: validates the caller's JWT, reads their entitlement, and
 // mints signed URLs from the PRIVATE lifetime-library bucket. The service key
@@ -160,6 +161,11 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // 19 Oct 2026 (brief Feedback_Email v1): the app's feedback copy to Dave shares this
+  // function (Hobby plan: 12 functions, all used). Only a POST carrying `feedback` goes
+  // there; it does its own sign-in check. Every Library request is untouched.
+  if (req.body && typeof req.body === 'object' && req.body.feedback) return sendFeedbackEmail(req, res, supabase);
 
   try {
     // 1. Authenticate — the JWT is the identity, never a client-sent userId.
