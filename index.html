@@ -9505,7 +9505,7 @@ function saveEdit() {
       }
       t.text = v1; t.p = v2 || t.p; projTaskEdited(t);
       // The move. The day counts from here, as when a step is put on a day (origDate).
-      if (to !== was) { t.date = to; t.origDate = to; movedTo = to; }
+      if (to !== was) { t.date = to; t.origDate = to; movedTo = to; if (t.courseImport) t.memberMoved = true; }
     }
     renderTasks(); renderCalStrip();
     if (movedTo) {
@@ -13563,7 +13563,7 @@ function commitCourseImport() {
 }
 
 // Has the member touched an item the course brought in?
-function courseTaskTouched(t, r) { return !!t.done || t.text !== r.text; }
+function courseTaskTouched(t, r) { return !!t.done || t.text !== r.text || !!t.memberMoved; }   // moved by the member: kept (19 Oct, Q1 b)
 function courseNoteTouched(n, r) {
   const cl = Array.isArray(n.checklist) ? n.checklist : [];
   return n.title !== r.title || (n.body || '') !== (r.body || '') || cl.length !== r.checklist.length
