@@ -2656,6 +2656,10 @@ body.pv #pv-flip { display: none; }
   body.pv.pv-mode-daily #pv-book.show-right #pv-slot-shop { flex: 1 1 0; min-height: 0; overflow-y: auto; }
   body.pv.pv-mode-daily #pv-book.show-right .pv-left { display: none; }
   body.pv.pv-mode-daily #pv-flip { display: flex; justify-content: center; gap: 10px; padding: 0 0 10px; }
+  /* 28 Oct 2026 (brief 1930): the two page buttons stay in sight at the top of
+     the book however far the page is scrolled, so the Notes page can always be
+     reached. Same buttons, same words; only where they sit while scrolling. */
+  body.pv.pv-mode-daily #pv-flip { position: sticky; top: -14px; z-index: 6; margin: -14px -10px 0 -14px; padding: 14px 10px 10px 14px; background: var(--bg); }
   body.pv #pv-wide .sec.active { column-count: 1 !important; }
   body.pv .pv-flip-btn {
     border: 1px solid var(--pv-edge); border-radius: 8px; background: var(--pv-paper); color: var(--navy, #0C447C);
@@ -6168,8 +6172,16 @@ function searchGo(kind, id, extra) {
     else if (n.created) { viewingDate = dateKey(new Date(n.created)); updateViewingDateLabel(); }
     showTab('notes');
     renderNotes();
-    if (typeof pvDailyActive === 'function' && pvDailyActive() && window.matchMedia
-        && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches) pvFlip('R');
+    // 28 Oct 2026 (brief 1930): turn to the Notes page whenever the daily spread
+    // is open, with no screen-size test of our own: the stylesheet alone decides
+    // whether one page or two show (on the open book this changes nothing you can
+    // see). Start the book at its top, and turn again a moment later in case the
+    // keyboard closing after search re-lays the page.
+    if (typeof pvDailyActive === 'function' && pvDailyActive()) {
+      pvFlip('R');
+      const bk = document.getElementById('pv-book'); if (bk) bk.scrollTop = 0;
+      setTimeout(() => { if (pvDailyActive()) pvFlip('R'); }, 450);
+    }
     searchFlash('notes-list', q);
   } else if (kind === 'project') {
     const p = state.projects.find(x => x.id === id); if (!p) return;
