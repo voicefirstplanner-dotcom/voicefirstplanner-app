@@ -6156,10 +6156,20 @@ function searchGo(kind, id, extra) {
   } else if (kind === 'note') {
     const n = state.notes.find(x => x.id === id); if (!n) return;
     // Planner view shows a day's notes on that day's right page — set the day
-    // first so the note is actually on the open spread. Classic is unaffected.
-    if (n.created) { viewingDate = dateKey(new Date(n.created)); updateViewingDateLabel(); }
+    // first so the note is actually on the open spread.
+    // 28 Oct 2026 (briefs 1845 + 1855): land on the note's day exactly as a task
+    // result does (searchGoDay), so the calendar's month and highlighted day
+    // follow too — they used to stay on the day you searched from. And where the
+    // book shows one page at a time (portrait, or a window under 1100px), open
+    // the Notes page, where the note is; it used to stay on the Planner page.
+    // Classic keeps its own two lines, as before. Nothing about the note changes.
+    const inPv = document.body.classList.contains('pv');
+    if (n.created && inPv) searchGoDay(dateKey(new Date(n.created)));
+    else if (n.created) { viewingDate = dateKey(new Date(n.created)); updateViewingDateLabel(); }
     showTab('notes');
     renderNotes();
+    if (typeof pvDailyActive === 'function' && pvDailyActive() && window.matchMedia
+        && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches) pvFlip('R');
     searchFlash('notes-list', q);
   } else if (kind === 'project') {
     const p = state.projects.find(x => x.id === id); if (!p) return;
