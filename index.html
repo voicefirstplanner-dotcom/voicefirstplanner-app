@@ -1600,6 +1600,32 @@ button.pm-box:hover { border-color: var(--orange); }
 .shared-wait { font-size: 11px; color: var(--text-mid); white-space: nowrap; margin-left: 6px; }
 .shared-wait i { font-size: 12px; vertical-align: -1px; }
 
+/* GROUPS STEP 3 (1 Nov 2026): the orange Group updates button, its sheet, and Send */
+.gu-btn {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 26px; padding: 0 5px 0 9px; margin-right: 6px; max-width: 52vw;
+  border: 1px solid var(--orange); border-radius: 8px; background: var(--orange); color: var(--on-accent);
+  font-family: var(--font); font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer;
+}
+.gu-btn[hidden] { display: none; }
+.gu-btn-text { overflow: hidden; text-overflow: ellipsis; }
+.gu-badge { min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--on-accent); color: var(--orange); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.gu-group { font-size: 13px; font-weight: 700; color: var(--text); margin: 14px 2px 0; }
+.gu-sub { font-size: 11.5px; font-weight: 600; color: var(--text-mid); margin: 6px 2px 0; }
+.gu-row { align-items: center; }
+.gu-detail { font-size: 12px; color: var(--text-mid); margin-top: 3px; white-space: pre-line; overflow-wrap: anywhere; }
+.gu-change { font-weight: 500; }
+.gu-acts { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.gu-yes, .gu-no, .gu-gotit { font-family: var(--font); font-size: 12.5px; font-weight: 700; border-radius: 8px; cursor: pointer; padding: 7px 12px; }
+.gu-yes { border: 1px solid var(--orange); background: var(--orange); color: var(--on-accent); }
+.gu-yes:hover { background: var(--orange-hover); border-color: var(--orange-hover); }
+.gu-no, .gu-gotit { border: 1px solid var(--border); background: none; color: var(--text-mid); font-weight: 600; }
+.gu-gotit { display: block; margin: 8px 0 4px auto; }
+.gu-more { font-size: 12px; color: var(--text-light); padding: 6px 4px 0; }
+.gu-empty { font-size: 13px; color: var(--text-mid); padding: 14px 2px; }
+.gu-send { display: block; width: 100%; margin: 2px 0 6px; background: none; border: 1px solid var(--border); border-radius: 8px; padding: 9px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--navy, #0C447C); cursor: pointer; }
+.gu-pick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; border-bottom: 0.5px solid var(--border); padding: 12px 4px; font-family: var(--font); font-size: 14.5px; color: var(--text); cursor: pointer; }
+.gu-pick i { font-size: 17px; color: var(--text-mid); }
+
 /* ============================================================
    TOAST NOTIFICATIONS
    ============================================================ */
@@ -2865,6 +2891,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <!-- WEBSITE BUTTON + "WHAT'S NEW" (8 Oct 2026). The button is always here.
          What's new is hidden unless the website reports a newer entry (loadWhatsNew). -->
     <div class="topbar-web" id="topbar-web">
+      <button class="gu-btn" id="gu-btn" onclick="openGroupUpdates()" hidden><span class="gu-btn-text" id="gu-btn-text"></span><span class="gu-badge" id="gu-badge"></span></button>
       <a class="web-btn" id="web-btn" href="https://voicefirstdayplanner.com/" target="_blank" rel="noopener"><i class="ti ti-world" aria-hidden="true"></i>Website</a>
       <a class="web-pill" id="web-pill" href="https://voicefirstdayplanner.com/" target="_blank" rel="noopener" onclick="whatsNewPressed()" hidden>What&#39;s new</a>
     </div>
@@ -3954,9 +3981,32 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div style="display:flex;gap:6px;margin-top:6px">
       <button id="ap-remind" onclick="apRemind()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer"><i class="ti ti-bell"></i> Remind</button>
       <button id="ap-rebook" onclick="apRebook()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer">Rebook</button>
+      <button id="ap-send" onclick="vfpSendFromAppt()" style="display:none;flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy,#0C447C);cursor:pointer"><i class="ti ti-send"></i> Send</button>
       <button id="ap-delete" onclick="apDelete()" style="flex:1;background:none;border:1px solid #e08a8a;border-radius:8px;padding:8px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--danger-text);cursor:pointer">Delete</button>
     </div>
     <button class="modal-close-btn" onclick="closeApptPopup()">Cancel</button>
+  </div>
+</div>
+
+<!-- GROUPS STEP 3 (1 Nov 2026): the Group updates sheet. The calendar-import review again (cal-import-modal):
+     the same sheet, rows and type. Nothing reaches the planner without Accept; No thanks leaves nothing. -->
+<div class="modal-overlay" id="group-updates-modal" onclick="if(event.target===this)closeGroupUpdates()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Group updates</div>
+    <div id="gu-groups" style="max-height:60vh;overflow-y:auto"></div>
+    <button class="modal-close-btn" onclick="closeGroupUpdates()">Close</button>
+  </div>
+</div>
+
+<!-- GROUPS STEP 3: Send to one person in a group, or everyone in it -->
+<div class="modal-overlay" id="vfp-send-modal" onclick="if(event.target===this)closeVfpSend()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Send to</div>
+    <div class="modal-sub" id="vfp-send-sub"></div>
+    <div id="vfp-send-rows" style="max-height:52vh;overflow-y:auto"></div>
+    <button class="modal-close-btn" onclick="closeVfpSend()">Cancel</button>
   </div>
 </div>
 
@@ -7866,6 +7916,7 @@ function openApptPopup(id) {
   document.getElementById('ap-remind').style.display = '';
   document.getElementById('ap-rebook').style.display = '';
   document.getElementById('ap-delete').style.display = '';
+  vfpApSendShow(true);   // Groups step 3
   apAllDayToggle();
   document.getElementById('appt-popup').classList.add('open');
 }
@@ -7888,6 +7939,7 @@ function openApptPopupNew(prefill) {
   document.getElementById('ap-remind').style.display = 'none';
   document.getElementById('ap-rebook').style.display = 'none';
   document.getElementById('ap-delete').style.display = 'none';
+  vfpApSendShow(false);   // Groups step 3
   apAllDayToggle();
   document.getElementById('appt-popup').classList.add('open');
 }
@@ -9526,6 +9578,7 @@ function openEditModal(title, fields, opts) {
     wrap.appendChild(row);
   });
   if (typeof opts.extra === 'function') opts.extra(wrap);
+  vfpEditSendButton(wrap);   // Groups step 3
   document.getElementById('edit-modal').classList.add('open');
 }
 
@@ -14907,6 +14960,7 @@ async function loadGroups() {
     try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) vfpGroups = d; } catch (e) { /* no Groups yet: nothing shown */ }
   }
   renderGroups();
+  loadGroupUpdates();   // Groups step 3: the orange button (nothing for a member with no group)
 }
 // After sign-in: the groups, then any invite link this device is holding.
 async function vfpGroupsStart() {
@@ -15381,6 +15435,344 @@ function vfpSharedVoiceAdd(g, text) {
   showTab('shopping', null);
   renderShopping(); vfpLiveOn(g.group_id);
   if (!n) showToast('Tell me what to add — e.g. "add milk to our shopping list"');
+}
+
+// ============================================================
+// GROUPS STEP 3 (1 Nov 2026 · briefs 1041, 1150 and 1345): GROUP UPDATES AND SENDING.
+// · Send: from a task, note or shopping item's edit sheet ("Send to…") or an appointment's card ("Send"),
+//   to one person in a group you're both in, or to everyone in it. The database keeps a cleaned copy
+//   until each person answers (vfp_send, file VFP_SQL_3a).
+// · The orange button (top bar) appears only when a group has news: things sent to you, and changes
+//   someone else made in a shared space (the shared list). One group: "<group name> update"; more:
+//   "Group updates". The badge is the count.
+// · The sheet is the calendar-import review (cal-import-modal) again: same sheet, rows and type, with
+//   Accept / No thanks on each "Sent to you" row and one "Got it" for each group's changes.
+// · Accept: THIS app writes the copy into this member's own planner, through the same free-plan checks
+//   as adding by hand, saves the planner, and only then tells the database the item is answered.
+//   Nothing is ever written into a planner by the server or by the sender. No thanks: only the answer.
+//   An answer made with no signal waits on this device and is sent when the signal returns; until
+//   then the item stays out of the sheet, and an accepted item is never added twice (fromSend).
+// · Hidden: a member with no group makes no new calls and sees nothing new.
+// ============================================================
+let vfpUpdates = [];          // [{group_id, name, status, sent:[{id, kind, item, from_name, sent_at}], changes:[...], changes_total}]
+let vfpUpdChan = null;        // the one live channel: "something was sent to me" and "a shared list of mine changed"
+let vfpUpdChanKey = '';
+let vfpUpdT = null;
+let vfpSendDraft = null;      // {kind, item, send_id, label}
+const vfpAKey = () => 'vfp_answered_' + (authUserId || '');
+
+function vfpAnswered() { try { return JSON.parse(localStorage.getItem(vfpAKey()) || '[]'); } catch (e) { return []; } }
+function vfpAnsweredSave(a) { try { localStorage.setItem(vfpAKey(), JSON.stringify(a)); } catch (e) {} }
+
+// Another person's words, made safe for every place the planner shows text (as the database does too).
+function vfpSafe(s, max) {
+  return String(s == null ? '' : s).replace(/</g, '‹').replace(/>/g, '›').replace(/"/g, '”').slice(0, max || 500);
+}
+
+async function loadGroupUpdates() {
+  if (!sb || !authUserId || isDemo || !(vfpGroups && vfpGroups.length)) {
+    vfpUpdates = []; vfpUpdLiveOff(); renderGroupUpdatesBtn(); return;
+  }
+  vfpAnsweredFlush();
+  try {
+    const { data, error } = await sb.rpc('vfp_updates');
+    if (!error && Array.isArray(data)) vfpUpdates = data;
+  } catch (e) { /* no signal: keep what's on screen */ }
+  renderGroupUpdatesBtn();
+  if (document.getElementById('group-updates-modal').classList.contains('open')) renderGroupUpdates();
+  if (!document.hidden) vfpUpdLiveOn();
+}
+
+// What still needs the member: waiting items not already answered on this device, and unseen changes.
+function vfpNews(g) {
+  const done = vfpAnswered();
+  const sent = (g.sent || []).filter(s => done.indexOf(s.id) === -1);
+  const changes = g.changes || [];
+  return { sent, changes, more: Math.max(0, (g.changes_total || 0) - changes.length), n: sent.length + (g.changes_total || 0) };
+}
+
+function renderGroupUpdatesBtn() {
+  const b = document.getElementById('gu-btn');
+  if (!b) return;
+  const withNews = vfpUpdates.filter(g => vfpNews(g).n > 0);
+  const total = withNews.reduce((n, g) => n + vfpNews(g).n, 0);
+  if (!total) { b.hidden = true; return; }
+  document.getElementById('gu-btn-text').textContent = withNews.length === 1 ? withNews[0].name + ' update' : 'Group updates';
+  document.getElementById('gu-badge').textContent = total > 99 ? '99+' : String(total);
+  b.setAttribute('aria-label', (withNews.length === 1 ? withNews[0].name + ' update' : 'Group updates') + ', ' + total);
+  b.hidden = false;
+}
+
+function openGroupUpdates() {
+  renderGroupUpdates();
+  document.getElementById('group-updates-modal').classList.add('open');
+  loadGroupUpdates();
+}
+function closeGroupUpdates() { document.getElementById('group-updates-modal').classList.remove('open'); }
+
+const VFP_KIND_WORD = { task: 'Task', appointment: 'Appointment', note: 'Note', shopping: 'Shopping item' };
+const VFP_CHANGE_WORD = { added: 'added', ticked: 'ticked', changed: 'changed', removed: 'removed' };
+
+function vfpSentTitle(s) {
+  const it = s.item || {};
+  return s.kind === 'appointment' || s.kind === 'note' ? (it.title || '') : (it.text || '');
+}
+function vfpSentMeta(s) {
+  const it = s.item || {};
+  let m = (VFP_KIND_WORD[s.kind] || 'Item') + ' from ' + (s.from_name || 'Member');
+  if (s.kind === 'task' && it.date) m += ' · ' + fmtDateLabel(it.date);
+  if (s.kind === 'appointment') {
+    m += ' · ' + fmtDateLabel(it.date);
+    if (it.allDay) m += ' · All day';
+    else if (it.timeStart) m += ' · ' + it.timeStart + (it.timeEnd ? '–' + it.timeEnd : '');
+  }
+  return m;
+}
+function vfpSentDetail(s) {
+  const it = s.item || {};
+  if (s.kind === 'note') {
+    const lines = [];
+    if (it.body) lines.push(it.body.length > 160 ? it.body.slice(0, 160) + '…' : it.body);
+    if (Array.isArray(it.checklist) && it.checklist.length) lines.push(it.checklist.map(c => c.text).join(' · '));
+    return lines.join('\n');
+  }
+  if (s.kind === 'appointment') return [it.with, it.location, it.notes].filter(Boolean).join(' · ');
+  return '';
+}
+
+function renderGroupUpdates() {
+  const box = document.getElementById('gu-groups');
+  if (!box) return;
+  const groups = vfpUpdates.filter(g => vfpNews(g).n > 0);
+  if (!groups.length) { box.innerHTML = '<div class="gu-empty">Nothing new.</div>'; return; }
+  box.innerHTML = groups.map(g => {
+    const nw = vfpNews(g);
+    let h = '<div class="gu-group">' + calEsc(g.name) + '</div>';
+    if (nw.sent.length) {
+      h += '<div class="gu-sub">Sent to you</div>';
+      h += nw.sent.map(s => {
+        const d = vfpSentDetail(s);
+        return '<div class="cal-imp-row gu-row">' +
+          '<div class="cal-imp-main">' +
+            '<div class="cal-imp-title">' + calEsc(vfpSentTitle(s)) + '</div>' +
+            '<div class="cal-imp-meta">' + calEsc(vfpSentMeta(s)) + '</div>' +
+            (d ? '<div class="gu-detail">' + calEsc(d) + '</div>' : '') +
+          '</div>' +
+          '<div class="gu-acts">' +
+            '<button class="gu-yes" onclick="vfpAccept(\'' + g.group_id + '\',\'' + s.id + '\')">Accept</button>' +
+            '<button class="gu-no" onclick="vfpNoThanks(\'' + s.id + '\')">No thanks</button>' +
+          '</div></div>';
+      }).join('');
+    }
+    if (nw.changes.length) {
+      const upto = nw.changes.reduce((m, c) => (c.at > m ? c.at : m), '');
+      h += '<div class="gu-sub">Changed in a shared space</div>';
+      h += nw.changes.map(c =>
+        '<div class="cal-imp-row gu-row"><div class="cal-imp-main">' +
+          '<div class="cal-imp-title gu-change">' + calEsc((c.by_name || 'Member') + ' ' + (VFP_CHANGE_WORD[c.what] || 'changed') + ' “' + c.text + '”') + '</div>' +
+          '<div class="cal-imp-meta">Shared list</div>' +
+        '</div></div>').join('');
+      if (nw.more) h += '<div class="gu-more">+ ' + nw.more + ' more</div>';
+      h += '<button class="gu-gotit" onclick="vfpGotIt(\'' + g.group_id + '\',\'' + calEsc(upto) + '\')">Got it</button>';
+    }
+    return h;
+  }).join('');
+}
+
+// ---- Accept: into this member's own planner, by this app, with the free plan's own checks ----
+function vfpAcceptInto(s) {
+  const it = s.item || {};
+  const mine = arr => (arr || []).some(x => x && x.fromSend === s.id);
+  const now = Date.now();
+  if (s.kind === 'task') {
+    if (mine(state.tasks)) return 'ok';
+    const d = it.date && it.date >= dateKey(today) ? it.date : dateKey(today);   // a day already past: today
+    if (!isPremium() && state.tasks.filter(t => t.date === d).length >= 5) return 'Free plan: up to 5 tasks per day — upgrade for unlimited';
+    state.tasks.push({ id: now, text: vfpSafe(it.text, 500), p: ['A', 'B', 'C'].indexOf(it.p) >= 0 ? it.p : 'B', done: false, date: d, origDate: d, fromSend: s.id });
+    renderTasks(); renderCalStrip();
+  } else if (s.kind === 'appointment') {
+    if (mine(state.appointments)) return 'ok';
+    state.appointments.push({ id: now, title: vfpSafe(it.title, 200), timeStart: it.allDay ? '' : (it.timeStart || ''), timeEnd: it.allDay ? '' : (it.timeEnd || ''),
+      date: it.date, location: vfpSafe(it.location, 300), with: vfpSafe(it.with, 200), notes: vfpSafe(it.notes, 4000), allDay: !!it.allDay, done: false, fromSend: s.id });
+    renderAppointments(); renderScheduleGrid(); renderCalStrip();
+    try { renderMonth(); renderYear(); } catch (e) {}
+  } else if (s.kind === 'note') {
+    if (mine(state.notes)) return 'ok';
+    if (!isPremium() && (state.notes || []).length >= 10) return 'Free plan: up to 10 notes — upgrade for unlimited';
+    const cl = Array.isArray(it.checklist) && it.checklist.length ? it.checklist.map(c => ({ text: vfpSafe(c.text, 200), done: !!c.done })) : null;
+    state.notes.unshift({ id: now, created: now, title: vfpSafe(it.title || 'Note', 200), body: vfpSafe(it.body, 20000), tags: [], checklist: cl, fromSend: s.id });
+    renderNotes();
+  } else if (s.kind === 'shopping') {
+    const list = findShopListByName('Shopping') || shopLists()[0];
+    if (mine(list.items)) return 'ok';
+    list.items.push({ id: now, text: vfpSafe(it.text, 200), done: false, fromSend: s.id });
+    renderShopping();
+  } else return 'That can’t be added.';
+  return 'ok';
+}
+
+function vfpFindSent(id) {
+  for (const g of vfpUpdates) for (const s of (g.sent || [])) if (s.id === id) return s;
+  return null;
+}
+
+function vfpAccept(groupId, id) {
+  const s = vfpFindSent(id);
+  if (!s) return;
+  const r = vfpAcceptInto(s);
+  if (r !== 'ok') {                                       // stays waiting, nothing lost
+    closeGroupUpdates(); showToast(r);
+    if (/^Free plan/.test(r)) showUpgrade();
+    return;
+  }
+  try { persistNow(); } catch (e) {}
+  vfpAnswer(id);
+  showToast('Added to your planner');
+}
+function vfpNoThanks(id) { vfpAnswer(id); }
+
+function vfpAnswer(id) {
+  const a = vfpAnswered();
+  if (a.indexOf(id) === -1) { a.push(id); vfpAnsweredSave(a); }
+  renderGroupUpdatesBtn(); renderGroupUpdates();
+  vfpAnsweredFlush();
+}
+
+// Tell the database what's been answered. No signal: keep it here and try again later.
+let vfpAnsFlushing = false;
+async function vfpAnsweredFlush() {
+  if (vfpAnsFlushing || !sb || !authUserId || isDemo) return;
+  if (!vfpAnswered().length) return;
+  vfpAnsFlushing = true;
+  let sent = 0;
+  try {
+    for (const id of vfpAnswered()) {
+      let res;
+      try { res = await sb.rpc('vfp_sent_clear', { p_id: id }); } catch (e) { res = { error: { message: String((e && e.message) || e) } }; }
+      if (res && res.error && !res.error.code) break;                        // no signal: try again later
+      vfpAnsweredSave(vfpAnswered().filter(x => x !== id));                  // answered (or not ours): done
+      vfpUpdates.forEach(g => { g.sent = (g.sent || []).filter(s => s.id !== id); });
+      sent++;
+    }
+  } finally { vfpAnsFlushing = false; }
+  if (sent) { renderGroupUpdatesBtn(); if (document.getElementById('group-updates-modal').classList.contains('open')) renderGroupUpdates(); }
+}
+
+async function vfpGotIt(groupId, upto) {
+  try {
+    const { error } = await sb.rpc('vfp_got_it', { p_group: groupId, p_upto: upto || null });
+    if (error) { showToast(error.code ? vfpGroupError(error) : 'That didn’t work — check your signal and try again.'); return; }
+  } catch (e) { showToast('That didn’t work — check your signal and try again.'); return; }
+  const g = vfpUpdates.find(x => x.group_id === groupId);
+  if (g) { g.changes = []; g.changes_total = 0; }
+  renderGroupUpdatesBtn(); renderGroupUpdates();
+  loadGroupUpdates();
+}
+
+// ---- live: one channel, two small tables that only say "ask again" ----
+function vfpUpdLiveOn() {
+  if (!sb || typeof sb.channel !== 'function' || !authUserId) return;
+  const ids = vfpUpdates.map(g => g.group_id).slice(0, 100);
+  const key = authUserId + '|' + ids.join(',');
+  if (vfpUpdChan && vfpUpdChanKey === key) return;
+  vfpUpdLiveOff();
+  try {
+    const again = () => { clearTimeout(vfpUpdT); vfpUpdT = setTimeout(loadGroupUpdates, 400); };
+    let ch = sb.channel('vfp-updates-' + authUserId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_user_marks', filter: 'user_id=eq.' + authUserId }, again);
+    if (ids.length) ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_group_marks', filter: 'group_id=in.(' + ids.join(',') + ')' }, again);
+    ch.subscribe();
+    vfpUpdChan = ch; vfpUpdChanKey = key;
+  } catch (e) {}
+}
+function vfpUpdLiveOff() { if (vfpUpdChan) { try { sb.removeChannel(vfpUpdChan); } catch (e) {} vfpUpdChan = null; vfpUpdChanKey = ''; } }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { vfpUpdLiveOff(); return; }
+  if (authUserId && !isDemo) loadGroupUpdates();
+});
+window.addEventListener('online', () => { vfpAnsweredFlush(); });
+setInterval(() => { if (!document.hidden && vfpAnswered().length) vfpAnsweredFlush(); }, 30000);
+
+// ---- Send ----
+// Who this member can send to: every other person in each group they're in, while its plan is active.
+function vfpSendTargets() {
+  const out = [];
+  (vfpGroups || []).forEach(pl => {
+    if (pl.status !== 'active') return;
+    (pl.groups || []).forEach(g => {
+      if (!g.i_am_in) return;
+      const people = (g.members || []).filter(m => !m.is_me).map(m => ({ user_id: m.user_id, name: m.name || 'Member' }));
+      if (people.length) out.push({ group_id: g.group_id, name: g.name, people });
+    });
+  });
+  return out;
+}
+function vfpCanSend() { return !!(sb && authUserId && !isDemo) && vfpSendTargets().length > 0; }
+
+// The "Send to…" button in the edit sheet: tasks, notes and items on your own shopping lists.
+function vfpEditSendButton(wrap) {
+  if (!editCtx || ['task', 'note', 'shopping'].indexOf(editCtx.kind) === -1 || !vfpCanSend()) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'gu-send'; b.id = 'edit-send';
+  b.innerHTML = '<i class="ti ti-send"></i> Send to…';
+  b.onclick = vfpSendFromEdit;
+  wrap.appendChild(b);
+}
+function vfpSendFromEdit() {
+  if (!editCtx) return;
+  const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  if (editCtx.kind === 'task') {
+    const t = state.tasks.find(x => x.id === editCtx.id);
+    vfpSendOpen('task', { text: v('edit-f1') || (t && t.text) || '', p: v('edit-f2') || (t && t.p) || 'B', date: v('edit-f3') || (t && t.date) || '' });
+  } else if (editCtx.kind === 'note') {
+    const n = state.notes.find(x => x.id === editCtx.id);
+    vfpSendOpen('note', { title: v('edit-f1'), body: v('edit-f2'), checklist: n && Array.isArray(n.checklist) ? n.checklist.map(c => ({ text: c.text, done: !!c.done })) : null });
+  } else if (editCtx.kind === 'shopping') {
+    vfpSendOpen('shopping', { text: v('edit-f1') });
+  }
+}
+function vfpApSendShow(on) { const b = document.getElementById('ap-send'); if (b) b.style.display = on && vfpCanSend() ? '' : 'none'; }
+function vfpSendFromAppt() {
+  const f = apReadForm();
+  vfpSendOpen('appointment', { title: f.title, date: f.date, allDay: f.allDay, timeStart: f.timeStart, timeEnd: f.timeEnd, location: f.location, with: f.with, notes: f.notes });
+}
+
+function vfpSendOpen(kind, item) {
+  const title = kind === 'appointment' || kind === 'note' ? (item.title || '') : (item.text || '');
+  if (!title.trim() && !(kind === 'note' && (item.body || (item.checklist || []).length))) { showToast('Nothing to send yet'); return; }
+  vfpSendDraft = { kind, item, send_id: vfpUuid() };
+  document.getElementById('vfp-send-sub').textContent = (VFP_KIND_WORD[kind] || 'Item') + ': ' + (title || 'Note');
+  document.getElementById('vfp-send-rows').innerHTML = vfpSendTargets().map(g =>
+    '<div class="gu-group">' + calEsc(g.name) + '</div>' +
+    (g.people.length > 1 ? '<button class="gu-pick" onclick="vfpSendTo(\'' + g.group_id + '\',null)"><i class="ti ti-users"></i> Everyone in ' + calEsc(g.name) + '</button>' : '') +
+    g.people.map(p => '<button class="gu-pick" onclick="vfpSendTo(\'' + g.group_id + '\',\'' + p.user_id + '\')"><i class="ti ti-user"></i> ' + calEsc(p.name) + '</button>').join('')
+  ).join('');
+  document.getElementById('vfp-send-modal').classList.add('open');
+}
+function closeVfpSend() { document.getElementById('vfp-send-modal').classList.remove('open'); vfpSendDraft = null; }
+
+async function vfpSendTo(groupId, userId) {
+  const d = vfpSendDraft;
+  if (!d) return;
+  const g = vfpSendTargets().find(x => x.group_id === groupId);
+  const p = g && userId ? g.people.find(x => x.user_id === userId) : null;
+  let res;
+  try { res = await sb.rpc('vfp_send', { p_group: groupId, p_to: userId, p_send_id: d.send_id, p_kind: d.kind, p_item: d.item }); }
+  catch (e) { res = { error: { message: String((e && e.message) || e) } }; }
+  if (res && res.error) {
+    const m = String(res.error.message || '');
+    if (!res.error.code) showToast('Couldn’t send — check your signal and try again.');
+    else if (/inbox_full/.test(m)) showToast((p ? p.name : 'They') + ' has too much waiting — try again later.');
+    else if (/bad_item/.test(m)) showToast('That can’t be sent.');
+    else showToast(vfpGroupError(res.error));
+    return;                                                        // the sheet stays open to try again
+  }
+  const r = (res && res.data) || {};
+  closeVfpSend();
+  if (p) showToast(r.again && !r.sent ? 'Already sent to ' + p.name : 'Sent to ' + p.name);
+  else if (r.full) showToast('Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') + ' — ' + r.full + ' had too much waiting');
+  else showToast('Sent to everyone in ' + (g ? g.name : 'the group'));
 }
 
 // ============================================================
