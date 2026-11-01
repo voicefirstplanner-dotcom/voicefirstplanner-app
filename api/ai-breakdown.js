@@ -24,6 +24,7 @@
 // Pro gate: all cloned verbatim from /api/ai-structure.
 
 import { createClient } from '@supabase/supabase-js';
+import { effectivePlan } from './_lib/plan.js';   // 31 Oct 2026: Groups step 0
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
@@ -60,12 +61,9 @@ async function identify(req) {
 // ---- Pro gate ---------------------------------------------------------------
 async function isPro(userId) {
   if (!admin) return false;
-  const { data: ent } = await admin
-    .from('entitlements')
-    .select('plan')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return ent?.plan === 'pro';
+  // 31 Oct 2026 (Groups step 0): the plan comes from the one plan function
+  // (api/_lib/plan.js), which falls back to this same entitlements read.
+  return (await effectivePlan(admin, userId)) === 'pro';
 }
 
 // ---- Rate limit (transcribe_usage, kind='ai' — fails OPEN like transcribe) --

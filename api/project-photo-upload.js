@@ -28,6 +28,7 @@
 //   Refusals: 401 no/bad session · 402 photo_limit · 413 too_large · 415 bad_type · 400 bad input
 
 import { createClient } from '@supabase/supabase-js';
+import { effectivePlan } from './_lib/plan.js';   // 31 Oct 2026: Groups step 0
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
 // NB: Vercel caps request bodies at ~4.5MB, so the practical binary ceiling for a
@@ -87,13 +88,9 @@ export default async function handler(req, res) {
     if (!proj) return res.status(400).json({ error: 'Missing project' });
     const rand = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    // 2 · The tier — the same entitlement lookup library-download.js uses.
-    const { data: ent } = await supabase
-      .from('entitlements')
-      .select('plan,source')
-      .eq('user_id', userId)
-      .maybeSingle();
-    const plan = ent?.plan || 'free';
+    // 2 · The tier — 31 Oct 2026 (Groups step 0): from the one plan function
+    // (api/_lib/plan.js), which falls back to the entitlements read used before.
+    const plan = await effectivePlan(supabase, userId);
     const paid = plan === 'premium' || plan === 'pro';   // Lifetime rows carry plan=premium
 
     // 3a · A FILE: check, count, then hand out a one-use upload pass.

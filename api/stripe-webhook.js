@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { mintToken, downloadUrl } from './_lib/token.js';
+import { mainLine, latestPeriodEnd } from './_lib/sub-lines.js';   // 31 Oct 2026: Groups step 0
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -55,8 +56,9 @@ function planFromPrice(price) {
 }
 
 // Subscription period end moved between top-level and per-item across API versions; read both.
+// 31 Oct 2026 (Groups step 0): per-item, the LATEST across every line, not line 1 only.
 function periodEnd(sub) {
-  const ts = sub?.current_period_end ?? sub?.items?.data?.[0]?.current_period_end;
+  const ts = latestPeriodEnd(sub);
   return ts ? new Date(ts * 1000).toISOString() : null;
 }
 
@@ -142,7 +144,11 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
     return;
   }
 
-  const price = sub.items?.data?.[0]?.price;
+  // 31 Oct 2026 (Groups step 0): every line is read; the line carrying the
+  // highest plan decides. One line (every subscription today) = line 1, as before.
+  const lines = sub.items?.data?.length || 0;
+  if (lines > 1) console.log('Subscription', sub.id, 'has', lines, 'lines');
+  const price = mainLine(sub, planFromPrice)?.price;
   const interval = price?.recurring?.interval; // 'month' | 'year'
   const active = ['active', 'trialing', 'past_due'].includes(sub.status);
 

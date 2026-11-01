@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -8,15 +9,19 @@ const supabase = createClient(
 );
 const APP_URL = process.env.APP_URL || 'https://app.voicefirstdayplanner.com';
 
-// POST { userId } -> { url } to the Stripe-hosted billing portal.
+// POST, signed in (Authorization: Bearer <access token>) -> { url } to the
+// Stripe-hosted billing portal. 31 Oct 2026 (Groups step 0): the account is the
+// SIGNED-IN one, never an id in the body. Before this, anyone who knew a
+// member's id could open that member's billing page.
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
   try {
-    const { userId } = req.body || {};
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    const me = await signedInUser(req, supabase);
+    if (!me) return res.status(401).json({ error: 'Could not open billing — please try again' });
+    const userId = me.id;   // any userId in the body is ignored
 
     const { data } = await supabase
       .from('entitlements')

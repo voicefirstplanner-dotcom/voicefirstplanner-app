@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const APP_URL = process.env.APP_URL || 'https://app.voicefirstdayplanner.com';
@@ -18,8 +19,11 @@ const FOUNDING_PRICES = new Set([
   'price_1U2mdU1EGD58JnWm7MtGbyG4',   // $22.25/yr · metadata plan=pro
 ]);
 
-// POST { priceId, userId, email }
+// POST { priceId, referral? }, signed in (Authorization: Bearer <access token>).
 // Returns { url } — redirect the browser to it.
+// 31 Oct 2026 (Groups step 0): the buyer is the SIGNED-IN account and its own
+// email. A userId or email in the body is ignored. Before this, the founding-
+// price check and the purchase's account were whatever id the browser sent.
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -27,8 +31,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { priceId, userId, email, referral } = req.body || {};
+    const { priceId, referral } = req.body || {};
     if (!priceId) return res.status(400).json({ error: 'Missing priceId' });
+    const me = await signedInUser(req, supabase);
+    if (!me) return res.status(401).json({ error: 'Create an account or sign in to upgrade' });
+    const userId = me.id, email = me.email;
 
     if (FOUNDING_PRICES.has(priceId)) {
       if (!userId) return res.status(403).json({ error: 'founding_rate_lifetime_only' });
