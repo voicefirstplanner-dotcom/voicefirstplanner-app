@@ -1575,6 +1575,31 @@ button.pm-box:hover { border-color: var(--orange); }
   margin-top: 8px;
 }
 
+/* GROUPS (31 Oct 2026 · step 1) */
+.grp-card { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+.grp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.grp-kind { font-size: 15px; font-weight: 600; color: var(--text); }
+.grp-owner { font-size: 13px; color: var(--text-mid); }
+.grp-meta { font-size: 12px; color: var(--text-mid); margin: 4px 0 6px; }
+.grp-paused { font-size: 13px; color: var(--danger-text); margin: 6px 0; line-height: 1.4; }
+.grp-sub { font-size: 11px; font-weight: 600; color: var(--mid-text); text-transform: uppercase; letter-spacing: 0.07em; margin: 10px 0 4px; }
+.grp-sub .grp-act { text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.grp-runner { font-size: 12px; color: var(--text-mid); margin-bottom: 4px; }
+.grp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 7px 0; border-top: 0.5px solid var(--border); }
+.grp-name { font-size: 14px; color: var(--text); flex: 1; min-width: 120px; }
+.grp-seat { font-size: 12px; color: var(--text-mid); }
+.grp-acts { display: flex; gap: 12px; flex-wrap: wrap; }
+.grp-act { font-size: 13px; color: var(--mid-text); cursor: pointer; font-weight: 500; min-height: 28px; display: inline-flex; align-items: center; gap: 4px; }
+.grp-danger { color: var(--danger-text); }
+.grp-select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); max-width: 100%; }
+.grp-link { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg, var(--card)); color: var(--text); }
+
+/* GROUPS STEP 2 (1 Nov 2026): the shared shopping list */
+.shop-tab-shared i { font-size: 13px; vertical-align: -1px; }
+.shared-head { font-size: 12px; color: var(--text-mid); margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+.shared-wait { font-size: 11px; color: var(--text-mid); white-space: nowrap; margin-left: 6px; }
+.shared-wait i { font-size: 12px; vertical-align: -1px; }
+
 /* ============================================================
    TOAST NOTIFICATIONS
    ============================================================ */
@@ -2303,6 +2328,7 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
       <button class="auth-tab" onclick="switchAuthTab('signup')">Create account</button>
     </div>
     <div id="auth-msg" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;"></div>
+    <div id="auth-join-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">You&rsquo;ve been invited to a group. Sign in, or create a free account, to join it.</div>
     <div id="auth-signin">
       <div class="auth-field"><label>Email</label><input type="email" id="signin-email" placeholder="you@example.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="signin-pw" placeholder="Your password"></div>
@@ -3586,6 +3612,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
         <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value" id="set-plan">Free</span><span class="settings-row-action" id="set-plan-action" onclick="showUpgrade()">Upgrade</span></div>
       </div>
+      <!-- GROUPS (31 Oct 2026 · step 1): shown only to an account on a Duo, Family or Team plan -->
+      <div class="settings-section" id="groups-section" style="display:none">
+        <div class="settings-section-title">Groups</div>
+        <div id="groups-rows"></div>
+      </div>
       <div class="settings-section">
         <div class="settings-section-title">Appearance</div>
         <div id="theme-picker" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 2px"></div>
@@ -3706,6 +3737,35 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-title" id="session-ended-title">Signed out on this device</div>
     <div class="modal-sub" id="session-ended-text">Your sign-in here has ended, so this device can't save your changes or use voice. Sign in again to continue.</div>
     <button class="modal-cta" onclick="vfpSignInAgain()">Sign in again</button>
+  </div>
+</div>
+<!-- GROUPS (31 Oct 2026 · step 1): an invite link to send, and joining from one -->
+<div class="modal-overlay" id="groups-invite-modal" onclick="if(event.target===this)closeGroupsSheet('groups-invite-modal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Invite to <span id="gi-group"></span></div>
+    <div class="modal-sub">Send this link to one person. It works once, for 7 days. You can cancel it in Settings &rsaquo; Groups.</div>
+    <input id="gi-link" class="grp-link" readonly aria-label="Invite link">
+    <button class="modal-cta" onclick="vfpCopyInvite()">Copy link</button>
+    <button class="modal-close-btn" id="gi-share" onclick="vfpShareInvite()">Share&hellip;</button>
+    <button class="modal-close-btn" onclick="closeGroupsSheet('groups-invite-modal')">Done</button>
+  </div>
+</div>
+<div class="modal-overlay" id="groups-notice-modal" role="dialog" aria-labelledby="gn-title" aria-describedby="gn-sub">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="gn-title"></div>
+    <div class="modal-sub" id="gn-sub"></div>
+    <button class="modal-cta" onclick="closeGroupsSheet('groups-notice-modal')">OK</button>
+  </div>
+</div>
+<div class="modal-overlay" id="groups-join-modal" role="dialog" aria-labelledby="gj-title" aria-describedby="gj-sub">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="gj-title"></div>
+    <div class="modal-sub" id="gj-sub"></div>
+    <button class="modal-cta" id="gj-join" onclick="vfpJoinNow()">Join</button>
+    <button class="modal-close-btn" onclick="vfpJoinNotNow()">Not now</button>
   </div>
 </div>
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
@@ -5130,6 +5190,7 @@ function launchApp() {
   applyDemoBanner();     // guest-only notice; harmless and correct on every entry path
   loadWhatsNew();        // the "What's new" box: off unless the website reports a newer entry
   loadEntitlement().then(() => { try { loadBudget(); } catch (e) { console.warn('budget', e); } });
+  vfpGroupsStart();      // Groups step 1: the Settings section (plan members only) and any invite link held
   handleCheckoutReturn();
 }
 
@@ -7089,6 +7150,11 @@ function processVoice(text) {
     // while "Groceries, milk and bread" (no amount) still reaches the list.
     // Nothing is written here: the confirmation sheet does the writing.
     budgetOpenCapture(text, 'voice');
+  } else if (typeof vfpSharedVoiceTarget === 'function' && vfpSharedVoiceTarget(t)) {
+    // Groups step 2: "add milk to our shopping list" / "…to the Rees family list" → that shared list.
+    // A member with no shared list never gets here: their phrases route exactly as before.
+    vfpSharedVoiceAdd(vfpSharedVoiceTarget(t), text);
+    return;
   } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:,\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
     // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
     let items = text
@@ -11933,7 +11999,7 @@ function findShopListByName(name) {
   if (hit) return hit;
   return ls.filter(function(l){ var nn = l.name.toLowerCase(); return nn.indexOf(q) >= 0 || q.indexOf(nn) >= 0; })[0] || null;
 }
-function switchShopList(id) { state.activeShopId = id; renderShopping(); try { persistNow(); } catch (e) {} }
+function switchShopList(id) { vfpActiveShared = null; vfpLiveOff(); state.activeShopId = id; renderShopping(); try { persistNow(); } catch (e) {} }
 function addShopList(name, opts) {
   name = (name || '').trim(); if (!name) name = 'New list';
   if (!isPremium() && shopLists().length >= 1) {
@@ -11970,7 +12036,7 @@ function renderShopTabs() {
   var tabs = document.getElementById('shopping-tabs'); if (!tabs) return;
   var lists = shopLists(); tabs.innerHTML = '';
   lists.forEach(function(l){
-    var active = l.id === state.activeShopId;
+    var active = !vfpActiveShared && l.id === state.activeShopId;
     var chip = document.createElement('button');
     chip.className = 'shop-tab' + (active ? ' active' : '');
     var left = l.items.filter(function(i){ return !i.done; }).length;
@@ -11979,10 +12045,11 @@ function renderShopTabs() {
     chip.onclick = active ? function(){ renameShopList(l.id); } : function(){ switchShopList(l.id); };
     tabs.appendChild(chip);
   });
+  vfpSharedTabs(tabs);   // Groups step 2: one tab per shared list (none for a member with no group)
   var add = document.createElement('button');
   add.className = 'shop-tab shop-tab-add'; add.textContent = '+ List';
   add.title = 'New list'; add.onclick = promptNewShopList; tabs.appendChild(add);
-  if (lists.length > 1) {
+  if (lists.length > 1 && !vfpActiveShared) {
     var del = document.createElement('button');
     del.className = 'shop-tab shop-tab-del'; del.innerHTML = '<i class="ti ti-trash"></i>';
     del.title = 'Delete current list';
@@ -11994,6 +12061,7 @@ function renderShopTabs() {
 function addShoppingItems(raw, opts) {
   const items = parseShoppingItems(raw);
   if (!items.length) return 0;
+  if (vfpActiveShared) { vfpActiveShared = null; vfpLiveOff(); }   // Groups step 2: back to the own list it goes to
   var list = activeShopList();
   if (opts && opts.defaultList) {
     // "my shopping list" said out loud means the Shopping list — the one named
@@ -12020,6 +12088,7 @@ function addShoppingItem() {
   const inp = document.getElementById('shopping-input');
   const val = inp.value.trim();
   if (!val) { showToast('Type an item to add'); return; }
+  if (vfpActiveShared) { if (vfpSharedAddItems(vfpActiveShared, val)) inp.value = ''; inp.focus(); return; }
   if (addShoppingItems(val)) inp.value = '';
   inp.focus();
 }
@@ -12050,6 +12119,7 @@ function clearTickedTasks() {
 }
 
 function clearTickedShopping() {
+  if (vfpActiveShared) { vfpSharedClearTicked(vfpActiveShared); return; }
   var l = activeShopList();
   const before = l.items.length;
   l.items = l.items.filter(function(x){ return !x.done; });
@@ -12062,6 +12132,11 @@ function renderShopping() {
   const el = document.getElementById('shopping-list');
   if (!el) return;
   renderShopTabs();
+  if (vfpActiveShared) {                      // Groups step 2: a shared list is on screen
+    const g = vfpShared.find(x => x.group_id === vfpActiveShared);
+    if (g) { renderSharedShopping(g); return; }
+    vfpActiveShared = null; renderShopTabs();
+  }
   const items = shopItems();
   el.innerHTML = '';
   if (!items.length) {
@@ -12072,7 +12147,7 @@ function renderShopping() {
       const row = document.createElement('div');
       row.className = 'task-row' + (it.done ? ' done' : '');
       row.innerHTML = `
-        <div class="task-text">${it.text}</div>
+        <div class="task-text">${grpEsc(it.text)}</div>
         <button class="row-edit" title="Edit" onclick="event.stopPropagation();editShopping(${it.id})"><i class="ti ti-pencil"></i></button>
         <button class="row-edit" title="Remove" onclick="event.stopPropagation();deleteShoppingItem(${it.id})"><i class="ti ti-trash"></i></button>
         <div class="task-check${it.done ? ' done' : ''}"></div>`;
@@ -12461,6 +12536,8 @@ function isPremium() {
   return p === 'premium' || p === 'pro';
 }
 
+// The plan on the member's own row (kept aside before the plan function may lift it).
+function rowPlanOf(ent) { return ent && ent._rowPlan; }
 async function loadEntitlement() {
   state.entitlement = { plan: 'free' };
   if (sb && authUserId && !isDemo) {
@@ -12469,6 +12546,7 @@ async function loadEntitlement() {
         .select('plan,status,source').eq('user_id', authUserId).maybeSingle();
       if (data) state.entitlement = data;
     } catch (e) { /* default to free */ }
+    state.entitlement._rowPlan = state.entitlement.plan || 'free';
     // 31 Oct 2026 (Groups step 0): the plan itself comes from the one plan
     // function in the database (vfp_my_plan), today exactly the row's plan.
     // Status and source (Lifetime, the Library) still come from the row. If the
@@ -12477,9 +12555,17 @@ async function loadEntitlement() {
       const { data: myPlan, error: mpErr } = await sb.rpc('vfp_my_plan');
       if (!mpErr && typeof myPlan === 'string' && myPlan) state.entitlement = { ...state.entitlement, plan: myPlan };
     } catch (e) { /* keep the row's plan */ }
+    // Groups step 1: a seat on a Duo, Family or Team plan can lift the plan above the
+    // member's own. The Library stays on the member's OWN plan (Dave, 1150: group seats get
+    // no Library; api/library-download.js reads the row, so the screen must too).
+    const rank = { free: 0, premium: 1, pro: 2 };
+    const ownPlan = rowPlanOf(state.entitlement) || 'free';
+    state.entitlement.libraryPlan = ownPlan;
+    state.entitlement.viaGroup = (rank[state.entitlement.plan] || 0) > (rank[ownPlan] || 0);
   }
   renderPlan();
   renderLibrary();
+  try { renderGroups(); } catch (e) {}   // Groups: drawn again with the plan known (start-up order)
   // Deep-link from the Lifetime welcome email: /#library opens the library once signed in.
   if (location.hash === '#library') { openSettings(); history.replaceState({}, '', location.pathname); }
 }
@@ -12493,6 +12579,12 @@ function renderPlan() {
     ? (ent.plan === 'pro' ? 'Pro (Lifetime)' : 'Premium (Lifetime)')
     : (labels[ent.plan] || 'Free');
   if (!actEl) return;
+  // Groups step 1: the plan comes from a group seat. With no paid plan of their own there is
+  // nothing to manage in billing, so no button; a member who also pays keeps their own button.
+  if (ent.viaGroup) {
+    if (valEl) valEl.textContent = (labels[ent.plan] || 'Free') + ' \u00b7 group plan';
+    if ((ent.libraryPlan || 'free') === 'free') { actEl.style.display = 'none'; return; }
+  }
   if (ent.source === 'lifetime' && ent.plan === 'pro') {
     // Founding member with the Pro add-on: billing portal manages (or cancels)
     // the subscription. Cancelling falls back to Premium-for-life server-side.
@@ -12559,10 +12651,11 @@ const LIB_GROUPS = [
 function libraryAllowed() {
   const ent = state.entitlement || { plan: 'free' };
   if (ent.source === 'lifetime') return LIB_LIFETIME;
-  const paid = ent.plan === 'premium' || ent.plan === 'pro';
+  const plan = ent.libraryPlan || ent.plan;   // Groups step 1: the member's own plan, never a group seat
+  const paid = plan === 'premium' || plan === 'pro';
   // Job 3: Pro Annual carries Reflect and the book flag; Premium Annual does not;
   // both Monthly tiers carry Values. Anything unrecognised falls to STARTER.
-  if (paid && ent.source === 'annual') return ent.plan === 'pro' ? LIB_PRO_ANNUAL : LIB_ANNUAL;
+  if (paid && ent.source === 'annual') return plan === 'pro' ? LIB_PRO_ANNUAL : LIB_ANNUAL;
   if (paid) return LIB_MONTHLY;
   return LIB_STARTER;
 }
@@ -14727,6 +14820,569 @@ function renderAll() {
 }
 
 // ============================================================
+// GROUPS (31 Oct 2026 · Groups step 1 · brief 1150 "Groups answers and go v1").
+// Duo, Family and Team plans: people, seats and groups. No money yet (Stripe is step 6).
+// Every rule lives in the database (the vfp_* functions, file VFP_SQL_1a): who may invite,
+// join, leave, remove, move up to Pro or run a group, and how many seats there are. This
+// screen only shows what those functions return and asks them to act, so nothing here is a
+// gate; a change made by hand in the browser is refused by the database.
+// FRIENDS' GROUPS (brief 1345): any member whose OWN plan is Pro starts as many as they like; only
+// members whose own plan is Premium or above can join; no size limit; no seats, so nobody's plan
+// changes; a friend who goes to free is taken out by the database and told once (vfp_my_notices).
+// HIDDEN: the Settings section appears only for an account that is on a plan, and until
+// step 6 plans are made only by hand (VFP_SQL_1b). GROUPS_LIVE turns on what every member
+// would see (step 6): the empty "start a group" state.
+// ============================================================
+const GROUPS_LIVE = false;
+const GROUPS_JOIN_KEY = 'vfp_join_code';
+let vfpGroups = [];
+let vfpInviteLink = '';
+let vfpJoinPeek = null;
+
+// An invite link (?join=<code>) is read once, kept on this device for 7 days so it survives
+// signing in or creating an account, and taken out of the address bar.
+(function vfpCaptureJoin() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const code = (p.get('join') || '').toLowerCase();
+    if (!p.has('join')) return;
+    if (/^[0-9a-f]{64}$/.test(code)) localStorage.setItem(GROUPS_JOIN_KEY, JSON.stringify({ code, at: Date.now() }));
+    p.delete('join');
+    const q = p.toString();
+    history.replaceState({}, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  } catch (e) {}
+})();
+function vfpPendingJoin() {
+  try {
+    const j = JSON.parse(localStorage.getItem(GROUPS_JOIN_KEY) || 'null');
+    if (!j || !j.code) return null;
+    if (Date.now() - (j.at || 0) > 7 * 864e5) { localStorage.removeItem(GROUPS_JOIN_KEY); return null; }
+    return j.code;
+  } catch (e) { return null; }
+}
+function vfpClearJoin() { try { localStorage.removeItem(GROUPS_JOIN_KEY); } catch (e) {} }
+
+const grpEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const GRP_KIND = { duo: 'Duo plan', family: 'Family plan', team: 'Team plan', friends: 'Friends\u2019 group' };
+const GRP_SEAT = { pro: 'Pro', premium: 'Premium', none: 'Own plan' };
+function vfpGroupError(e) {
+  const m = String((e && (e.message || e)) || '');
+  const words = {
+    not_allowed: 'Only the plan\u2019s owner can do that.',
+    plan_full: 'That plan is full.',
+    plan_paused: 'This plan is paused, so that can\u2019t be done right now.',
+    invite_used: 'That invite link has already been used. Ask for a new one.',
+    invite_expired: 'That invite link is more than 7 days old. Ask for a new one.',
+    invite_cancelled: 'That invite link was cancelled. Ask for a new one.',
+    invite_not_found: 'That invite link doesn\u2019t work. Ask for a new one.',
+    too_many_invites: 'There are 10 invites waiting already. Cancel one first.',
+    no_pro_moves_left: 'Every Pro move on this plan is in use.',
+    runner_must_be_pro: 'Only someone on Pro can run a group.',
+    owner_cannot_leave: 'The plan\u2019s owner can\u2019t leave it.',
+    one_group_only: 'This plan has one group.',
+    too_many_groups: 'This plan has as many groups as it can hold.',
+    cannot_take_out_runner: 'The person who runs a group can\u2019t be taken out of it.',
+    not_on_plan: 'That person isn\u2019t on this plan.',
+    no_paid_seat: 'That person keeps their own plan, so they can\u2019t be moved.',
+    needs_premium: 'Friends\u2019 groups are for members on Premium or above.',
+    needs_pro: 'Only members on Pro can start a friends\u2019 group.',
+    not_available: 'Friends\u2019 groups aren\u2019t open yet.',
+    list_full: 'This shared list is full.',
+    not_in_group: 'You\u2019re not in this group any more.'
+  };
+  for (const k in words) if (m.indexOf(k) !== -1) return words[k];
+  return 'That didn\u2019t work — please try again.';
+}
+async function vfpRpc(name, args) {
+  if (!sb || !authUserId || isDemo) throw new Error('not_signed_in');
+  const { data, error } = await sb.rpc(name, args || {});
+  if (error) throw error;
+  return data;
+}
+
+async function loadGroups() {
+  vfpGroups = [];
+  if (sb && authUserId && !isDemo) {
+    try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) vfpGroups = d; } catch (e) { /* no Groups yet: nothing shown */ }
+  }
+  renderGroups();
+}
+// After sign-in: the groups, then any invite link this device is holding.
+async function vfpGroupsStart() {
+  vfpCacheLoad();                    // step 2: the shared lists as last seen, so they show with no signal
+  await loadGroups();
+  await vfpSharedRefresh();
+  vfpFlush();
+  await vfpShowNotices();
+  if (vfpPendingJoin()) openJoinSheet();
+}
+// Lines waiting for this member (friends' groups: taken out after going to free). Each shows once.
+async function vfpShowNotices() {
+  let list = [];
+  try { list = await vfpRpc('vfp_my_notices'); } catch (e) { return; }
+  const n = (Array.isArray(list) ? list : []).filter(x => x.kind === 'friends_dropped');
+  if (!n.length) return;
+  const names = n.map(x => x.group_name).filter(Boolean);
+  document.getElementById('gn-title').textContent = names.length === 1 ? 'You\u2019ve left ' + names[0] : 'You\u2019ve left ' + names.length + ' friends\u2019 groups';
+  document.getElementById('gn-sub').textContent = 'Friends\u2019 groups are for members on Premium or above, and your account is now on the free plan. Everything you accepted from '
+    + (names.length === 1 ? 'the group' : 'them') + ' stays in your planner.';
+  document.getElementById('groups-notice-modal').classList.add('open');
+}
+
+function renderGroups() {
+  const sec = document.getElementById('groups-section');
+  const box = document.getElementById('groups-rows');
+  if (!sec || !box) return;
+  // Friends' groups (brief 1345): anyone whose OWN plan is Pro can start one. Hidden until live:
+  // until then only an account that already owns a group sees the button (the database checks the same).
+  const ownPro = (state.entitlement && (state.entitlement.libraryPlan || state.entitlement.plan)) === 'pro';
+  const newFriends = ownPro && (GROUPS_LIVE || vfpGroups.some(p => p.i_own))
+    ? '<div class="settings-row"><span class="grp-act" onclick="vfpNewFriendsGroup()"><i class="ti ti-users-plus"></i> New friends\u2019 group</span></div>' : '';
+  if (!vfpGroups.length) {
+    sec.style.display = GROUPS_LIVE ? '' : 'none';
+    box.innerHTML = GROUPS_LIVE ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends : '';
+    return;
+  }
+  sec.style.display = '';
+  box.innerHTML = vfpGroups.map(renderGroupPlan).join('') + newFriends;
+}
+function renderGroupPlan(pl) {
+  const own = pl.i_own;
+  const team = pl.kind === 'team';
+  const friends = pl.kind === 'friends';
+  let h = '<div class="grp-card" data-plan="' + grpEsc(pl.plan_id) + '">';
+  h += '<div class="grp-head"><span class="grp-kind">' + grpEsc(GRP_KIND[pl.kind] || 'Plan') + '</span><span class="grp-owner">'
+     + (own ? 'Yours' : grpEsc(pl.owner_name) + '\u2019s') + '</span></div>';
+  if (pl.status === 'paused') {
+    const until = pl.takeover_until ? new Date(pl.takeover_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    h += '<div class="grp-paused">' + (friends ? 'This group is paused because its owner is no longer on Pro.' : 'This plan is paused because its payment stopped.')
+       + ' Shared things are kept until ' + grpEsc(until) + '.</div>';
+  }
+  h += friends ? '<div class="grp-meta">People ' + pl.people_now + '</div>'
+     : '<div class="grp-meta">Paid seats ' + pl.seats_used + ' of ' + pl.seats_paid + ' \u00b7 People ' + pl.people_now + ' of ' + pl.people_max
+     + (team ? ' \u00b7 Pro moves ' + pl.pro_moves_used + ' of ' + pl.pro_moves : '') + '</div>';
+  if (Array.isArray(pl.people)) {
+    h += '<div class="grp-sub">People</div>';
+    h += pl.people.map(p => {
+      let acts = '';
+      if (own && !p.is_owner) {
+        if (team && p.seat === 'premium') acts += '<span class="grp-act" onclick="vfpSetSeat(\'' + pl.plan_id + '\',\'' + p.user_id + '\',\'pro\')">Move up to Pro</span>';
+        if (team && p.seat === 'pro') acts += '<span class="grp-act" onclick="vfpSetSeat(\'' + pl.plan_id + '\',\'' + p.user_id + '\',\'premium\')">Move back to Premium</span>';
+        acts += '<span class="grp-act grp-danger" onclick="vfpRemovePerson(\'' + pl.plan_id + '\',\'' + p.user_id + '\')">Remove</span>';
+      }
+      return '<div class="grp-row"><span class="grp-name">' + grpEsc(p.name || 'Member') + (p.is_me ? ' (you)' : '') + '</span>'
+        + '<span class="grp-seat">' + (friends ? (p.is_owner ? 'Started it' : '') : (p.is_owner ? 'Pays \u00b7 ' : '') + grpEsc(GRP_SEAT[p.seat] || '')) + '</span>' + (acts ? '<span class="grp-acts">' + acts + '</span>' : '') + '</div>';
+    }).join('');
+  }
+  (pl.groups || []).forEach(g => {
+    const canRun = own || g.i_run;
+    h += '<div class="grp-sub">' + (team ? 'Group: ' : '') + grpEsc(g.name)
+       + (canRun ? ' <span class="grp-act" onclick="vfpRenameGroup(\'' + g.group_id + '\')">Rename</span>' : '') + '</div>';
+    if (team) {
+      h += '<div class="grp-runner">Run by ' + grpEsc(g.runner_name) + (g.i_run ? ' (you)' : '');
+      if (own && Array.isArray(pl.people)) {
+        const pros = pl.people.filter(p => p.seat === 'pro');
+        if (pros.length > 1) h += ' <select class="grp-select" aria-label="Who runs this group" onchange="vfpSetRunner(\'' + g.group_id + '\', this.value)">'
+          + pros.map(p => '<option value="' + p.user_id + '"' + (((g.members || []).find(m => m.is_runner) || {}).user_id === p.user_id ? ' selected' : '') + '>' + grpEsc(p.name) + '</option>').join('') + '</select>';
+      }
+      h += '</div>';
+    }
+    h += (g.members || []).map(m => {
+      const out = team && canRun && !m.is_runner && !m.is_me
+        ? '<span class="grp-acts"><span class="grp-act" onclick="vfpTakeOut(\'' + g.group_id + '\',\'' + m.user_id + '\')">Take out</span></span>' : '';
+      return '<div class="grp-row"><span class="grp-name">' + grpEsc(m.name || 'Member') + (m.is_me ? ' (you)' : '') + '</span>'
+        + (m.is_runner && team ? '<span class="grp-seat">Runs it</span>' : '') + out + '</div>';
+    }).join('');
+    if (team && own && Array.isArray(pl.people)) {
+      const inIt = new Set((g.members || []).map(m => m.user_id));
+      const addable = pl.people.filter(p => !inIt.has(p.user_id));
+      if (addable.length) h += '<div class="grp-row"><select class="grp-select" aria-label="Add someone on the plan to this group" onchange="if(this.value)vfpGroupAdd(\'' + g.group_id + '\', this.value)">'
+        + '<option value="">Add someone on the plan…</option>' + addable.map(p => '<option value="' + p.user_id + '">' + grpEsc(p.name) + '</option>').join('') + '</select></div>';
+    }
+    if (canRun && pl.status === 'active') {
+      (g.invites || []).forEach(i => {
+        const until = new Date(i.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        h += '<div class="grp-row grp-invite"><span class="grp-name">Invite link, works until ' + grpEsc(until) + '</span>'
+           + '<span class="grp-acts"><span class="grp-act grp-danger" onclick="vfpCancelInvite(\'' + i.invite_id + '\')">Cancel</span></span></div>';
+      });
+      h += '<div class="grp-row"><span class="grp-act" onclick="vfpInvite(\'' + g.group_id + '\')"><i class="ti ti-user-plus"></i> Invite someone</span></div>';
+    }
+  });
+  if (own && team && pl.status === 'active') h += '<div class="grp-row"><span class="grp-act" onclick="vfpNewGroup(\'' + pl.plan_id + '\')"><i class="ti ti-plus"></i> New group</span></div>';
+  if (!own) h += '<div class="grp-row"><span class="grp-act grp-danger" onclick="vfpLeavePlan(\'' + pl.plan_id + '\')">' + (friends ? 'Leave this group' : 'Leave this plan') + '</span></div>';
+  return h + '</div>';
+}
+
+// ---- actions: each asks the database, then shows what it now says ----
+async function vfpGroupsDo(fn, ok) {
+  try { await fn(); if (ok) showToast(ok); }
+  catch (e) { showToast(vfpGroupError(e)); }
+  await loadGroups();
+  await vfpSharedRefresh();
+  await loadEntitlement();   // a seat can change the member's own plan
+}
+function vfpInvite(groupId) {
+  vfpGroupsDo(async () => {
+    const r = await vfpRpc('vfp_invite_create', { p_group: groupId });
+    vfpInviteLink = location.origin + location.pathname + '?join=' + r.code;
+    const g = vfpGroups.flatMap(p => p.groups || []).find(x => x.group_id === groupId);
+    document.getElementById('gi-group').textContent = g ? g.name : '';
+    document.getElementById('gi-link').value = vfpInviteLink;
+    document.getElementById('gi-share').style.display = navigator.share ? '' : 'none';
+    document.getElementById('groups-invite-modal').classList.add('open');
+  });
+}
+async function vfpCopyInvite() {
+  try { await navigator.clipboard.writeText(vfpInviteLink); showToast('Link copied'); }
+  catch (e) { const el = document.getElementById('gi-link'); el.focus(); el.select(); showToast('Select the link and copy it'); }
+}
+async function vfpShareInvite() {
+  try { await navigator.share({ title: 'VoiceFirstPlanner', text: 'Join my group on VoiceFirstPlanner', url: vfpInviteLink }); } catch (e) {}
+}
+function closeGroupsSheet(id) { document.getElementById(id).classList.remove('open'); }
+function vfpCancelInvite(id) { vfpGroupsDo(() => vfpRpc('vfp_invite_cancel', { p_invite: id }), 'Invite cancelled'); }
+function vfpRemovePerson(planId, userId) {
+  const p = (vfpGroups.find(x => x.plan_id === planId)?.people || []).find(x => x.user_id === userId);
+  if (!confirm('Remove ' + (p ? p.name : 'this person') + ' from the plan? They lose its seat and its groups.')) return;
+  vfpGroupsDo(() => vfpRpc('vfp_remove_person', { p_plan: planId, p_user: userId }), 'Removed');
+}
+function vfpLeavePlan(planId) {
+  const isFriends = (vfpGroups.find(x => x.plan_id === planId) || {}).kind === 'friends';
+  if (!confirm(isFriends ? 'Leave this group? Everything you accepted from it stays in your planner. To come back you\u2019ll need a new invite.'
+                         : 'Leave this plan? You lose its seat and its groups. To come back you\u2019ll need a new invite.')) return;
+  vfpGroupsDo(() => vfpRpc('vfp_leave', { p_plan: planId }), 'You\u2019ve left the plan');
+}
+function vfpSetSeat(planId, userId, seat) { vfpGroupsDo(() => vfpRpc('vfp_set_seat', { p_plan: planId, p_user: userId, p_seat: seat }), seat === 'pro' ? 'Moved up to Pro' : 'Moved back to Premium'); }
+function vfpSetRunner(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_set_runner', { p_group: groupId, p_user: userId }), 'Done'); }
+function vfpGroupAdd(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_add', { p_group: groupId, p_user: userId }), 'Added'); }
+function vfpTakeOut(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_take_out', { p_group: groupId, p_user: userId }), 'Taken out'); }
+function vfpRenameGroup(groupId) {
+  const g = vfpGroups.flatMap(p => p.groups || []).find(x => x.group_id === groupId);
+  const name = (prompt('Group name', g ? g.name : '') || '').trim();
+  if (!name) return;
+  vfpGroupsDo(() => vfpRpc('vfp_group_rename', { p_group: groupId, p_name: name.slice(0, 60) }), 'Renamed');
+}
+function vfpNewFriendsGroup() {
+  const name = (prompt('Name your friends\u2019 group', '') || '').trim();
+  if (!name) return;
+  vfpGroupsDo(() => vfpRpc('vfp_friends_create', { p_name: name.slice(0, 60) }), 'Group made');
+}
+function vfpNewGroup(planId) {
+  const name = (prompt('Name the new group', '') || '').trim();
+  if (!name) return;
+  vfpGroupsDo(() => vfpRpc('vfp_group_create', { p_plan: planId, p_name: name.slice(0, 60) }), 'Group made');
+}
+
+// ---- joining from an invite link ----
+async function openJoinSheet() {
+  const code = vfpPendingJoin();
+  if (!code || !sb || !authUserId || isDemo) return;
+  const t = document.getElementById('gj-title'), s = document.getElementById('gj-sub'), b = document.getElementById('gj-join');
+  let r;
+  try { r = await vfpRpc('vfp_invite_peek', { p_code: code }); } catch (e) { return; }   // try again next time the app opens
+  vfpJoinPeek = r;
+  b.style.display = 'none';
+  if (!r || !r.ok) {
+    vfpClearJoin();
+    t.textContent = 'This invite can\u2019t be used';
+    s.textContent = r && r.reason === 'paused' ? 'The plan it\u2019s for is paused, so no one can join right now.'
+      : 'It may have been used already, been cancelled, or be more than 7 days old. Ask for a new one.';
+  } else if (r.kind === 'friends' && !r.can_join && !r.already_in) {
+    vfpClearJoin();
+    t.textContent = 'This group is for Premium members';
+    s.textContent = r.owner_name + '\u2019s friends\u2019 group is for members on Premium or above. Your account is on the free plan, so it can\u2019t join.';
+  } else if (!r.has_room && !r.already_in) {
+    vfpClearJoin();
+    t.textContent = 'This plan is full';
+    s.textContent = r.owner_name + '\u2019s ' + (GRP_KIND[r.kind] || 'plan') + ' has no room left.';
+  } else {
+    t.textContent = 'Join ' + r.group_name + '?';
+    const mine = r.my_plan;
+    let seat;
+    if (r.already_in) seat = 'You\u2019re already on this plan. This adds you to the group.';
+    else if (r.kind === 'friends') seat = 'Everyone in it pays for their own plan, so yours stays as it is.';
+    else if (r.seat_offered === 'none') seat = 'You keep your own Lifetime plan.';
+    else if (mine === 'pro') seat = 'You keep your own Pro.';
+    else if (mine === 'premium') seat = 'You\u2019ll be on Premium through the plan. Your own Premium carries on as it is.';
+    else seat = 'You\u2019ll get Premium while you\u2019re on the plan.';
+    s.textContent = r.owner_name + ' has invited you to their ' + (r.kind === 'friends' ? 'friends\u2019 group' : (GRP_KIND[r.kind] || 'plan')) + '. ' + seat;
+    b.style.display = '';
+  }
+  document.getElementById('groups-join-modal').classList.add('open');
+}
+async function vfpJoinNow() {
+  const code = vfpPendingJoin();
+  closeGroupsSheet('groups-join-modal');
+  if (!code) return;
+  try {
+    await vfpRpc('vfp_join', { p_code: code });
+    vfpClearJoin();
+    showToast('You\u2019ve joined ' + ((vfpJoinPeek && vfpJoinPeek.group_name) || 'the group'));
+  } catch (e) {
+    if (!/not_signed_in/.test(String(e && e.message))) vfpClearJoin();
+    showToast(vfpGroupError(e));
+  }
+  await loadGroups();
+  await vfpSharedRefresh();
+  await loadEntitlement();
+}
+function vfpJoinNotNow() { vfpClearJoin(); closeGroupsSheet('groups-join-modal'); }
+function vfpShowJoinNote() {
+  const n = document.getElementById('auth-join-note');
+  if (n) n.style.display = vfpPendingJoin() ? '' : 'none';
+}
+
+// ============================================================
+// GROUPS STEP 2 (1 Nov 2026 · brief 1150, with 1345): THE SHARED SHOPPING LIST.
+// Each group the member is in has one shared list. It shows as an extra tab beside their own lists.
+// · Shared items live ONLY in the database (vfp_shared_items, file VFP_SQL_2a) and in vfpShared below.
+//   They are never put in `state`, so the 4-second autosave of the planner can never carry one.
+// · Every change goes through a queue kept on this device (localStorage) and is sent in order.
+//   With no signal it waits, marked "waiting to send", and survives closing the app; it leaves the
+//   queue only when the database has said yes. A refusal is shown and dropped, never retried forever.
+// · Adds carry an id made here, ticks are sent as "done"/"not done" (never "flip"), and removes are
+//   idempotent, so anything sent twice is stored once.
+// · Live updates: one Supabase channel, only for the shared list on screen; a full re-read on opening
+//   the app, coming back to it, the signal returning, and after every send.
+// · Hidden: a member with no group has no shared lists, and nothing on screen or in voice changes.
+// ============================================================
+let vfpShared = [];           // [{group_id, name, kind, status, keep_until, items:[{id, text, done, ...}]}]
+let vfpActiveShared = null;   // the group whose shared list is on screen, or null
+let vfpLastShared = null;     // the shared list used last ("our shopping list" goes there)
+let vfpSharedChan = null;     // the live-updates channel for the list on screen
+let vfpFlushing = false;
+const vfpQKey = () => 'vfp_shared_queue_' + (authUserId || '');
+const vfpCKey = () => 'vfp_shared_cache_' + (authUserId || '');
+
+function vfpUuid() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function vfpQueue() { try { return JSON.parse(localStorage.getItem(vfpQKey()) || '[]'); } catch (e) { return []; } }
+function vfpQueueSave(q) { try { localStorage.setItem(vfpQKey(), JSON.stringify(q)); } catch (e) {} }
+function vfpCacheSave() { try { localStorage.setItem(vfpCKey(), JSON.stringify(vfpShared)); } catch (e) {} }
+function vfpCacheLoad() { try { const c = JSON.parse(localStorage.getItem(vfpCKey()) || '[]'); if (Array.isArray(c)) vfpShared = c; } catch (e) {} }
+
+async function loadSharedLists() {
+  if (!sb || !authUserId || isDemo) { vfpShared = []; return; }
+  try {
+    const { data, error } = await sb.rpc('vfp_shared_lists');
+    if (!error && Array.isArray(data)) { vfpShared = data; vfpCacheSave(); }
+  } catch (e) { /* no signal: keep the copy on this device */ }
+  if (vfpActiveShared && !vfpShared.some(g => g.group_id === vfpActiveShared)) { vfpActiveShared = null; vfpLiveOff(); }
+}
+async function vfpSharedRefresh() { await loadSharedLists(); try { renderShopping(); } catch (e) {} }
+
+// The list as it should look now: the database's copy, plus everything still waiting to send.
+function vfpSharedView(g) {
+  const items = (g.items || []).map(i => Object.assign({}, i));
+  vfpQueue().filter(o => o.group_id === g.group_id).forEach(o => {
+    let it = items.find(i => i.id === o.id);
+    if (o.op === 'add' && !it) { items.push({ id: o.id, text: o.text, done: false, pending: true }); return; }
+    if (!it) return;
+    if (o.op === 'done') { it.done = o.done; it.pending = true; }
+    else if (o.op === 'edit') { it.text = o.text; it.pending = true; }
+    else if (o.op === 'remove') it.gone = true;
+  });
+  return items.filter(i => !i.gone);
+}
+
+function vfpEnqueue(op) {
+  const q = vfpQueue();
+  if (op.op === 'done' || op.op === 'edit') {          // a newer tick or edit of the same item replaces the waiting one
+    const i = q.findIndex(o => o.op === op.op && o.id === op.id);
+    if (i >= 0) q.splice(i, 1);
+  }
+  op.qid = vfpUuid(); op.at = Date.now();
+  q.push(op); vfpQueueSave(q);
+  vfpLastShared = op.group_id;
+  try { renderShopping(); } catch (e) {}
+  vfpFlush();
+}
+
+// Send what's waiting, in order. No signal: stop and keep it. Refused: say so and drop it.
+async function vfpFlush() {
+  if (vfpFlushing || !sb || !authUserId || isDemo) return;
+  if (!vfpQueue().length) return;
+  vfpFlushing = true;
+  let sent = 0;
+  try {
+    for (;;) {
+      const o = vfpQueue()[0];
+      if (!o) break;
+      let res;
+      try {
+        if (o.op === 'add') res = await sb.rpc('vfp_list_add', { p_group: o.group_id, p_id: o.id, p_text: o.text });
+        else if (o.op === 'done') res = await sb.rpc('vfp_list_set_done', { p_item: o.id, p_done: !!o.done });
+        else if (o.op === 'edit') res = await sb.rpc('vfp_list_edit', { p_item: o.id, p_text: o.text });
+        else if (o.op === 'remove') res = await sb.rpc('vfp_list_remove', { p_item: o.id });
+        else res = { data: null, error: null };
+      } catch (e) { res = { error: { message: String((e && e.message) || e) } }; }
+      if (res && res.error && !res.error.code) break;                       // no signal: try again later
+      if (res && res.error && !/not_found/.test(res.error.message || '')) showToast(vfpGroupError(res.error));
+      vfpQueueSave(vfpQueue().filter(x => x.qid !== o.qid));                // sent (or refused): out of the queue
+      sent++;
+    }
+  } finally { vfpFlushing = false; }
+  if (sent) await vfpSharedRefresh(); else { try { renderShopping(); } catch (e) {} }
+}
+
+// ---- live updates: only for the shared list on screen ----
+let vfpLiveT = null;
+function vfpLiveOn(gid) {
+  if (!sb || typeof sb.channel !== 'function') return;
+  if (vfpSharedChan && vfpSharedChan._vfpGid === gid) return;
+  vfpLiveOff();
+  try {
+    const ch = sb.channel('vfp-list-' + gid)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_shared_items', filter: 'group_id=eq.' + gid }, () => {
+        clearTimeout(vfpLiveT); vfpLiveT = setTimeout(vfpSharedRefresh, 250);
+      })
+      .subscribe();
+    ch._vfpGid = gid; vfpSharedChan = ch;
+  } catch (e) {}
+}
+function vfpLiveOff() { if (vfpSharedChan) { try { sb.removeChannel(vfpSharedChan); } catch (e) {} vfpSharedChan = null; } }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { vfpLiveOff(); return; }
+  if (!authUserId || isDemo) return;
+  vfpFlush(); vfpSharedRefresh().then(() => { if (vfpActiveShared) vfpLiveOn(vfpActiveShared); });
+});
+window.addEventListener('online', () => { vfpFlush(); });
+setInterval(() => { if (!document.hidden && vfpQueue().length) vfpFlush(); }, 30000);
+
+// ---- on screen ----
+function switchSharedList(gid) {
+  vfpActiveShared = gid; vfpLastShared = gid;
+  renderShopping();
+  vfpLiveOn(gid);
+  vfpSharedRefresh();
+}
+function vfpSharedTabs(tabs) {
+  vfpShared.forEach(g => {
+    const active = vfpActiveShared === g.group_id;
+    const left = vfpSharedView(g).filter(i => !i.done).length;
+    const chip = document.createElement('button');
+    chip.className = 'shop-tab shop-tab-shared' + (active ? ' active' : '');
+    chip.innerHTML = '<i class="ti ti-users"></i> ' + grpEsc(g.name) + (left ? ' (' + left + ')' : '');
+    chip.title = 'Shared list: ' + g.name;
+    chip.onclick = () => switchSharedList(g.group_id);
+    tabs.appendChild(chip);
+  });
+}
+function renderSharedShopping(g) {
+  const el = document.getElementById('shopping-list');
+  const paused = g.status !== 'active';
+  const items = vfpSharedView(g);
+  const waiting = vfpQueue().filter(o => o.group_id === g.group_id).length;
+  let h = '<div class="shared-head"><i class="ti ti-users"></i> Shared with everyone in ' + grpEsc(g.name) + '</div>';
+  if (paused) {
+    const until = g.keep_until ? new Date(g.keep_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    h += '<div class="grp-paused">This list is paused, so it can’t be changed. It’s kept until ' + grpEsc(until) + '.'
+       + ' <span class="grp-act" onclick="vfpKeepCopy(\'' + g.group_id + '\')">Keep a copy in my planner</span></div>';
+  }
+  if (!items.length) {
+    h += '<div style="text-align:center;padding:16px 0;color:var(--text-mid);font-size:13px">This shared list is empty.<br><span style="font-size:12px;color:var(--text-light)">Say "add milk to our shopping list", or type above.</span></div>';
+  } else {
+    [...items].sort((a, b) => (a.done === b.done) ? 0 : (a.done ? 1 : -1)).forEach(it => {
+      h += '<div class="task-row' + (it.done ? ' done' : '') + '"' + (paused ? '' : ' onclick="vfpSharedToggle(\'' + g.group_id + '\',\'' + it.id + '\')"') + '>'
+        + '<div class="task-text">' + grpEsc(it.text) + (it.pending ? ' <span class="shared-wait"><i class="ti ti-clock"></i> waiting to send</span>' : '') + '</div>'
+        + (paused ? '' : '<button class="row-edit" title="Edit" onclick="event.stopPropagation();vfpSharedEdit(\'' + g.group_id + '\',\'' + it.id + '\')"><i class="ti ti-pencil"></i></button>'
+                       + '<button class="row-edit" title="Remove" onclick="event.stopPropagation();vfpSharedRemove(\'' + g.group_id + '\',\'' + it.id + '\')"><i class="ti ti-trash"></i></button>')
+        + '<div class="task-check' + (it.done ? ' done' : '') + '"></div></div>';
+    });
+  }
+  el.innerHTML = h;
+  const footer = document.getElementById('shopping-footer'), countEl = document.getElementById('shopping-count'), clearBtn = document.getElementById('shopping-clear-btn');
+  if (!footer) return;
+  const total = items.length, ticked = items.filter(i => i.done).length;
+  if (total > 0 || waiting) {
+    footer.style.display = 'flex';
+    const left = total - ticked;
+    countEl.textContent = (ticked > 0 ? left + ' to get · ' + ticked + ' done' : left + ' item' + (left === 1 ? '' : 's') + ' to get')
+      + (waiting ? ' · ' + waiting + ' waiting to send' : '');
+    clearBtn.style.display = ticked > 0 && !paused ? 'block' : 'none';
+  } else footer.style.display = 'none';
+}
+function vfpSharedGroup(gid) { return vfpShared.find(g => g.group_id === gid); }
+function vfpSharedPausedToast(g) { if (g && g.status !== 'active') { showToast('This list is paused, so it can’t be changed'); return true; } return false; }
+function vfpSharedAddItems(gid, raw, opts) {
+  const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return 0;
+  const items = parseShoppingItems(raw);
+  items.forEach(text => vfpEnqueue({ op: 'add', group_id: gid, id: vfpUuid(), text: text.slice(0, 200) }));
+  if (items.length && !(opts && opts.silent)) {
+    showToast(items.length === 1 ? 'Added "' + items[0] + '" to the ' + g.name + ' list' : 'Added ' + items.length + ' items to the ' + g.name + ' list');
+  }
+  return items.length;
+}
+function vfpSharedToggle(gid, id) {
+  const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return;
+  const it = vfpSharedView(g).find(i => i.id === id); if (!it) return;
+  vfpEnqueue({ op: 'done', group_id: gid, id, done: !it.done });     // sent as "done" or "not done", never "flip"
+}
+function vfpSharedEdit(gid, id) {
+  const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return;
+  const it = vfpSharedView(g).find(i => i.id === id); if (!it) return;
+  const text = (prompt('Edit item', it.text) || '').trim();
+  if (text && text !== it.text) vfpEnqueue({ op: 'edit', group_id: gid, id, text: text.slice(0, 200) });
+}
+function vfpSharedRemove(gid, id) {
+  const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return;
+  vfpEnqueue({ op: 'remove', group_id: gid, id });
+}
+function vfpSharedClearTicked(gid) {
+  const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return;
+  const done = vfpSharedView(g).filter(i => i.done);                 // only what this phone shows as ticked
+  done.forEach(i => vfpEnqueue({ op: 'remove', group_id: gid, id: i.id }));
+  if (done.length) showToast(done.length === 1 ? 'Cleared 1 completed item' : 'Cleared ' + done.length + ' completed items');
+}
+// "Keep a copy in my planner": the items still to get go onto the member's own Shopping list.
+function vfpKeepCopy(gid) {
+  const g = vfpSharedGroup(gid); if (!g) return;
+  const items = vfpSharedView(g).filter(i => !i.done);
+  if (!items.length) { showToast('Nothing left to get on this list'); return; }
+  const list = findShopListByName('Shopping') || shopLists()[0];
+  items.forEach((i, n) => list.items.push({ id: Date.now() + n, text: i.text, done: false }));
+  try { persistNow(); } catch (e) {}
+  showToast('Copied ' + items.length + (items.length === 1 ? ' item' : ' items') + ' to your ' + list.name + ' list');
+}
+
+// ---- voice: "add milk to our shopping list", "add bread to the Rees family list" ----
+// Only for a member with a shared list; everyone else keeps today's behaviour exactly.
+function vfpSharedVoiceTarget(t) {
+  const live = vfpShared.filter(g => g.status === 'active');
+  if (!live.length) return null;
+  const dflt = () => live.find(g => g.group_id === vfpLastShared) || live.find(g => g.group_id === vfpActiveShared) || live[0];
+  const m = t.match(/(?:to|on|onto|in)\s+(?:our|the)\s+([a-z0-9'][a-z0-9' ]*?)\s+list\b/i);
+  if (m) {
+    const nm = m[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').replace(/\s{2,}/g, ' ').trim().toLowerCase();
+    if (nm) {
+      const hit = live.find(g => g.name.toLowerCase() === nm)
+        || live.find(g => g.name.toLowerCase().indexOf(nm) >= 0 || nm.indexOf(g.name.toLowerCase()) >= 0);
+      if (hit) return hit;
+      if (/^(?:family|shared|household|group)$/.test(nm)) return dflt();
+      return null;                                                    // another list: today's behaviour
+    }
+    if (/\bour\b/i.test(m[0])) return dflt();                          // "our shopping list"
+  }
+  if (/(?:to|on|onto|in)\s+our\s+(?:list|shopping|groceries)\b/i.test(t)) return dflt();
+  return null;
+}
+function vfpSharedVoiceAdd(g, text) {
+  const raw = text.replace(/^\s*(?:add|put)\s+/i, '')
+    .replace(/\b(?:to|on|in|onto)\s+(?:our|the|my)\s+[a-z0-9'][a-z0-9' ]*?\s+list\b/gi, '')
+    .replace(/\b(?:to|on|in|onto)\s+our\s+(?:list|shopping|groceries)\b/gi, '')
+    .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
+    .replace(/\s{2,}/g, ' ').trim();
+  const n = vfpSharedAddItems(g.group_id, raw);
+  vfpActiveShared = g.group_id;
+  showTab('shopping', null);
+  renderShopping(); vfpLiveOn(g.group_id);
+  if (!n) showToast('Tell me what to add — e.g. "add milk to our shopping list"');
+}
+
+// ============================================================
 // START
 // ============================================================
 init();
@@ -14734,6 +15390,7 @@ attachFieldMics();
 // Deep-link: the website's "Create account / Start free" buttons append ?signup=1
 // so visitors land straight on the sign-up tab instead of Sign in.
 if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
+vfpShowJoinNote();   // Groups step 1: "sign in to join" when this device holds an invite link
 restoreSession();
 </script>
 
