@@ -7155,12 +7155,12 @@ function processVoice(text) {
     // A member with no shared list never gets here: their phrases route exactly as before.
     vfpSharedVoiceAdd(vfpSharedVoiceTarget(t), text);
     return;
-  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:,\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
+  } else if (/\b(?:shopping|grocery|groceries)\s+list\b/.test(t) || /\bto\s+(?:my|the|our)\s+(?:shopping|grocery|groceries)\b/.test(t) || /^\s*(?:shopping|grocery|groceries)\b[:,\s]/.test(t) || (/(?:to|on|onto|in)\s+(?:my|the|our)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/i.test(t) && !/\bbucket\s*list\b/i.test(t))) {
     // Shopping list capture — e.g. "add milk, eggs and bread to my shopping list"
     let items = text
       .replace(/^\s*add\s+/i, '')
-      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\s+list\b/gi, '')
-      .replace(/\b(?:to|on|in|onto)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\b/gi, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the|our)\s+(?:shopping|grocery|groceries)\s+list\b/gi, '')
+      .replace(/\b(?:to|on|in|onto)\s+(?:my|the|our)\s+(?:shopping|grocery|groceries)\b/gi, '')
       .replace(/^\s*(?:shopping|grocery|groceries)\s+list\b[:\s]*/i, '')
       .replace(/\b(?:shopping|grocery|groceries)\s+list\b/gi, '')
       .replace(/^\s*(?:shopping|grocery|groceries)\b[:,\s]*/i, '')   // bare keyword prefix, comma or colon or space (14 Sep 2026)
@@ -7175,12 +7175,13 @@ function processVoice(text) {
     //                             landed on Hardware. Dave hit it twice.
     //   no list named at all   -> the open list, which is what you are looking at.
     var _shTgt = null, _shDefault = false;
-    var _mL = t.match(/(?:to|on|onto|in)\s+(?:my|the)\s+([a-z0-9][a-z0-9 ]*?)\s+list\b/i);
+    // Dave, 1 Nov 2026: with no live shared list, "our" works exactly like "my" (the Groups branch above takes it otherwise).
+    var _mL = t.match(/(?:to|on|onto|in)\s+(?:my|the|our)\s+([a-z0-9][a-z0-9 ]*?)\s+list\b/i);
     if (_mL) {
       var _nm = _mL[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').trim();
       if (_nm) _shTgt = _nm; else _shDefault = true;
     }
-    items = items.replace(/\b(?:to|on|onto|in)\s+(?:my|the)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+    items = items.replace(/\b(?:to|on|onto|in)\s+(?:my|the|our)\s+[a-z0-9][a-z0-9 ]*?\s+list\b/gi, '').replace(/\s{2,}/g, ' ').trim();
     const n = addShoppingItems(items, _shTgt ? { listName: _shTgt } : (_shDefault ? { defaultList: true } : null));
     showTab('shopping', null);
     if (!n) showToast('Tell me what to add — e.g. "add milk to my shopping list"');
