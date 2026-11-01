@@ -1599,6 +1599,12 @@ button.pm-box:hover { border-color: var(--orange); }
 .shared-head { font-size: 12px; color: var(--text-mid); margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
 .shared-wait { font-size: 11px; color: var(--text-mid); white-space: nowrap; margin-left: 6px; }
 .shared-wait i { font-size: 12px; vertical-align: -1px; }
+/* Groups step 4: the shared calendar */
+.shared-cal { color: var(--text-mid); white-space: nowrap; }
+.shared-cal i { font-size: 12px; vertical-align: -1px; }
+.ap-shared { font-size: 12px; color: var(--text-mid); margin: -6px 0 10px; line-height: 1.4; }
+.ap-shared i { font-size: 13px; vertical-align: -2px; }
+.appt-cal { width: 100%; margin-bottom: 8px; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: var(--font); font-size: 12px; color: var(--text); background: var(--card); }
 
 /* GROUPS STEP 3 (1 Nov 2026): the orange Group updates button, its sheet, and Send */
 .gu-btn {
@@ -3004,6 +3010,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
             <input type="date" id="appt-date" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card)">
           </div>
           <input class="task-inp" id="appt-location" placeholder="Location or link (optional)" style="width:100%;margin-bottom:8px">
+          <select id="appt-cal" class="appt-cal" style="display:none"></select>
           <div style="display:flex;gap:6px">
             <button onclick="addAppointment()" class="add-btn" style="flex:1">Save appointment</button>
             <button onclick="toggleApptForm()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:7px;font-family:var(--font);font-size:12px;color:var(--text-mid);cursor:pointer">Cancel</button>
@@ -3959,6 +3966,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="ap-heading">Appointment</div>
+    <div id="ap-shared" class="ap-shared" style="display:none"></div>
     <div class="ap-field"><label class="ap-label" for="ap-title">Title</label><input class="task-inp" id="ap-title" placeholder="Appointment title"></div>
     <div class="ap-field"><label class="ap-label" for="ap-with">With</label><input class="task-inp" id="ap-with" placeholder="Who it's with (optional)"></div>
     <div class="ap-field"><label class="ap-label" for="ap-location">Location</label><input class="task-inp" id="ap-location" placeholder="Location or link (optional)"></div>
@@ -4274,6 +4282,7 @@ function serializeState() {
   STATE_KEYS.forEach(k => {
     if (k === 'selectedValues') out[k] = [...state.selectedValues];
     else if (k === 'inactiveValues') out[k] = [...(state.inactiveValues || new Set())];
+    else if (k === 'appointments' && Array.isArray(state[k])) out[k] = state[k].filter(a => !(a && a.shared));   // Groups step 4: shared events are never saved here
     else out[k] = state[k];
   });
   return out;
@@ -4301,6 +4310,7 @@ function applyState(data) {
   if (!state.activeShopId || !state.shoppingLists.some(function(l){ return l.id === state.activeShopId; })) {
     state.activeShopId = state.shoppingLists[0].id;
   }
+  if (typeof vfpCalInject === 'function') vfpCalInject();   // Groups step 4: the shared calendars' events, back beside the planner's own
 }
 
 function authMsg(text, isError) {
@@ -6929,7 +6939,11 @@ function processVoice(text) {
   // intent. Short utterances — even one word plus a time ("work at 3pm",
   // "gym at six") — are valid appointments now.
   // 30 Sep ruling §4.1: a spoken day ("on the third") is read by the appointment path too.
-  const apText = vtOrdinalDates(text), apT = vtOrdinalDates(t);
+  // Groups step 4: "… on our calendar" / "… to the <group name> calendar" → that group's shared calendar.
+  // Only a member with a live shared calendar can match; anyone else's words go exactly as before.
+  let vfpCalTo = null;
+  if (hasClockTime && !explicitRoute && typeof vfpCalVoiceTarget === 'function') { const r = vfpCalVoiceTarget(text); if (r) { vfpCalTo = r.g; text = r.text; } }
+  const apText = vtOrdinalDates(text), apT = vtOrdinalDates(vfpCalTo ? text.toLowerCase() : t);
   if (hasClockTime && !explicitRoute) {
     let text = apText, t = apT;   // this branch only; every other branch keeps the words as heard
     const toMin = (h, m) => h * 60 + m;
@@ -7153,6 +7167,7 @@ function processVoice(text) {
 
       const seriesId = Date.now();
       const dates = collectRecurDates(recurrence.type, firstDate, 12);
+      if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: apptTitle, date: dates[0], timeStart, timeEnd, repeat: recurrence.type }, `Recurring appointment added to the ${vfpCalTo.name} calendar: "${apptTitle}" ${recurLabel} at ${fmt12(timeStart)}`); return; }   // Groups step 4
 
       dates.forEach((dk, i) => {
         state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', with: '', notes: '', allDay: false, done: false, recurring: true, seriesId, recurType: recurrence.type });
@@ -7184,6 +7199,7 @@ function processVoice(text) {
       return;
     }
 
+    if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: clean || text, date: apptDate, timeStart, timeEnd }, `Appointment added to the ${vfpCalTo.name} calendar: "${clean}" at ${fmt12(timeStart)}`); return; }   // Groups step 4
     state.appointments.push({ id: Date.now(), title: clean || text, timeStart, timeEnd, date: apptDate, location: '', with: '', notes: '', allDay: false, done: false });
     viewingDate = apptDate;
     calViewMonth = new Date(apptDate + 'T12:00:00'); calViewMonth.setDate(1);
@@ -7602,7 +7618,7 @@ function backfillRecurRules() {
   state.recurRules = state.recurRules || {};
   const series = {};
   (state.appointments || []).forEach(a => {
-    if (a.recurring && a.seriesId) (series[a.seriesId] = series[a.seriesId] || []).push(a);
+    if (a.recurring && a.seriesId && !a.shared) (series[a.seriesId] = series[a.seriesId] || []).push(a);   // (step 4: never a shared series)
   });
   let built = 0, skipped = 0;
   Object.keys(series).forEach(sid => {
@@ -7673,7 +7689,7 @@ function backfillNoteDates() {
 function topUpRecurringSeries() {
   const series = {};
   (state.appointments || []).forEach(a => {
-    if (a.recurring && a.seriesId) (series[a.seriesId] = series[a.seriesId] || []).push(a);
+    if (a.recurring && a.seriesId && !a.shared) (series[a.seriesId] = series[a.seriesId] || []).push(a);   // (step 4: never a shared series)
   });
   const todayK = dateKey(today);
   const horizon = recurHorizonKey();
@@ -7749,6 +7765,7 @@ function toggleApptForm() {
   f.classList.toggle('hidden');
   if (!f.classList.contains('hidden')) {
     document.getElementById('appt-date').value = viewingDate;
+    if (typeof vfpCalFormShow === 'function') vfpCalFormShow();   // Groups step 4
     document.getElementById('appt-title').focus();
   }
 }
@@ -7760,6 +7777,7 @@ function addAppointment() {
   const timeEnd = document.getElementById('appt-time-end').value;
   const date = document.getElementById('appt-date').value || viewingDate;
   const location = document.getElementById('appt-location').value.trim();
+  if (!(typeof vfpCalFormAdd === 'function' && vfpCalFormAdd({ title, timeStart, timeEnd, date, location })))   // Groups step 4: or a shared calendar
   state.appointments.push({
     id: Date.now(), title, timeStart, timeEnd, date, location, with: '', notes: '', allDay: false, done: false
   });
@@ -7805,6 +7823,7 @@ function seriesMembers(seriesId) {
 function requestDeleteAppointment(id) {
   const a = (state.appointments || []).find(x => x.id === id);
   if (!a) return;
+  if (a.shared) { vfpCalRequestDelete(a); return; }          // Groups step 4: deleted for the whole group
   const members = (a.recurring && a.seriesId) ? seriesMembers(a.seriesId) : [];
   if (members.length <= 1) {
     if (confirm(`Delete "${a.title}"?`)) deleteAppointment(id);
@@ -7835,6 +7854,7 @@ function closeRecurDeleteModal() {
 function confirmRecurDelete(mode) {
   const ctx = pendingRecurDelete;
   if (!ctx) return;
+  if (ctx.shared) { closeRecurDeleteModal(); vfpCalConfirmDelete(ctx, mode); return; }   // Groups step 4
   const { seriesId, date, id } = ctx;
   state.recurEnds = state.recurEnds || {};
   const rule = (state.recurRules || {})[seriesId];   // may be absent (backfill skipped) — rows behave as now either way
@@ -7917,6 +7937,7 @@ function openApptPopup(id) {
   document.getElementById('ap-rebook').style.display = '';
   document.getElementById('ap-delete').style.display = '';
   vfpApSendShow(true);   // Groups step 3
+  if (typeof vfpCalPopup === 'function') vfpCalPopup(a);   // Groups step 4
   apAllDayToggle();
   document.getElementById('appt-popup').classList.add('open');
 }
@@ -7940,6 +7961,7 @@ function openApptPopupNew(prefill) {
   document.getElementById('ap-rebook').style.display = 'none';
   document.getElementById('ap-delete').style.display = 'none';
   vfpApSendShow(false);   // Groups step 3
+  if (typeof vfpCalPopup === 'function') vfpCalPopup(null);   // Groups step 4
   apAllDayToggle();
   document.getElementById('appt-popup').classList.add('open');
 }
@@ -8002,6 +8024,16 @@ function apApplySave(scope) {
   if (!f.title) { showToast('Appointment needs a title'); return; }
   const a = (state.appointments || []).find(x => x.id === apCtx.id);
   if (!a) { closeApptPopup(); return; }
+  if (a.shared) {                                            // Groups step 4: the change goes to the group
+    if (!vfpCalSave(a, f, scope)) return;
+    closeApptPopup();
+    viewingDate = f.date;
+    calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
+    updateViewingDateLabel();
+    apRefresh();
+    showToast(scope === 'series' ? `Series updated: "${f.title}"` : `Saved: "${f.title}"`);
+    return;
+  }
   const targets = scope === 'series' ? seriesMembers(a.seriesId) : [a];
   const origDate = a.date;   // before the move lands (rule maintenance below)
   targets.forEach(t => {
@@ -9029,10 +9061,10 @@ function renderAppointments() {
         <div style="font-size:11px;color:var(--appt-text);margin-top:2px">
           ${when}
           ${a.with ? ' · <span style="color:var(--text-mid)">with ' + a.with + '</span>' : ''}
-          ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}
+          ${a.location ? ' · <span style="color:var(--text-mid)">' + a.location + '</span>' : ''}${a.shared ? vfpCalMark(a) : ''}
         </div>
       </div>
-      <button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('appt',${a.id})" style="flex-shrink:0"><i class="ti ti-bell"></i></button>
+      ${a.shared ? '' : `<button class="row-edit" title="Set reminder" onclick="event.stopPropagation();remindForItem('appt',${a.id})" style="flex-shrink:0"><i class="ti ti-bell"></i></button>`}
       <div style="font-size:16px;color:var(--appt-text);flex-shrink:0">›</div>`;
     el.appendChild(d);
   });
@@ -10226,6 +10258,7 @@ function deleteHappened(date) {
 function startFresh() {
   if (!confirm('Clear all sample tasks, appointments, goals, projects, notes, habits, shopping and bucket items so you can start with a clean slate? Your values, roles and account stay. This cannot be undone.')) return;
   state.tasks = []; state.appointments = []; state.goals = []; state.projects = [];
+  if (typeof vfpCalInject === 'function') vfpCalInject();   // Groups step 4: shared events aren't the member's to clear
   state.notes = []; state.habits = []; state.habitLog = {}; state.bucket = [];
   state.shoppingLists = [{ id: 'list_' + Date.now(), name: 'Shopping', items: [] }]; state.activeShopId = state.shoppingLists[0].id; state.reflections = []; state.happenedLog = []; state.focus = '';
   currentProject = null; try { closeDetail(); } catch (e) {}
@@ -14004,6 +14037,7 @@ function buildICS() {
   const rulelessSeen = {};
   (state.appointments || []).forEach(a => {
     if (!a || !a.date) return;
+    if (a.shared) return;                                    // Groups step 4: shared events aren't the member's to export
     if (!a.recurring || !a.seriesId) {                       // plain single
       lines = lines.concat(icsEventFromRow(a, stamp)); counts.singles++;
     } else if (a.detached) {                                 // moved occurrence → its own standalone VEVENT
@@ -14942,6 +14976,7 @@ function vfpGroupError(e) {
     needs_pro: 'Only members on Pro can start a friends\u2019 group.',
     not_available: 'Friends\u2019 groups aren\u2019t open yet.',
     list_full: 'This shared list is full.',
+    calendar_full: 'This shared calendar is full.',
     not_in_group: 'You\u2019re not in this group any more.'
   };
   for (const k in words) if (m.indexOf(k) !== -1) return words[k];
@@ -14957,14 +14992,16 @@ async function vfpRpc(name, args) {
 async function loadGroups() {
   vfpGroups = [];
   if (sb && authUserId && !isDemo) {
-    try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) vfpGroups = d; } catch (e) { /* no Groups yet: nothing shown */ }
+    try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) { vfpGroups = d; vfpGroupsOk = true; } } catch (e) { /* no Groups yet: nothing shown */ }
   }
   renderGroups();
   loadGroupUpdates();   // Groups step 3: the orange button (nothing for a member with no group)
+  vfpCalRefresh();      // Groups step 4: the shared calendars (nothing for a member with no group)
 }
 // After sign-in: the groups, then any invite link this device is holding.
 async function vfpGroupsStart() {
   vfpCacheLoad();                    // step 2: the shared lists as last seen, so they show with no signal
+  vfpCalCacheLoad(); vfpCalRender(); vfpCalFlush();   // step 4: the shared calendars as last seen, and anything waiting to send
   await loadGroups();
   await vfpSharedRefresh();
   vfpFlush();
@@ -15570,7 +15607,7 @@ function renderGroupUpdates() {
       h += nw.changes.map(c =>
         '<div class="cal-imp-row gu-row"><div class="cal-imp-main">' +
           '<div class="cal-imp-title gu-change">' + calEsc((c.by_name || 'Member') + ' ' + (VFP_CHANGE_WORD[c.what] || 'changed') + ' “' + c.text + '”') + '</div>' +
-          '<div class="cal-imp-meta">Shared list</div>' +
+          '<div class="cal-imp-meta">' + calEsc(c.kind === 'event' ? 'Shared calendar · ' + fmtDateLabel(c.date) : 'Shared list') + '</div>' +
         '</div></div>').join('');
       if (nw.more) h += '<div class="gu-more">+ ' + nw.more + ' more</div>';
       h += '<button class="gu-gotit" onclick="vfpGotIt(\'' + g.group_id + '\',\'' + calEsc(upto) + '\')">Got it</button>';
@@ -15680,7 +15717,7 @@ function vfpUpdLiveOn() {
     const again = () => { clearTimeout(vfpUpdT); vfpUpdT = setTimeout(loadGroupUpdates, 400); };
     let ch = sb.channel('vfp-updates-' + authUserId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_user_marks', filter: 'user_id=eq.' + authUserId }, again);
-    if (ids.length) ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_group_marks', filter: 'group_id=in.(' + ids.join(',') + ')' }, again);
+    if (ids.length) ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_group_marks', filter: 'group_id=in.(' + ids.join(',') + ')' }, () => { again(); vfpCalRefresh(); });   // step 4: the calendar too
     ch.subscribe();
     vfpUpdChan = ch; vfpUpdChanKey = key;
   } catch (e) {}
@@ -15775,6 +15812,372 @@ async function vfpSendTo(groupId, userId) {
   else showToast('Sent to everyone in ' + (g ? g.name : 'the group'));
 }
 
+// ============================================================
+// GROUPS STEP 4 (1 Nov 2026 · briefs 1041 and 1150, Dave's go 18:37): THE SHARED CALENDAR.
+// Each group the member is in has one shared calendar. Its events show beside the member's own
+// appointments in every view that reads appointments (day list, schedule, week, month, year, the
+// calendar strip, search, Planner view), marked with the group's name.
+// · Shared events live ONLY in the database (vfp_shared_events, file VFP_SQL_4a) and in vfpCal below.
+//   They are put into state.appointments for the views, marked `shared`, with ids below zero, and
+//   serializeState() leaves every marked one out, so the planner's save can never carry one. Anything
+//   that reloads the planner (applyState) puts them back.
+// · A repeating event is one database row with its pattern; this app works out its days, as far ahead
+//   as the app's own repeating appointments go (recurHorizonKey). Changing one day stores that day as
+//   its own event; deleting one day skips it; "this and all future" ends the series.
+// · Every change goes through a queue on this device (localStorage), shown at once, marked "waiting to
+//   send", and sent in order when there's signal, as the shared list does (step 2). Ids are made here,
+//   so anything sent twice is stored once. A refusal is shown and dropped.
+// · Live: a change marks the group (vfp_group_marks); the Group updates channel (step 3) already hears
+//   it and now re-reads the calendar too. Also re-read on opening, coming back, and after every send.
+// · Reminders and "Send" are not offered on a shared event in this step.
+// · Hidden: a member with no group makes no new calls and sees nothing new.
+// ============================================================
+let vfpCal = [];               // [{group_id, name, status, keep_until, events:[...]}], as the database last said
+let vfpCalFlushing = false;
+let vfpCalTimer = null;
+let vfpCalLast = null;         // the shared calendar used last ("on our calendar" goes there)
+let vfpGroupsOk = false;       // the database has answered "which groups am I in?" this session
+const vfpCalQKey = () => 'vfp_cal_queue_' + (authUserId || '');
+const vfpCalCKey = () => 'vfp_cal_cache_' + (authUserId || '');
+function vfpCalQueue() { try { return JSON.parse(localStorage.getItem(vfpCalQKey()) || '[]'); } catch (e) { return []; } }
+function vfpCalQueueSave(q) { try { localStorage.setItem(vfpCalQKey(), JSON.stringify(q)); } catch (e) {} }
+function vfpCalCacheSave() { try { localStorage.setItem(vfpCalCKey(), JSON.stringify(vfpCal)); } catch (e) {} }
+function vfpCalCacheLoad() { try { const c = JSON.parse(localStorage.getItem(vfpCalCKey()) || '[]'); if (Array.isArray(c)) vfpCal = c; } catch (e) {} }
+function vfpCalGroup(gid) { return vfpCal.find(g => g.group_id === gid) || null; }
+function vfpCalLive() { return (sb && authUserId && !isDemo) ? vfpCal.filter(g => g.status === 'active') : []; }
+
+// A stable number for an event, or for one day of a series. Appointment ids are numbers everywhere in the
+// app (they're written into taps as numbers); a shared one is always below zero, so it can never be one of
+// the member's own (Date.now()) ids, and it stays the same on every device and every reload.
+function vfpCalNum(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return -(4294967296 * (2097151 & h2) + (h1 >>> 0)) - 1;
+}
+
+// ---- what the calendar looks like now: the database's copy, plus everything waiting to send ----
+function vfpCalView(g) {
+  let ev = (g.events || []).map(e => Object.assign({}, e, { skip: (e.skip || []).slice() }));
+  vfpCalQueue().filter(o => o.group_id === g.group_id).forEach(o => { ev = vfpCalApply(ev, o); });
+  return ev;
+}
+function vfpCalApply(ev, o) {
+  const f = o.event || {};
+  const put = e => {
+    e.title = f.title; e.allDay = !!f.allDay;
+    e.timeStart = f.allDay ? '' : (f.timeStart || ''); e.timeEnd = f.allDay ? '' : (f.timeEnd || '');
+    e.location = f.location || ''; e.with = f.with || ''; e.notes = f.notes || ''; e.pending = true;
+  };
+  if (o.op === 'add') {
+    if (!ev.some(e => e.id === o.id)) {
+      const e = { id: o.id, series_id: null, orig_date: null, date: f.date, repeat: f.repeat || null, until: null, skip: [],
+                  added_by: (state.user && state.user.name) || '' };
+      put(e); ev.push(e);
+    }
+    return ev;
+  }
+  const e = ev.find(x => x.id === o.id);
+  if (!e) return o.op === 'remove' ? ev.filter(x => x.series_id !== o.id) : ev;
+  if (o.op === 'edit') {
+    if (e.repeat) { put(e); ev.forEach(x => { if (x.series_id === e.id) { const d = x.date; put(x); x.date = d; } }); }
+    else { put(e); e.date = f.date || e.date; }
+  } else if (o.op === 'day') {
+    if (!ev.some(x => x.id === o.new_id)) {
+      if (e.skip.indexOf(o.day) < 0) e.skip.push(o.day);
+      const n = { id: o.new_id, series_id: e.id, orig_date: o.day, date: f.date, repeat: null, until: null, skip: [], added_by: e.added_by };
+      put(n); ev.push(n);
+    }
+  } else if (o.op === 'skip') {
+    if (e.skip.indexOf(o.day) < 0) { e.skip.push(o.day); e.pending = true; }
+  } else if (o.op === 'end') {
+    if (o.day <= e.date) return ev.filter(x => x.id !== e.id && x.series_id !== e.id);
+    const last = prevDateKey(o.day);
+    if (!e.until || e.until > last) e.until = last;
+    e.pending = true;
+    return ev.filter(x => !(x.series_id === e.id && (x.date >= o.day || x.orig_date >= o.day)));
+  } else if (o.op === 'remove') {
+    return ev.filter(x => x.id !== o.id && x.series_id !== o.id);
+  }
+  return ev;
+}
+
+// The days a series falls on: from its first day to its last, or as far ahead as the app's own series go.
+function vfpCalDays(e) {
+  const out = [];
+  const horizon = recurHorizonKey();
+  const end = (e.until && e.until < horizon) ? e.until : horizon;
+  const c = new Date(e.date + 'T12:00:00');
+  for (let i = 0; i < 6000 && out.length < 1500; i++) {
+    const k = dateKey(c);
+    if (k > end) break;
+    const dow = c.getDay();
+    if ((e.repeat !== 'weekdays' || (dow !== 0 && dow !== 6)) && e.skip.indexOf(k) < 0) out.push(k);
+    c.setDate(c.getDate() + (e.repeat === 'weekly' ? 7 : 1));
+  }
+  return out;
+}
+
+// Every shared event as the app's own appointment shape, marked `shared`.
+function vfpCalAppts() {
+  const out = [];
+  vfpCal.forEach(g => {
+    const paused = g.status !== 'active';
+    vfpCalView(g).forEach(e => {
+      if (!e || !e.date || !e.title) return;
+      const sh = { group_id: g.group_id, name: g.name, ev: e.id, series: e.series_id || (e.repeat ? e.id : null),
+                   paused, keep_until: g.keep_until || null, by: e.added_by || '', pending: !!e.pending };
+      const base = { title: vfpSafe(e.title, 200), timeStart: e.allDay ? '' : (e.timeStart || ''), timeEnd: e.allDay ? '' : (e.timeEnd || ''),
+                     location: vfpSafe(e.location, 300), with: vfpSafe(e.with, 200), notes: vfpSafe(e.notes, 4000), allDay: !!e.allDay, done: false };
+      if (e.repeat) {
+        const sid = vfpCalNum(e.id);
+        vfpCalDays(e).forEach(dk => out.push(Object.assign({ id: vfpCalNum(e.id + '|' + dk), date: dk, recurring: true, seriesId: sid, recurType: e.repeat },
+                                                            base, { shared: Object.assign({ day: dk }, sh) })));
+      } else if (e.series_id) {
+        out.push(Object.assign({ id: vfpCalNum(e.id), date: e.date, recurring: true, seriesId: vfpCalNum(e.series_id), detached: true },
+                               base, { shared: Object.assign({ day: e.orig_date }, sh) }));
+      } else {
+        out.push(Object.assign({ id: vfpCalNum(e.id), date: e.date }, base, { shared: sh }));
+      }
+    });
+  });
+  return out;
+}
+
+// Put the shared events into the views' list (and take out the old ones). Nothing at all happens for a
+// member who has none and had none. Returns whether anything changed.
+function vfpCalInject() {
+  if (!state || !Array.isArray(state.appointments)) return false;
+  const had = state.appointments.some(a => a && a.shared);
+  const add = vfpCalAppts();
+  if (!had && !add.length) return false;
+  state.appointments = state.appointments.filter(a => !(a && a.shared)).concat(add);
+  return true;
+}
+function vfpCalRender() {
+  if (!vfpCalInject()) return;
+  try { renderAppointments(); renderScheduleGrid(); renderCalStrip(); } catch (e) {}
+  try { renderWeek(); } catch (e) {}
+  try { renderMonth(); renderYear(); } catch (e) {}
+  try { if (typeof renderOverloadNotice === 'function') renderOverloadNotice(); } catch (e) {}
+}
+
+// ---- reading ----
+async function vfpCalLoad() {
+  if (!sb || !authUserId || isDemo || !(vfpGroups && vfpGroups.length)) {
+    if (vfpGroupsOk && vfpCal.length) { vfpCal = []; vfpCalCacheSave(); }   // left every group: nothing shared stays on screen
+    vfpCalRender();
+    return;
+  }
+  try {
+    const { data, error } = await sb.rpc('vfp_shared_calendars');
+    if (!error && Array.isArray(data)) { vfpCal = data; vfpCalCacheSave(); }
+  } catch (e) { /* no signal: keep the copy on this device */ }
+  vfpCalRender();
+}
+function vfpCalRefresh() { clearTimeout(vfpCalTimer); vfpCalTimer = setTimeout(vfpCalLoad, 300); }
+
+// ---- writing: the queue ----
+function vfpCalEnqueue(op) {
+  op.qid = vfpUuid(); op.at = Date.now();
+  const q = vfpCalQueue(); q.push(op); vfpCalQueueSave(q);
+  vfpCalLast = op.group_id;
+  vfpCalRender();
+  vfpCalFlush();
+}
+async function vfpCalFlush() {
+  if (vfpCalFlushing || !sb || !authUserId || isDemo) return;
+  if (!vfpCalQueue().length) return;
+  vfpCalFlushing = true;
+  let sent = 0;
+  try {
+    for (;;) {
+      const o = vfpCalQueue()[0];
+      if (!o) break;
+      let res;
+      try {
+        if (o.op === 'add') res = await sb.rpc('vfp_cal_add', { p_group: o.group_id, p_id: o.id, p_event: o.event });
+        else if (o.op === 'edit') res = await sb.rpc('vfp_cal_edit', { p_id: o.id, p_event: o.event });
+        else if (o.op === 'day') res = await sb.rpc('vfp_cal_edit_day', { p_series: o.id, p_day: o.day, p_id: o.new_id, p_event: o.event });
+        else if (o.op === 'skip') res = await sb.rpc('vfp_cal_skip', { p_series: o.id, p_day: o.day });
+        else if (o.op === 'end') res = await sb.rpc('vfp_cal_end', { p_series: o.id, p_day: o.day });
+        else if (o.op === 'remove') res = await sb.rpc('vfp_cal_remove', { p_id: o.id });
+        else res = { data: null, error: null };
+      } catch (e) { res = { error: { message: String((e && e.message) || e) } }; }
+      if (res && res.error && !res.error.code) break;                        // no signal: try again later
+      if (res && res.error && !/not_found/.test(res.error.message || '')) showToast(vfpGroupError(res.error));
+      vfpCalQueueSave(vfpCalQueue().filter(x => x.qid !== o.qid));           // sent (or refused): out of the queue
+      sent++;
+    }
+  } finally { vfpCalFlushing = false; }
+  if (sent && !vfpGroupsOk) { await loadGroups(); return; }   // opened with no signal: ask for the groups now (it re-reads the calendar)
+  if (sent) await vfpCalLoad(); else vfpCalRender();
+}
+
+// Opened with no signal, the app couldn't ask which groups the member is in. When the signal is back, ask
+// once (that re-reads the calendars and the orange button too). Answered already: nothing extra is asked.
+function vfpGroupsRetry() { if (!vfpGroupsOk && sb && authUserId && !isDemo && !document.hidden) loadGroups(); }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !authUserId || isDemo) return;
+  vfpGroupsRetry(); vfpCalFlush(); vfpCalRefresh();
+});
+window.addEventListener('online', () => { vfpGroupsRetry(); vfpCalFlush(); });
+setInterval(() => { if (!document.hidden && vfpCalQueue().length) vfpCalFlush(); }, 30000);
+
+// ---- adding ----
+function vfpCalEvent(f) {
+  return { title: String(f.title || '').trim(), date: f.date, allDay: !!f.allDay,
+           timeStart: f.allDay ? '' : (f.timeStart || ''), timeEnd: f.allDay ? '' : (f.timeEnd || ''),
+           location: f.location || '', with: f.with || '', notes: f.notes || '', repeat: f.repeat || null };
+}
+function vfpCalAdd(g, f) {
+  vfpCalEnqueue({ op: 'add', group_id: g.group_id, id: vfpUuid(), event: vfpCalEvent(f) });
+}
+// The day card's "+ Add" form: a Calendar choice, shown only to a member with a live shared calendar.
+function vfpCalFormShow() {
+  const sel = document.getElementById('appt-cal');
+  if (!sel) return;
+  const live = vfpCalLive();
+  if (!live.length) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  sel.innerHTML = '<option value="">My calendar</option>'
+    + live.map(g => '<option value="' + calEsc(g.group_id) + '">' + calEsc(g.name) + ' calendar (shared)</option>').join('');
+  sel.value = '';
+  sel.style.display = '';
+}
+function vfpCalFormAdd(f) {
+  const sel = document.getElementById('appt-cal');
+  const gid = sel && sel.style.display !== 'none' ? sel.value : '';
+  if (!gid) return false;
+  const g = vfpCalGroup(gid);
+  if (!g || g.status !== 'active') { showToast('This calendar is paused, so it can’t be changed.'); return true; }
+  vfpCalAdd(g, f);
+  sel.value = '';
+  return true;
+}
+// Voice: "… on our calendar", "… to the family calendar", "… on the Rees family calendar".
+// Only for a member with a live shared calendar; anyone else's words go exactly as before.
+function vfpCalVoiceTarget(text) {
+  const live = vfpCalLive();
+  if (!live.length) return null;
+  const m = String(text).match(/\b(?:to|on|onto|in|into)\s+(our|the)\s+(?:([a-z0-9'][a-z0-9' ]*?)\s+)?calendar\b/i);
+  if (!m) return null;
+  const dflt = live.find(g => g.group_id === vfpCalLast) || live[0];
+  const nm = (m[2] || '').replace(/\bshared\b/gi, '').replace(/\s{2,}/g, ' ').trim().toLowerCase();
+  let g = null;
+  if (nm) {
+    g = live.find(x => x.name.toLowerCase() === nm)
+      || live.find(x => x.name.toLowerCase().indexOf(nm) >= 0 || nm.indexOf(x.name.toLowerCase()) >= 0);
+    if (!g && /^(?:family|group|household)$/.test(nm)) g = dflt;
+  } else if (m[1].toLowerCase() === 'our') g = dflt;
+  if (!g) return null;
+  const rest = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).replace(/\s{2,}/g, ' ').trim();
+  return { g, text: rest };
+}
+function vfpCalVoiceAdd(g, f, msg) {
+  vfpCalAdd(g, f);
+  viewingDate = f.date;
+  calViewMonth = new Date(f.date + 'T12:00:00'); calViewMonth.setDate(1);
+  updateViewingDateLabel();
+  try { renderAppointments(); renderScheduleGrid(); renderCalStrip(); } catch (e) {}
+  showTab('daily', null);
+  showToast(msg);
+}
+
+// ---- the appointment card ----
+function vfpCalMark(a) {
+  if (!a || !a.shared) return '';
+  return ' · <span class="shared-cal"><i class="ti ti-users"></i> ' + calEsc(a.shared.name) + '</span>'
+    + (a.shared.pending ? ' <span class="shared-wait"><i class="ti ti-clock"></i> waiting to send</span>' : '');
+}
+function vfpCalPopup(a) {
+  const box = document.getElementById('ap-shared');
+  if (!box) return;
+  if (!a || !a.shared) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const s = a.shared;
+  document.getElementById('ap-heading').textContent = s.name + ' calendar';
+  document.getElementById('ap-remind').style.display = 'none';
+  vfpApSendShow(false);
+  let h = '<i class="ti ti-users"></i> Shared with everyone in ' + calEsc(s.name) + (s.by ? ' · added by ' + calEsc(s.by) : '');
+  if (s.paused) {
+    const until = s.keep_until ? new Date(s.keep_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    h += '<div class="grp-paused">This calendar is paused, so it can’t be changed. It’s kept until ' + calEsc(until) + '.'
+       + ' <span class="grp-act" onclick="vfpCalKeepCopy(\'' + calEsc(s.group_id) + '\')">Keep a copy in my planner</span></div>';
+    document.getElementById('ap-save').style.display = 'none';
+    document.getElementById('ap-delete').style.display = 'none';
+  }
+  box.innerHTML = h;
+  box.style.display = '';
+}
+
+// Save from the card. scope: 'one' | 'series', as for the member's own series: the whole series takes
+// everything but the days; a new date lands on this day only.
+function vfpCalSave(a, f, scope) {
+  const s = a.shared;
+  if (s.paused) { showToast('This calendar is paused, so it can’t be changed.'); return false; }
+  const ev = vfpCalEvent({ title: f.title, date: f.date, allDay: f.allDay, timeStart: f.timeStart || a.timeStart, timeEnd: f.timeEnd,
+                           location: f.location, with: f.with, notes: f.notes });
+  delete ev.repeat;
+  const isDay = !!(s.series && s.ev === s.series);       // a day worked out from a series (not stored on its own)
+  if (s.series && scope === 'series') {
+    vfpCalEnqueue({ op: 'edit', group_id: s.group_id, id: s.series, event: Object.assign({}, ev, { date: a.date }) });
+    if (f.date !== a.date) {
+      if (isDay) vfpCalEnqueue({ op: 'day', group_id: s.group_id, id: s.series, day: s.day, new_id: vfpUuid(), event: ev });
+      else vfpCalEnqueue({ op: 'edit', group_id: s.group_id, id: s.ev, event: ev });
+    }
+  } else if (isDay) {
+    vfpCalEnqueue({ op: 'day', group_id: s.group_id, id: s.series, day: s.day, new_id: vfpUuid(), event: ev });
+  } else {
+    vfpCalEnqueue({ op: 'edit', group_id: s.group_id, id: s.ev, event: ev });
+  }
+  return true;
+}
+
+// Delete from the card: a lone event asks once; a series offers the same three choices as the member's own.
+function vfpCalRequestDelete(a) {
+  const s = a.shared;
+  if (s.paused) { showToast('This calendar is paused, so it can’t be changed.'); return; }
+  const members = s.series ? seriesMembers(a.seriesId) : [];
+  if (members.length <= 1) {
+    if (confirm('Delete “' + a.title + '” for everyone in ' + s.name + '?')) vfpCalEnqueue({ op: 'remove', group_id: s.group_id, id: s.ev });
+    return;
+  }
+  openRecurDeleteModal(a, members);
+  pendingRecurDelete.shared = s;
+  document.getElementById('recur-del-sub').textContent =
+    'This repeats, and everyone in ' + s.name + ' shares it. What would you like to remove?';
+}
+function vfpCalConfirmDelete(ctx, mode) {
+  const s = ctx.shared;
+  if (mode === 'one') {
+    if (s.series && s.ev === s.series) vfpCalEnqueue({ op: 'skip', group_id: s.group_id, id: s.series, day: s.day });
+    else vfpCalEnqueue({ op: 'remove', group_id: s.group_id, id: s.ev });
+  } else if (mode === 'future') {
+    vfpCalEnqueue({ op: 'end', group_id: s.group_id, id: s.series, day: ctx.date });
+  } else {
+    vfpCalEnqueue({ op: 'remove', group_id: s.group_id, id: s.series || s.ev });
+  }
+  showToast(mode === 'one' ? 'Occurrence deleted — the series continues' : 'Deleted for everyone in ' + s.name);
+}
+
+// Paused: copy what's still ahead into the member's own planner (once; tapping again adds nothing twice).
+function vfpCalKeepCopy(gid) {
+  const fromK = dateKey(today);
+  const have = new Set((state.appointments || []).filter(a => !a.shared && a.fromCal).map(a => a.fromCal));
+  const list = (state.appointments || []).filter(a => a.shared && a.shared.group_id === gid && a.date >= fromK);
+  const now = Date.now();
+  let n = 0;
+  list.forEach(a => {
+    const key = gid + '|' + a.shared.ev + '|' + a.date;
+    if (have.has(key)) return;
+    state.appointments.push({ id: now + n, title: a.title, timeStart: a.timeStart, timeEnd: a.timeEnd, date: a.date,
+                              location: a.location, with: a.with, notes: a.notes, allDay: a.allDay, done: false, fromCal: key });
+    n++;
+  });
+  closeApptPopup();
+  apRefresh();
+  showToast(n ? 'Copied ' + n + (n === 1 ? ' appointment' : ' appointments') + ' to your planner' : 'Nothing left to copy');
+}
 // ============================================================
 // START
 // ============================================================
