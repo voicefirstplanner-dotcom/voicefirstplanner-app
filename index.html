@@ -12405,6 +12405,11 @@ async function startCheckout(priceId) {
     showToast('Create an account or sign in to upgrade');
     return;
   }
+  // 31 Oct 2026 (Groups step 0): checkout takes the account from the sign-in,
+  // so the request carries the sign-in token. The body's userId and email are
+  // kept only so this file works with the server either side of the upload.
+  const ckTok = await vfpAccessToken();
+  if (!ckTok) { closeUpgrade(); showToast('Create an account or sign in to upgrade'); return; }
   try {
     // Rewardful referral, if the visitor arrived via an affiliate link. Read HERE
     // (user-triggered, long after async rw.js has loaded) — do NOT hoist to page
@@ -12413,7 +12418,7 @@ async function startCheckout(priceId) {
     const referral = (window.Rewardful && window.Rewardful.referral) || undefined;
     const r = await fetch('/api/create-checkout-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ckTok },
       body: JSON.stringify({ priceId, userId: authUserId, email: state.user?.email || '', referral }),
     });
     const data = await r.json();
@@ -12424,12 +12429,23 @@ async function startCheckout(priceId) {
   }
 }
 
+// 31 Oct 2026 (Groups step 0): the signed-in session's access token, or null.
+async function vfpAccessToken() {
+  try {
+    const { data } = await sb.auth.getSession();
+    return (data && data.session && data.session.access_token) || null;
+  } catch (e) { return null; }
+}
+
 async function openBillingPortal() {
   if (!sb || isDemo || !authUserId) return;
+  // 31 Oct 2026 (Groups step 0): the billing page opens for the SIGNED-IN account only.
+  const bpTok = await vfpAccessToken();
+  if (!bpTok) { showToast('Could not open billing — please try again'); return; }
   try {
     const r = await fetch('/api/create-portal-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + bpTok },
       body: JSON.stringify({ userId: authUserId }),
     });
     const data = await r.json();
@@ -12453,6 +12469,14 @@ async function loadEntitlement() {
         .select('plan,status,source').eq('user_id', authUserId).maybeSingle();
       if (data) state.entitlement = data;
     } catch (e) { /* default to free */ }
+    // 31 Oct 2026 (Groups step 0): the plan itself comes from the one plan
+    // function in the database (vfp_my_plan), today exactly the row's plan.
+    // Status and source (Lifetime, the Library) still come from the row. If the
+    // function is missing or fails, the row's plan stands, as before.
+    try {
+      const { data: myPlan, error: mpErr } = await sb.rpc('vfp_my_plan');
+      if (!mpErr && typeof myPlan === 'string' && myPlan) state.entitlement = { ...state.entitlement, plan: myPlan };
+    } catch (e) { /* keep the row's plan */ }
   }
   renderPlan();
   renderLibrary();
