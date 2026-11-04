@@ -13269,6 +13269,23 @@ function fmtKey(d) {
 }
 
 // ---------------------------------------------------------------------------
+// CLEANING (3 Nov 2026, brief "Clean imported calendar text"). A calendar file is
+// written by someone else, and the planner shows titles and places as they are
+// stored (day list, day grid, week, month). So an imported title and place are
+// cleaned here, before the review and before anything is stored, the way step 3
+// cleans a sent item: < and > become ‹ ›, and a straight double quote becomes a
+// curly one (“ opening, ” closing). Nothing is cut short and nothing else changes,
+// so an ordinary meeting comes in exactly as before. Notes are left as written:
+// they are only ever shown inside a text box, where nothing can run, and work
+// calendars put their join links in them as <https://...>.
+// ---------------------------------------------------------------------------
+function calImportClean(s) {
+  return String(s == null ? '' : s)
+    .replace(/</g, '\u2039').replace(/>/g, '\u203a')
+    .replace(/(^|[\s(\[{\u2014\u2013-])"/g, '$1\u201c').replace(/"/g, '\u201d');
+}
+
+// ---------------------------------------------------------------------------
 // THE PARSE — returns a PREVIEW, never a write.
 // The whole file is read before anything is proposed, so a structural failure
 // aborts with zero rows and a half-import is impossible by construction.
@@ -13389,8 +13406,8 @@ function parseIcsToPreview(text, opts) {
 
     groups.push({
       uid,
-      title: (ev.summary || 'Appointment').trim(),
-      location: ev.location || '',
+      title: calImportClean((ev.summary || 'Appointment').trim()),
+      location: calImportClean(ev.location || ''),
       notes: ev.description || '',
       allDay, timeStart, timeEnd,
       recurring: isRecurring,
