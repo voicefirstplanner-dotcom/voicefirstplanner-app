@@ -4276,6 +4276,7 @@ const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket',
                     'courseImports', // course import log (15 Oct 2026) — what each course added, for "already in" and Undo
                     'budgetCurrency','budgetOpenWeek'];   // budget: display currency; the open week (delivery two)
 STATE_KEYS.push('whatsNewSeen');   // date of the newest "What's new" entry this person has tapped (8 Oct 2026)
+STATE_KEYS.push('calImportCleanedAt');   // when calendar rows brought in before the 3 Nov fix were cleaned (4 Nov 2026)
 
 function serializeState() {
   const out = {};
@@ -4329,6 +4330,8 @@ async function loadState() {
   if (error) { console.warn('Supabase load error:', error.message); return null; }
   if (data && data.data) applyState(data.data);
   lastSavedJSON = JSON.stringify(serializeState());
+  // After the "last saved" copy, so the autosave saves what this changes (4 Nov 2026).
+  if (data && data.data) { try { calImportCleanOldRows(); } catch (e) { console.warn('calendar clean skipped:', e.message); } }
   return !!(data && data.data);   // true: a saved planner; false: none yet (Sign in with Apple, 1 Oct)
 }
 
@@ -13283,6 +13286,31 @@ function calImportClean(s) {
   return String(s == null ? '' : s)
     .replace(/</g, '\u2039').replace(/>/g, '\u203a')
     .replace(/(^|[\s(\[{\u2014\u2013-])"/g, '$1\u201c').replace(/"/g, '\u201d');
+}
+
+// ONE-TIME CLEAN OF OLDER ROWS (4 Nov 2026, brief "Calendar import answers"; Dave's yes).
+// Rows brought in from a calendar file before the 3 Nov fix were stored as written. The
+// first time a member's planner loads on this page, those rows get the same cleaning as a
+// new import: only rows that came from a calendar file, only the title and the place.
+// A row came from a calendar file if it carries srcUid (brought in), or if it belongs to a
+// series an import made (seriesId "imp<time>-s<n>"): the planner's own top-up repeats
+// an imported weekly or daily meeting by copying its last row, without srcUid.
+// A title or place with no < > or " is not touched at all; notes, typed rows and
+// everything else stay exactly as they are. The planner records when it ran
+// (calImportCleanedAt, saved with the planner), so it runs once per member, on whichever
+// device loads first.
+const CAL_IMPORT_SERIES = /^imp\d+-s\d+$/;
+function calImportCleanOldRows() {
+  if (state.calImportCleanedAt) return 0;
+  let changed = 0;
+  (state.appointments || []).forEach(a => {
+    if (!a || a.shared || !(a.srcUid || CAL_IMPORT_SERIES.test(String(a.seriesId || '')))) return;
+    ['title', 'location'].forEach(k => {
+      if (typeof a[k] === 'string' && /[<>"]/.test(a[k])) { a[k] = calImportClean(a[k]); changed++; }
+    });
+  });
+  state.calImportCleanedAt = new Date().toISOString();
+  return changed;
 }
 
 // ---------------------------------------------------------------------------
