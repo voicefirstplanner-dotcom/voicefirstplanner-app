@@ -2783,6 +2783,15 @@ body.pv #pv-slot-notes .row-edit { color: var(--text-light); }
 body.pv #pv-slot-notes .note-tags { display: none; }
 body.pv #pv-slot-notes .checklist-item { min-height: var(--pv-line); }
 body.pv #pv-slot-notes .cl-add-row { color: var(--text-light); }
+/* 7 Nov 2026 (brief 1030, 5C): on the notes page the box for a new note fills the page
+   (its height is set by pvFitNoteBox) and the day's other notes are listed below it,
+   each showing its title and first couple of lines; tapping one opens it in full. */
+body.pv #pv-slot-notes .note-card.pv-note { cursor: pointer; }
+body.pv #pv-slot-notes .note-card.pv-note:not(.pv-note-open) .note-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pv #pv-slot-notes .note-card.pv-note:not(.pv-note-open) .note-body { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+body.pv #pv-slot-notes .note-card.pv-note:not(.pv-note-open) .note-body ~ .cl-list,
+body.pv #pv-slot-notes .note-card.pv-note:not(.pv-note-open) .cl-add-row,
+body.pv #pv-slot-notes .note-card.pv-note:not(.pv-note-open) .checklist-item:nth-child(n+3) { display: none; }
 
 /* ---- DEMO BANNER (9 Aug) — standard notice treatment: informative, not a
    warning. Full width, below the header, above the planner content. ---- */
@@ -4277,6 +4286,7 @@ const STATE_KEYS = ['tasks','appointments','habits','habitLog','goals','bucket',
                     'budgetCurrency','budgetOpenWeek'];   // budget: display currency; the open week (delivery two)
 STATE_KEYS.push('whatsNewSeen');   // date of the newest "What's new" entry this person has tapped (8 Oct 2026)
 STATE_KEYS.push('calImportCleanedAt');   // when calendar rows brought in before the 3 Nov fix were cleaned (4 Nov 2026)
+STATE_KEYS.push('calImportRepeatsAt');   // when imported series were given their file's end and old extra repeats removed (7 Nov 2026)
 
 function serializeState() {
   const out = {};
@@ -4332,6 +4342,7 @@ async function loadState() {
   lastSavedJSON = JSON.stringify(serializeState());
   // After the "last saved" copy, so the autosave saves what this changes (4 Nov 2026).
   if (data && data.data) { try { calImportCleanOldRows(); } catch (e) { console.warn('calendar clean skipped:', e.message); } }
+  if (data && data.data) { try { calImportRepeatsOnce(); } catch (e) { console.warn('calendar repeats pass skipped:', e.message); } }   // 7 Nov 2026
   return !!(data && data.data);   // true: a saved planner; false: none yet (Sign in with Apple, 1 Oct)
 }
 
@@ -8354,6 +8365,49 @@ function pvFlip(side) {
   const l = document.getElementById('pv-flip-l'), r = document.getElementById('pv-flip-r');
   if (l) l.classList.toggle('on', side !== 'R');
   if (r) r.classList.toggle('on', side === 'R');
+  if (side === 'R') pvFitNoteBox();   // 7 Nov 2026: the notes page is showing now — size the new-note box to it
+}
+
+// 7 Nov 2026 (brief 1030, 5C): on the notes page a new note fills the page, so the whole
+// note can be written. The box is sized to what the page shows (the notes page itself when
+// one page shows at a time; the open book otherwise), less the title line and the buttons,
+// in whole ruled lines — and grows as the note does. Planner view's daily spread only; the
+// size is cleared when it isn't showing, so Classic never sees it.
+const PV_LINE_PX = 28;
+let pvOpenNotes = new Set();          // notes tapped open on the notes page (kept while the page redraws)
+function pvNoteScroller() {
+  const page = document.querySelector('.pv-ruled-page');
+  if (page && /(auto|scroll)/.test(getComputedStyle(page).overflowY)) return { sc: page, start: page };
+  return { sc: document.getElementById('pv-book'), start: document.querySelector('.pv-page.pv-right') };
+}
+function pvFitNoteBox() {
+  const ta = document.getElementById('note-body-inp');
+  if (!ta) return;
+  if (!pvDailyActive()) { if (ta.dataset.pvFit) { ta.style.height = ''; delete ta.dataset.pvFit; } return; }
+  const card = document.getElementById('notes-capture-card');
+  const { sc, start } = pvNoteScroller();
+  if (!card || !sc || !start || !card.offsetParent) return;   // the notes page isn't on screen (one page at a time, Planner page up)
+  ta.style.height = '';                                         // measure from the box's resting size
+  const r = sc.getBoundingClientRect();
+  const foot = document.getElementById('pv-footer');
+  const bottom = Math.min(r.bottom, foot && foot.offsetParent ? foot.getBoundingClientRect().top : r.bottom);
+  const above = card.getBoundingClientRect().bottom - start.getBoundingClientRect().top - ta.offsetHeight;
+  const fit = Math.max(PV_LINE_PX * 3, Math.floor((bottom - r.top - above - 14) / PV_LINE_PX) * PV_LINE_PX);
+  ta.dataset.pvFit = String(fit);
+  pvGrowNoteBox();
+}
+function pvGrowNoteBox() {
+  const ta = document.getElementById('note-body-inp');
+  if (!ta || !ta.dataset.pvFit || !pvDailyActive()) return;
+  ta.style.height = ta.dataset.pvFit + 'px';
+  if (ta.scrollHeight > ta.clientHeight + 1) ta.style.height = (Math.ceil(ta.scrollHeight / PV_LINE_PX) * PV_LINE_PX + 2) + 'px';
+}
+document.addEventListener('input', e => { if (e.target && e.target.id === 'note-body-inp') pvGrowNoteBox(); });
+let pvFitT = null;
+window.addEventListener('resize', () => { clearTimeout(pvFitT); pvFitT = setTimeout(pvFitNoteBox, 220); });
+function pvToggleNote(id, card) {
+  if (pvOpenNotes.has(id)) pvOpenNotes.delete(id); else pvOpenNotes.add(id);
+  card.classList.toggle('pv-note-open', pvOpenNotes.has(id));
 }
 
 // THE PAPER PRINCIPLE (2 Aug): in Planner view you write on the line and the
@@ -12048,8 +12102,17 @@ function renderNotes() {
       inner += `<div class="note-tags" style="margin-top:8px">${n.tags.map(t => `<span class="ntag">#${t}</span>`).join('')}</div>`;
     }
     card.innerHTML = inner;
+    if (pvDay) {   // 7 Nov 2026: on the notes page a note shows its first couple of lines; a tap opens it in full
+      card.classList.add('pv-note');
+      if (pvOpenNotes.has(n.id)) card.classList.add('pv-note-open');
+      card.addEventListener('click', e => {
+        if (e.target.closest('button, input, textarea, select, a, .cl-hit, .cl-del')) return;
+        pvToggleNote(n.id, card);
+      });
+    }
     el.appendChild(card);
   });
+  if (typeof pvFitNoteBox === 'function') pvFitNoteBox();   // 7 Nov 2026: keep the new-note box filling the page
 }
 
 // ============================================================
@@ -13253,6 +13316,26 @@ function expandOccurrences(ev, fromKey, toKey, localZone) {
   }
   return { dates, unsupported: false };
 }
+// 7 Nov 2026 (brief "Calendar import repeats"): the last date a file's repeating meeting
+// can fall on — the UNTIL date, or the date of the COUNT-th occurrence, wherever that is,
+// even past the 90 days brought in. null when the file gives no end (or it can't be
+// worked out), and then the meeting carries on as the planner's own series do.
+function calFileSeriesEnd(ev, localZone) {
+  if (!ev || !ev.rrule || !ev.start) return null;
+  const r = parseRRule(ev.rrule);
+  if (r.UNTIL) {
+    const u = parseIcsDateTime(r.UNTIL, {}, localZone);
+    return u ? u.date : null;
+  }
+  if (r.COUNT) {
+    const count = parseInt(r.COUNT, 10);
+    if (!(count > 0)) return null;
+    const all = expandOccurrences({ ...ev, exdates: [] }, ev.start.date, '9999-12-31', localZone);
+    if (all.unsupported || all.dates.length < count) return null;   // ran out of steps: don't guess
+    return all.dates[all.dates.length - 1];
+  }
+  return null;
+}
 // The Monday of the week containing `d`, as a DAY NUMBER (days since epoch),
 // not a millisecond timestamp. Milliseconds are not DST-proof: across a spring
 // transition two dates six weeks apart are 6 weeks MINUS an hour apart in ms,
@@ -13311,6 +13394,145 @@ function calImportCleanOldRows() {
   });
   state.calImportCleanedAt = new Date().toISOString();
   return changed;
+}
+
+// ---------------------------------------------------------------------------
+// IMPORTED REPEATING MEETINGS (7 Nov 2026, brief "Calendar import repeats", 5A.2 and 5B).
+// The planner tops up a weekly or daily series to ~60 days ahead by copying its last row
+// (topUpRecurringSeries). For an imported meeting that copy carries the import's series id
+// ("imp<time>-s<n>") but no srcUid and no importId. Before this change the top-up ignored
+// the file's end, and Undo left those copies behind.
+// A copy is UNTOUCHED when nothing about it differs from what the top-up made: only the
+// top-up's own fields, not ticked, the same words, place, people, notes and times as the
+// meeting's last row from the file, on the meeting's own pattern, alone on its date, and
+// no reminder aimed at it. Anything else counts as changed, and a changed row is kept.
+// ---------------------------------------------------------------------------
+const CAL_TOPUP_KEYS = new Set(['id', 'title', 'timeStart', 'timeEnd', 'date', 'location', 'with', 'notes', 'allDay', 'done', 'recurring', 'seriesId', 'recurType']);
+function calImportSeriesIds(importId) {
+  const out = new Set();
+  (state.appointments || []).forEach(a => {
+    const sid = String(a.seriesId || '');
+    if (a.shared || !CAL_IMPORT_SERIES.test(sid)) return;
+    if (!importId || sid.indexOf(importId + '-s') === 0) out.add(sid);
+  });
+  return [...out];
+}
+function calImportSeriesInfo(sid) {
+  const rows = (state.appointments || []).filter(a => !a.shared && a.seriesId === sid).sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+  const fileRows = rows.filter(a => a.srcUid);
+  const repeats = rows.filter(a => !a.srcUid && !a.importId);
+  const lastFile = fileRows.length ? fileRows[fileRows.length - 1] : null;
+  // the meeting as the top-up copied it: its last row from the file; or, once an Undo has
+  // taken the file's rows, the look most of the copies share (the earliest such copy anchors the pattern)
+  let model = lastFile;
+  if (!model && repeats.length) {
+    const sig = a => JSON.stringify([a.title, a.timeStart || '', a.timeEnd || '', a.location || '', a.with || '', a.notes || '', !!a.allDay]);
+    const tally = {};
+    repeats.forEach(a => { tally[sig(a)] = (tally[sig(a)] || 0) + 1; });
+    const best = Object.keys(tally).sort((p, q) => tally[q] - tally[p])[0];
+    model = repeats.find(a => sig(a) === best);
+  }
+  const type = (repeats.find(a => a.recurType) || {}).recurType || ((state.recurRules || {})[sid] || {}).type || inferRecurType(fileRows.length >= 3 ? fileRows : rows) || null;
+  const dateCount = {};
+  rows.forEach(a => { dateCount[a.date] = (dateCount[a.date] || 0) + 1; });
+  // dates an unfired reminder is aimed at: the row's own reminder, or the series' reminder
+  const aimed = new Set();
+  (state.reminders || []).forEach(r => {
+    if (r.fired || !r.link) return;
+    if (r.link.type === 'appt') aimed.add('id:' + r.link.id);
+    if (r.link.type === 'series' && r.link.seriesId === sid) rows.forEach(a => {
+      try { if (r.offset != null && whenMsFromOffset(a, r.offset) === r.whenMs) aimed.add('id:' + a.id); } catch (e) {}
+    });
+  });
+  return { sid, rows, fileRows, repeats, lastFile, model, type, dateCount, aimed };
+}
+function calImportRepeatUntouched(a, info) {
+  const m = info.model;
+  if (!m || !info.type) return false;
+  if (a.srcUid || a.importId || a.shared || a.detached || a.done) return false;
+  if (Object.keys(a).some(k => !CAL_TOPUP_KEYS.has(k))) return false;
+  if (a.recurType && a.recurType !== info.type) return false;
+  const same = (p, q) => (p == null ? '' : p) === (q == null ? '' : q);
+  if (!same(a.title, m.title) || !same(a.timeStart, m.timeStart) || !same(a.timeEnd, m.timeEnd) || !same(a.location, m.location)
+      || !same(a.with, m.with) || !same(a.notes, m.notes) || !!a.allDay !== !!m.allDay) return false;
+  if ((info.dateCount[a.date] || 0) > 1) return false;
+  if (info.aimed.has('id:' + a.id)) return false;
+  // on the meeting's own pattern, counted from the model row
+  const days = Math.round((new Date(a.date + 'T12:00:00') - new Date(m.date + 'T12:00:00')) / 86400000);
+  const dow = new Date(a.date + 'T12:00:00').getDay();
+  if (info.type === 'weekly' && days % 7 !== 0) return false;
+  if (info.type === 'weekdays' && (dow === 0 || dow === 6)) return false;
+  return true;
+}
+// After rows are removed: unfired reminders aimed at them go with them (as deleteAppointment
+// does), and a series with nothing left loses its series reminder, rule and end.
+function calImportTidyAfterRemoval(removedRows) {
+  const sids = new Set();
+  removedRows.forEach(a => { cleanupItemReminders('appt', a.id); if (a.seriesId) sids.add(a.seriesId); });
+  sids.forEach(sid => {
+    if ((state.appointments || []).some(a => a.seriesId === sid)) { syncSeriesReminders(sid); return; }
+    cleanupSeriesReminders(sid);
+    if (state.recurRules) delete state.recurRules[sid];
+    if (state.recurEnds) delete state.recurEnds[sid];
+  });
+}
+// The one-time pass, once per member (record: calImportRepeatsAt, saved with the planner).
+//  · every series template from a calendar file gets the same cleaning as its rows (5A.2);
+//  · a meeting whose rows stop before the end of the 90 days its import brought in was ended
+//    by its file (a meeting with no end fills those 90 days): its untouched repeats after its
+//    last row from the file are removed, and that date becomes the series' end;
+//  · a meeting whose import was undone, leaving only the planner's repeats: the untouched
+//    ones are removed, and a changed one left is the series' last;
+//  · a meeting with no end in its file is left as it is.
+function calImportRepeatsOnce() {
+  if (state.calImportRepeatsAt) return null;
+  const report = { templates: 0, ended: 0, removed: 0, kept: 0, orphansRemoved: 0 };
+  const rules = state.recurRules || {};
+  Object.keys(rules).forEach(sid => {
+    if (!CAL_IMPORT_SERIES.test(sid)) return;
+    ['title', 'location'].forEach(k => {
+      if (typeof rules[sid][k] === 'string' && /[<>"]/.test(rules[sid][k])) { rules[sid][k] = calImportClean(rules[sid][k]); report.templates++; }
+    });
+  });
+  const live = new Set((state.calImports || []).map(im => im.id));
+  const removedRows = [];
+  calImportSeriesIds(null).forEach(sid => {
+    const info = calImportSeriesInfo(sid);
+    if (!info.repeats.length) return;
+    const importId = sid.replace(/-s\d+$/, '');
+    let drop = [];
+    if (!info.lastFile) {
+      if (live.has(importId)) return;                 // no rows from the file, but the import still stands: leave it
+      drop = info.repeats.filter(a => calImportRepeatUntouched(a, info));
+      report.orphansRemoved += drop.length;
+      // the import is gone, so the meeting is over: a changed copy stays, and is the last
+      const keep = info.rows.filter(a => !drop.includes(a));
+      if (keep.length) { state.recurEnds = state.recurEnds || {}; if (!state.recurEnds[sid]) state.recurEnds[sid] = keep[keep.length - 1].date; }
+    } else {
+      const at = Number(importId.slice(3));
+      if (!(at > 1e12) || !info.type) return;
+      const win = new Date(dateKey(new Date(at)) + 'T12:00:00'); win.setDate(win.getDate() + 90);
+      const next = new Date(info.lastFile.date + 'T12:00:00');
+      do { next.setDate(next.getDate() + (info.type === 'weekly' ? 7 : 1)); } while (info.type === 'weekdays' && (next.getDay() === 0 || next.getDay() === 6));
+      if (dateKey(next) > dateKey(win)) return;       // filled its 90 days: the file gave no end we can see
+      const endKey = info.lastFile.date;
+      const after = info.repeats.filter(a => a.date > endKey);
+      drop = after.filter(a => calImportRepeatUntouched(a, info));
+      report.kept += after.length - drop.length;
+      report.ended++;
+      state.recurEnds = state.recurEnds || {};
+      if (!state.recurEnds[sid]) state.recurEnds[sid] = endKey;      // a member's own end is kept
+      if (rules[sid] && (!rules[sid].until || rules[sid].until > state.recurEnds[sid])) rules[sid].until = state.recurEnds[sid];
+      report.removed += drop.length;
+    }
+    if (!drop.length) return;
+    const ids = new Set(drop.map(a => a.id));
+    state.appointments = state.appointments.filter(a => !ids.has(a.id));
+    removedRows.push(...drop);
+  });
+  calImportTidyAfterRemoval(removedRows);
+  state.calImportRepeatsAt = new Date().toISOString();
+  return report;
 }
 
 // ---------------------------------------------------------------------------
@@ -13430,6 +13652,8 @@ function parseIcsToPreview(text, opts) {
 
     const isRecurring = !!ev.rrule || dates.length > 1;
     if (isRecurring) counts.recurringMeetings++; else counts.oneOffs++;
+    // 7 Nov 2026: where the file ends this meeting (null = the file gives no end).
+    const endKey = isRecurring ? calFileSeriesEnd(evForExpand, localZone) : null;
     counts.occurrences += dates.length;
 
     groups.push({
@@ -13441,6 +13665,7 @@ function parseIcsToPreview(text, opts) {
       recurring: isRecurring,
       patternLabel: describePattern(ev.rrule, dates.length),
       dates,
+      endKey,                                 // not shown; commit records it as the series' end
       selected: true,                         // opt-OUT: the person unticks what they don't want
     });
   });
@@ -13609,6 +13834,8 @@ function commitCalImport() {
       });
       added++;
     });
+    // 7 Nov 2026: the file's end is the series' end, so the planner's top-up never runs past it.
+    if (seriesId && g.endKey) { state.recurEnds = state.recurEnds || {}; state.recurEnds[seriesId] = g.endKey; }
   });
   state.calImports = state.calImports || [];
   state.calImports.push({ id: importId, at: Date.now(), count: added, meetings: sel.length });
@@ -13632,7 +13859,16 @@ function renderCalImportHistory() {
 }
 function undoCalImport(importId) {
   const before = (state.appointments || []).length;
-  state.appointments = (state.appointments || []).filter(a => a.importId !== importId);
+  // 7 Nov 2026: also the planner's own repeats of this import's meetings (they carry its
+  // series id but not its importId), unless the member has changed one — that one stays.
+  const gone = new Set();
+  calImportSeriesIds(importId).forEach(sid => {
+    const info = calImportSeriesInfo(sid);
+    info.repeats.forEach(a => { if (calImportRepeatUntouched(a, info)) gone.add(a.id); });
+  });
+  const removedRows = (state.appointments || []).filter(a => a.importId === importId || gone.has(a.id));
+  state.appointments = (state.appointments || []).filter(a => !(a.importId === importId || gone.has(a.id)));
+  calImportTidyAfterRemoval(removedRows);
   const removed = before - state.appointments.length;
   state.calImports = (state.calImports || []).filter(im => im.id !== importId);
   renderAppointments(); renderScheduleGrid(); renderCalStrip(); renderCalImportHistory();
