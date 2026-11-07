@@ -17,7 +17,23 @@
      checkout. NOTE: verify data-rewardful key against Rewardful > Company settings
      before ship — 1e3933 is from records, dashboard wins if it differs. -->
 <script>(function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');</script>
-<script async src="https://r.wdfl.co/rw.js" data-rewardful="1e3933" data-domains="voicefirstdayplanner.com,app.voicefirstdayplanner.com"></script>
+<!-- Brief 1545 v2 + Dave 16:39: Rewardful's script loads only after Accept (cookie vfp_consent=yes, shared with the
+     website). Before an answer, or after No thanks, it is never fetched. With a yes it loads as before, at once, with
+     the same key and domains, so a ?via= referral still reaches checkout (window.Rewardful.referral). -->
+<script>
+window.vfpRewardfulStart = function () {
+  try {
+    if (window.__vfpRw || !/(?:^|;\s*)vfp_consent=yes(?:;|$)/.test(document.cookie)) return;
+    window.__vfpRw = true;
+    var t = document.createElement('script');
+    t.async = true; t.src = 'https://r.wdfl.co/rw.js';
+    t.setAttribute('data-rewardful', '1e3933');
+    t.setAttribute('data-domains', 'voicefirstdayplanner.com,app.voicefirstdayplanner.com');
+    document.head.appendChild(t);
+  } catch (e) {}
+};
+window.vfpRewardfulStart();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
@@ -1631,10 +1647,28 @@ button.pm-box:hover { border-color: var(--orange); }
 .gu-send { display: block; width: 100%; margin: 2px 0 6px; background: none; border: 1px solid var(--border); border-radius: 8px; padding: 9px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--navy, #0C447C); cursor: pointer; }
 .gu-pick { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; border-bottom: 0.5px solid var(--border); padding: 12px 4px; font-family: var(--font); font-size: 14.5px; color: var(--text); cursor: pointer; }
 .gu-pick i { font-size: 17px; color: var(--text-mid); }
+.gu-pick.on { background: var(--ice); font-weight: 600; }                 /* Groups 4b fix 1: the tap shows at once */
+.gu-pick.on i { color: var(--navy, #0C447C); }
+.gu-pick:disabled { cursor: default; }
+.gu-pick:disabled:not(.on) { opacity: .5; }
+.appt-cal-label { font-size: 11px; font-weight: 600; color: var(--text-mid); margin: 0 0 4px 2px; }
+.grp-name-inp { width: 100%; margin: 4px 0 6px; }
+.grp-name-hint { font-size: 12px; color: var(--text-light); margin: 0 0 10px 2px; }
+.grp-name-miss { font-size: 12.5px; color: var(--danger-text); margin: -4px 0 8px 2px; }
 
 /* ============================================================
    TOAST NOTIFICATIONS
    ============================================================ */
+/* Brief 1545 v2: the cookie notice (same words as the website), until the person answers */
+.vfp-consent { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100000; background: var(--card); color: var(--text); border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.14); padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+.vfp-consent-in { max-width: 640px; margin: 0 auto; }
+.vfp-consent p { margin: 0 0 10px; }
+.vfp-consent-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vfp-consent button { border-radius: 8px; padding: 9px 16px; font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; }
+.vfp-consent .vfp-yes { background: var(--orange); color: var(--on-accent); border: none; }
+.vfp-consent .vfp-no { background: none; color: var(--text); border: 1px solid var(--border); }
+.vfp-consent a { margin-left: auto; color: var(--accent-on-light); font-weight: 600; }
 .toast {
   position: absolute;
   left: 0;
@@ -3019,7 +3053,17 @@ body.pv #demo-banner { position: relative; z-index: 3; }
             <input type="date" id="appt-date" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:var(--card)">
           </div>
           <input class="task-inp" id="appt-location" placeholder="Location or link (optional)" style="width:100%;margin-bottom:8px">
-          <select id="appt-cal" class="appt-cal" style="display:none"></select>
+          <div id="appt-cal-label" class="appt-cal-label" style="display:none">Calendar</div>
+          <select id="appt-cal" class="appt-cal" style="display:none" aria-labelledby="appt-cal-label"></select>
+          <div id="appt-repeat-wrap" style="display:none">
+            <div class="appt-cal-label" id="appt-repeat-label">Repeat</div>
+            <select id="appt-repeat" class="appt-cal" aria-labelledby="appt-repeat-label">
+              <option value="">Does not repeat</option>
+              <option value="daily">Every day</option>
+              <option value="weekdays">Every weekday</option>
+              <option value="weekly">Every week</option>
+            </select>
+          </div>
           <div style="display:flex;gap:6px">
             <button onclick="addAppointment()" class="add-btn" style="flex:1">Save appointment</button>
             <button onclick="toggleApptForm()" style="flex:1;background:none;border:1px solid var(--border);border-radius:8px;padding:7px;font-family:var(--font);font-size:12px;color:var(--text-mid);cursor:pointer">Cancel</button>
@@ -3799,7 +3843,18 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-handle"></div>
     <div class="modal-title" id="gn-title"></div>
     <div class="modal-sub" id="gn-sub"></div>
-    <button class="modal-cta" onclick="closeGroupsSheet('groups-notice-modal')">OK</button>
+    <button class="modal-cta" onclick="closeGroupsSheet('groups-notice-modal'); vfpWarnResume()">OK</button>
+  </div>
+</div>
+<!-- Groups 4b: a paused group's warning (at the pause, 7 days left, 1 day left), once each -->
+<div class="modal-overlay" id="groups-warn-modal" role="alertdialog" aria-labelledby="gw-title" aria-describedby="gw-sub">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="gw-title"></div>
+    <div class="modal-sub" id="gw-sub"></div>
+    <button class="modal-cta" id="gw-take" onclick="vfpWarnTakeOver()">Take over</button>
+    <button class="modal-close-btn" id="gw-copy" onclick="vfpWarnKeepCopy()">Keep a copy in my planner</button>
+    <button class="modal-close-btn" onclick="vfpWarnGotIt()">Got it</button>
   </div>
 </div>
 <div class="modal-overlay" id="groups-join-modal" role="dialog" aria-labelledby="gj-title" aria-describedby="gj-sub">
@@ -3807,6 +3862,12 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-handle"></div>
     <div class="modal-title" id="gj-title"></div>
     <div class="modal-sub" id="gj-sub"></div>
+    <div id="gj-name-wrap" style="display:none">
+      <div class="appt-cal-label" id="gj-name-label">Your first name</div>
+      <input class="task-inp grp-name-inp" id="gj-name" maxlength="40" autocomplete="given-name" aria-labelledby="gj-name-label">
+      <div class="grp-name-hint">Everyone in the group sees this name.</div>
+      <div class="grp-name-miss" id="gj-name-miss" style="display:none">Add your first name to join.</div>
+    </div>
     <button class="modal-cta" id="gj-join" onclick="vfpJoinNow()">Join</button>
     <button class="modal-close-btn" onclick="vfpJoinNotNow()">Not now</button>
   </div>
@@ -4193,6 +4254,116 @@ const SB_CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.lengt
 // Sign in with Apple (1 Oct): if Apple or Supabase sends an error back to the redirect, it
 // arrives in the address (?error=… or #error=…). The client keeps no session and does not
 // report it, so it is read here, before the client starts, and shown on the auth screen.
+// ============================================================
+// META PIXEL AND WHERE EACH SIGN-UP CAME FROM (7 Nov 2026, brief 1545 v2)
+// · THE CHOICE: one first-party cookie, vfp_consent = yes | no, on .voicefirstdayplanner.com, so the website and
+//   the app share it: an answer on either counts on both. Until there is an answer, the app shows the website's
+//   notice, in the same words, with Accept, No thanks and a Privacy link. The cookie only records the answer.
+// · REWARDFUL (affiliates) also loads only after Accept (Dave, 7 Nov 16:39): see the script at the top of the page.
+// · THE PIXEL (1386339244568589) loads only after Accept. PageView once per load (or at the moment of Accept);
+//   CompleteRegistration once per new account, when the database says so. Nothing personal goes to Meta: no
+//   email, no name, no planner contents; advanced matching off; automatic events off (autoConfig), so no button
+//   text or page content is read. Before it loads, the address bar loses anything that isn't for Meta (sign-in
+//   tokens, error text, invite codes, vfp_ref, vfp_first); the rest stays as it was.
+// · WHERE THEY CAME FROM: read from this visit's address (UTM tags, fbclid; the website may add vfp_ref and
+//   vfp_first for its own first visit) and the referring page (address only, no ?query or #part). Kept in this
+//   page's memory; kept on the device (localStorage vfp_first_visit, first visit only, never overwritten) only
+//   after Accept, and taken off it on No thanks. Sign-up sends it with the new account either way; the database
+//   saves it with the account (file VFP_SQL_signup_source). It is never sent to Meta.
+// ============================================================
+const VFP_PIXEL_ID = '1386339244568589';
+const VFP_FIRST_VISIT_KEY = 'vfp_first_visit';
+const VFP_PRIVACY_URL = 'https://voicefirstdayplanner.com/privacy-policy';
+function vfpConsent() { try { const m = document.cookie.match(/(?:^|;\s*)vfp_consent=(yes|no)(?:;|$)/); return m ? m[1] : ''; } catch (e) { return ''; } }
+function vfpSetConsent(v) {
+  try {
+    const shared = /(^|\.)voicefirstdayplanner\.com$/.test(location.hostname) ? '; domain=.voicefirstdayplanner.com' : '';
+    document.cookie = 'vfp_consent=' + v + '; path=/; max-age=31536000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '') + shared;
+  } catch (e) {}
+}
+// This visit's landing: what the address and the referring page say, now (memory only).
+const vfpLanding = (function () {
+  try {
+    const p = new URLSearchParams(location.search);
+    const g = (k, max) => (p.get(k) || '').replace(/[\u0000-\u001f<>"]/g, '').trim().slice(0, max);
+    const addr = v => {
+      try { const u = new URL(v); return /^https?:$/.test(u.protocol) && u.host !== location.host ? (u.origin + u.pathname).slice(0, 300) : ''; }
+      catch (e) { return ''; }
+    };
+    const first = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/.test(p.get('vfp_first') || '') ? p.get('vfp_first') : new Date().toISOString();
+    return { utm_source: g('utm_source', 100), utm_medium: g('utm_medium', 100), utm_campaign: g('utm_campaign', 150),
+             fbclid: g('fbclid', 500), referrer: addr(p.get('vfp_ref') || '') || addr(document.referrer || ''), first_visit: first };
+  } catch (e) { return null; }
+})();
+// Kept on the device only with a yes; taken off with a no.
+function vfpFirstVisitKeep() {
+  try {
+    const c = vfpConsent();
+    if (c === 'no') { localStorage.removeItem(VFP_FIRST_VISIT_KEY); return; }
+    if (c === 'yes' && vfpLanding && !localStorage.getItem(VFP_FIRST_VISIT_KEY)) localStorage.setItem(VFP_FIRST_VISIT_KEY, JSON.stringify(vfpLanding));
+  } catch (e) {}
+}
+vfpFirstVisitKeep();
+// The first visit: the one kept on this device (yes only), else this visit's.
+function vfpFirstVisit() {
+  try {
+    if (vfpConsent() === 'yes') {
+      const v = JSON.parse(localStorage.getItem(VFP_FIRST_VISIT_KEY) || 'null');
+      if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+    }
+  } catch (e) {}
+  return vfpLanding;
+}
+let vfpPixelOn = false;
+function vfpPixelStart() {
+  if (vfpPixelOn || vfpConsent() !== 'yes') return;                          // only after Accept
+  vfpPixelOn = true;
+  try {
+    // What Meta is told of the address: nothing that isn't for it. Only these leave the address bar.
+    const drop = ['code', 'token', 'token_hash', 'access_token', 'refresh_token', 'type', 'error', 'error_code', 'error_description', 'join', 'vfp_ref', 'vfp_first'];
+    const p = new URLSearchParams(location.search);
+    let changed = false;
+    drop.forEach(k => { if (p.has(k)) { p.delete(k); changed = true; } });
+    let h = location.hash;
+    if (/[=&]/.test(h)) { h = ''; changed = true; }                             // a sign-in return (#access_token=…)
+    if (changed) { const q = p.toString(); history.replaceState(history.state, '', location.pathname + (q ? '?' + q : '') + h); }
+    !function (f, b, e, v, n, t, x) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v;
+      x = b.getElementsByTagName(e)[0]; x.parentNode.insertBefore(t, x); }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('set', 'autoConfig', false, VFP_PIXEL_ID);                             // no automatic events: page content is never read
+    fbq('init', VFP_PIXEL_ID);                                                  // no customer data: advanced matching off
+    fbq('track', 'PageView');
+  } catch (e) {}
+}
+function vfpPixelTrack(name) { try { if (vfpConsent() !== 'yes') return; vfpPixelStart(); if (typeof window.fbq === 'function') window.fbq('track', name); } catch (e) {} }
+// Once signed in: the database fills in a missing source (new accounts only, either way), and, only with a yes,
+// says once per account whether this is a new account's first session; then CompleteRegistration goes to Meta.
+async function vfpSignupCheck() {
+  if (!sb || !authUserId || isDemo) return;
+  const yes = vfpConsent() === 'yes';
+  try {
+    const { data, error } = await sb.rpc('vfp_signup_first_session', { p_src: vfpFirstVisit(), p_send: yes });
+    if (yes && !error && data && data.registration === true) vfpPixelTrack('CompleteRegistration');
+  } catch (e) { /* before the SQL is in, or no signal: nothing sent */ }
+}
+// The notice: the website's words, until the person answers (here or on the website).
+function vfpConsentNotice() {
+  if (vfpConsent() || document.getElementById('vfp-consent')) return;
+  const bar = document.createElement('div');
+  bar.id = 'vfp-consent'; bar.className = 'vfp-consent'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Cookies');
+  bar.innerHTML = '<div class="vfp-consent-in"><p>We use cookies to see how people use this site, and whether our posts on Facebook and Instagram are working. They only start if you say yes.</p>'
+    + '<div class="vfp-consent-row"><button type="button" class="vfp-yes" onclick="vfpConsentAnswer(\'yes\')">Accept</button>'
+    + '<button type="button" class="vfp-no" onclick="vfpConsentAnswer(\'no\')">No thanks</button>'
+    + '<a href="' + VFP_PRIVACY_URL + '" target="_blank" rel="noopener">Privacy</a></div></div>';
+  document.body.appendChild(bar);
+}
+function vfpConsentAnswer(v) {
+  vfpSetConsent(v);
+  const bar = document.getElementById('vfp-consent'); if (bar) bar.remove();
+  vfpFirstVisitKeep();
+  if (v === 'yes') { if (window.vfpRewardfulStart) window.vfpRewardfulStart(); vfpPixelStart(); vfpSignupCheck(); }
+}
+
 const AUTH_RETURN_ERROR = (function () {
   try {
     const p = new URLSearchParams((location.search || '').replace(/^\?/, '') + '&' + (location.hash || '').replace(/^#/, ''));
@@ -4415,6 +4586,7 @@ async function restoreSession() {
   startAutosave();
   if (!sb) return;  // local mode -> stay on the auth screen
   const { data: { session } } = await sb.auth.getSession();
+  vfpPixelStart();   // Meta Pixel, only after Accept: PageView (the address has been read by now; it takes out what isn't for Meta)
   if (AUTH_RETURN_ERROR) {
     try { history.replaceState({}, '', location.pathname); } catch (e) {}   // the error leaves the address bar
     if (!session) { authMsg(AUTH_RETURN_ERROR, true); return; }
@@ -4424,6 +4596,7 @@ async function restoreSession() {
     return;
   }
   authUserId = session.user.id;
+  vfpSignupCheck();   // a new account's first session: its source, and CompleteRegistration once (only after Accept)
   const meta = session.user.user_metadata || {};
   const email = session.user.email || '';
   state.user = { name: meta.name || meta.full_name || email.split('@')[0], email };
@@ -5116,6 +5289,7 @@ async function signIn() {
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
   if (error) { authMsg(error.message, true); return; }
   authUserId = data.user.id;
+  vfpSignupCheck();   // a new account's first session: its source, and CompleteRegistration once (only after Accept)
   state.user = { name: data.user.user_metadata?.name || email.split('@')[0], email };
   authMsg('');
   await loadState();
@@ -5134,7 +5308,8 @@ async function signUp() {
     return;
   }
   authMsg('Creating your account…');
-  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name } } });
+  // vfp_src: where this person came from (brief 1545), saved by the database with the new account. Never sent to Meta.
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, vfp_src: vfpFirstVisit() || { first_visit: new Date().toISOString() } } } });
   if (error) { authMsg(error.message, true); return; }
   if (!data.session) {
     // Email confirmation is enabled in Supabase — user must confirm first.
@@ -5143,6 +5318,7 @@ async function signUp() {
     return;
   }
   authUserId = data.user.id;
+  vfpSignupCheck();   // signed in at once (no email check): CompleteRegistration once (only after Accept)
   state.user = { name, email };
   authMsg('');
   document.getElementById('auth-screen').style.display = 'none';
@@ -6892,6 +7068,7 @@ function processVoice(text) {
   text = text.replace(/^\s*ed\b[,.:;]?\s*/i, 'Add ');
   text = text.replace(/^\s*(?:and|ad)\b/i, 'Add');
   const heardAs = text;
+  if (typeof vfpVoiceTidy === 'function') text = vfpVoiceTidy(text);   // Groups 4b fixes 2, 5, 6 (the Heard line keeps the words as heard)
   // 30 Sep: punctuation the speech engine puts straight after a leading command word
   // ("Add, call the bank") goes with the word, so no branch keeps it. Nothing else
   // about the words changes; the Heard line still shows what was heard.
@@ -6955,10 +7132,12 @@ function processVoice(text) {
   // 30 Sep ruling §4.1: a spoken day ("on the third") is read by the appointment path too.
   // Groups step 4: "… on our calendar" / "… to the <group name> calendar" → that group's shared calendar.
   // Only a member with a live shared calendar can match; anyone else's words go exactly as before.
-  let vfpCalTo = null;
+  let vfpCalTo = null, vfpAllDay = false;
   if (hasClockTime && !explicitRoute && typeof vfpCalVoiceTarget === 'function') { const r = vfpCalVoiceTarget(text); if (r) { vfpCalTo = r.g; text = r.text; } }
-  const apText = vtOrdinalDates(text), apT = vtOrdinalDates(vfpCalTo ? text.toLowerCase() : t);
-  if (hasClockTime && !explicitRoute) {
+  // Groups 4b fix 6: no time said, but a shared calendar named → an all-day shared event (weekly for "every <day>").
+  if (!hasClockTime && !explicitRoute && typeof vfpCalVoiceTarget === 'function' && vfpGroupsOn()) { const r = vfpCalVoiceTarget(text); if (r) { vfpCalTo = r.g; text = r.text; vfpAllDay = true; } }
+  const apText = vtOrdinalDates(vfpPluralDays(text)), apT = vtOrdinalDates(vfpPluralDays(vfpCalTo ? text.toLowerCase() : t));   // 4b: "on Thursdays" = every Thursday
+  if ((hasClockTime || vfpAllDay) && !explicitRoute) {
     let text = apText, t = apT;   // this branch only; every other branch keeps the words as heard
     const toMin = (h, m) => h * 60 + m;
     const fromMin = tot => { tot = ((tot % 1440) + 1440) % 1440; return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; };
@@ -7181,7 +7360,7 @@ function processVoice(text) {
 
       const seriesId = Date.now();
       const dates = collectRecurDates(recurrence.type, firstDate, 12);
-      if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: apptTitle, date: dates[0], timeStart, timeEnd, repeat: recurrence.type }, `Recurring appointment added to the ${vfpCalTo.name} calendar: "${apptTitle}" ${recurLabel} at ${fmt12(timeStart)}`); return; }   // Groups step 4
+      if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: apptTitle, date: dates[0], timeStart, timeEnd, allDay: vfpAllDay, repeat: recurrence.type }, `Recurring appointment added to the ${vfpCalTo.name} calendar: "${apptTitle}" ${recurLabel}` + (vfpAllDay ? ', all day' : ` at ${fmt12(timeStart)}`)); return; }   // Groups step 4 (4b: all day)
 
       dates.forEach((dk, i) => {
         state.appointments.push({ id: seriesId + i, title: apptTitle, timeStart, timeEnd, date: dk, location: '', with: '', notes: '', allDay: false, done: false, recurring: true, seriesId, recurType: recurrence.type });
@@ -7213,7 +7392,7 @@ function processVoice(text) {
       return;
     }
 
-    if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: clean || text, date: apptDate, timeStart, timeEnd }, `Appointment added to the ${vfpCalTo.name} calendar: "${clean}" at ${fmt12(timeStart)}`); return; }   // Groups step 4
+    if (vfpCalTo) { vfpCalVoiceAdd(vfpCalTo, { title: clean || text, date: apptDate, timeStart, timeEnd, allDay: vfpAllDay }, `Appointment added to the ${vfpCalTo.name} calendar: "${clean || text}"` + (vfpAllDay ? ' on ' + fmtDateLabel(apptDate) + ', all day' : ` at ${fmt12(timeStart)}`)); return; }   // Groups step 4 (4b: all day)
     state.appointments.push({ id: Date.now(), title: clean || text, timeStart, timeEnd, date: apptDate, location: '', with: '', notes: '', allDay: false, done: false });
     viewingDate = apptDate;
     calViewMonth = new Date(apptDate + 'T12:00:00'); calViewMonth.setDate(1);
@@ -7784,6 +7963,24 @@ function toggleApptForm() {
   }
 }
 
+// Groups 4b fix 7 (Dave, 3 Nov: everything in the planner editable by hand): the add form's Repeat choice makes
+// the member's own series exactly as the voice path does (same rows, same series rule, same top-up later).
+function vfpOwnSeries(f, type) {
+  const names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const first = new Date(f.date + 'T12:00:00');
+  let guard = 0;
+  if (type === 'weekdays') while ((first.getDay() === 0 || first.getDay() === 6) && guard++ < 7) first.setDate(first.getDate() + 1);
+  const dates = collectRecurDates(type, first, 12);
+  const seriesId = Date.now();
+  dates.forEach((dk, i) => state.appointments.push({ id: seriesId + i, title: f.title, timeStart: f.timeStart, timeEnd: f.timeEnd, date: dk,
+    location: f.location || '', with: '', notes: '', allDay: false, done: false, recurring: true, seriesId, recurType: type }));
+  state.recurRules = state.recurRules || {};
+  state.recurRules[seriesId] = { seriesId, type, startDate: dates[0], timeStart: f.timeStart, timeEnd: f.timeEnd, title: f.title,
+    location: f.location || '', with: '', notes: '', allDay: false, until: null, exdates: [] };
+  const label = type === 'daily' ? 'every day' : type === 'weekdays' ? 'every weekday' : 'every ' + names[new Date(dates[0] + 'T12:00:00').getDay()];
+  return { seriesId, dates, label };
+}
+
 function addAppointment() {
   const title = document.getElementById('appt-title').value.trim();
   if (!title) { showToast('Please enter an appointment title'); return; }
@@ -7791,14 +7988,27 @@ function addAppointment() {
   const timeEnd = document.getElementById('appt-time-end').value;
   const date = document.getElementById('appt-date').value || viewingDate;
   const location = document.getElementById('appt-location').value.trim();
-  if (!(typeof vfpCalFormAdd === 'function' && vfpCalFormAdd({ title, timeStart, timeEnd, date, location })))   // Groups step 4: or a shared calendar
-  state.appointments.push({
-    id: Date.now(), title, timeStart, timeEnd, date, location, with: '', notes: '', allDay: false, done: false
-  });
+  const repEl = document.getElementById('appt-repeat'), repWrap = document.getElementById('appt-repeat-wrap');
+  const repeat = (repEl && repWrap && repWrap.style.display !== 'none') ? repEl.value : '';   // Groups 4b fix 7
+  let ownSeries = null;
+  if (!(typeof vfpCalFormAdd === 'function' && vfpCalFormAdd({ title, timeStart, timeEnd, date, location, repeat: repeat || null }))) {  // Groups step 4: or a shared calendar
+    if (repeat) ownSeries = vfpOwnSeries({ title, timeStart, timeEnd, date, location }, repeat);
+    else state.appointments.push({
+      id: Date.now(), title, timeStart, timeEnd, date, location, with: '', notes: '', allDay: false, done: false
+    });
+  }
   // Reset form
   document.getElementById('appt-title').value = '';
   document.getElementById('appt-location').value = '';
+  if (repEl) repEl.value = '';
   document.getElementById('appt-form').classList.add('hidden');
+  if (ownSeries) {
+    viewingDate = ownSeries.dates[0];
+    calViewMonth = new Date(viewingDate + 'T12:00:00'); calViewMonth.setDate(1);
+    updateViewingDateLabel(); renderAppointments(); renderScheduleGrid(); renderCalStrip();
+    showToast(`Recurring appointment added: "${title}" ${ownSeries.label}${timeStart ? ' at ' + fmt12(timeStart) : ''} (${ownSeries.dates.length} added)`);
+    return;
+  }
   // Navigate to appointment date
   viewingDate = date;
   calViewMonth = new Date(date + 'T12:00:00');
@@ -9395,6 +9605,7 @@ function quickAddAppt(hour) {
   document.getElementById('appt-time-end').value = `${h2}:00`;
   document.getElementById('appt-date').value = viewingDate;
   document.getElementById('appt-form').classList.remove('hidden');
+  if (typeof vfpCalFormShow === 'function') vfpCalFormShow();   // Groups 4b fix 3: the Calendar choice here too
   document.getElementById('appt-title').focus();
   showToast(`Adding appointment at ${hour < 12 ? hour+'am' : hour === 12 ? '12pm' : (hour-12)+'pm'}`);
 }
@@ -15199,10 +15410,18 @@ function renderAll() {
 // members whose own plan is Premium or above can join; no size limit; no seats, so nobody's plan
 // changes; a friend who goes to free is taken out by the database and told once (vfp_my_notices).
 // HIDDEN: the Settings section appears only for an account that is on a plan, and until
-// step 6 plans are made only by hand (VFP_SQL_1b). GROUPS_LIVE turns on what every member
-// would see (step 6): the empty "start a group" state.
+// step 6 plans are made only by hand (VFP_SQL_1b).
+// THE SWITCH (Groups 4b, brief 7 Nov v2 §1A): one database function, vfp_groups_switch(), says 'off',
+// 'friends' or 'all'. 'friends' opens friends' groups to every member (the empty "start a group" state and
+// New friends' group for own Pro); Duo, Family and Team stay as they are until 'all' (after step 6).
+// The page only reads it; the database enforces the same switch in vfp_friends_create, the emails and the deletes.
+// Before 4b's SQL is run, or with no signal, it reads 'off'.
 // ============================================================
-const GROUPS_LIVE = false;
+let vfpSwitch = 'off';
+function vfpFriendsOpen() { return vfpSwitch === 'friends' || vfpSwitch === 'all'; }
+// Groups 4b: the new voice behaviour is for members in a group, until friends' groups open. (The Repeat choice on
+// + Add is for every member: Dave, 7 Nov 15:05.)
+function vfpGroupsOn() { return !!(sb && authUserId && !isDemo) && ((vfpGroups && vfpGroups.length > 0) || vfpFriendsOpen()); }
 const GROUPS_JOIN_KEY = 'vfp_join_code';
 let vfpGroups = [];
 let vfpInviteLink = '';
@@ -15258,7 +15477,12 @@ function vfpGroupError(e) {
     not_available: 'Friends\u2019 groups aren\u2019t open yet.',
     list_full: 'This shared list is full.',
     calendar_full: 'This shared calendar is full.',
-    not_in_group: 'You\u2019re not in this group any more.'
+    not_in_group: 'You\u2019re not in this group any more.',
+    name_needed: 'Add your first name to join.',
+    already_yours: 'This group is already yours.',
+    not_paused: 'This group isn\u2019t paused, so there\u2019s nothing to take over.',
+    takeover_closed: 'It\u2019s too late to take this group over.',
+    not_for_plans: 'This plan can\u2019t be taken over from here.'
   };
   for (const k in words) if (m.indexOf(k) !== -1) return words[k];
   return 'That didn\u2019t work — please try again.';
@@ -15274,6 +15498,7 @@ async function loadGroups() {
   vfpGroups = [];
   if (sb && authUserId && !isDemo) {
     try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) { vfpGroups = d; vfpGroupsOk = true; } } catch (e) { /* no Groups yet: nothing shown */ }
+    try { const w = await vfpRpc('vfp_groups_switch'); if (w === 'off' || w === 'friends' || w === 'all') vfpSwitch = w; } catch (e) { /* before 4b: off */ }
   }
   renderGroups();
   loadGroupUpdates();   // Groups step 3: the orange button (nothing for a member with no group)
@@ -15287,13 +15512,24 @@ async function vfpGroupsStart() {
   await vfpSharedRefresh();
   vfpFlush();
   await vfpShowNotices();
+  await vfpShowWarnings();   // Groups 4b
   if (vfpPendingJoin()) openJoinSheet();
 }
 // Lines waiting for this member (friends' groups: taken out after going to free). Each shows once.
 async function vfpShowNotices() {
   let list = [];
   try { list = await vfpRpc('vfp_my_notices'); } catch (e) { return; }
-  const n = (Array.isArray(list) ? list : []).filter(x => x.kind === 'friends_dropped');
+  const all = Array.isArray(list) ? list : [];
+  // Groups 4b: "Pia has taken over Walkers" — told once to everyone else in the group.
+  const took = all.filter(x => x && x.kind === 'taken_over');
+  const n = all.filter(x => x && x.kind === 'friends_dropped');
+  if (took.length && !n.length) {
+    const t = took[took.length - 1];
+    document.getElementById('gn-title').textContent = (t.who || 'Someone') + ' has taken over ' + (t.group_name || 'your group');
+    document.getElementById('gn-sub').textContent = 'The group is active again, with its people, shared list and calendar.';
+    document.getElementById('groups-notice-modal').classList.add('open');
+    return;
+  }
   if (!n.length) return;
   const names = n.map(x => x.group_name).filter(Boolean);
   document.getElementById('gn-title').textContent = names.length === 1 ? 'You\u2019ve left ' + names[0] : 'You\u2019ve left ' + names.length + ' friends\u2019 groups';
@@ -15309,11 +15545,11 @@ function renderGroups() {
   // Friends' groups (brief 1345): anyone whose OWN plan is Pro can start one. Hidden until live:
   // until then only an account that already owns a group sees the button (the database checks the same).
   const ownPro = (state.entitlement && (state.entitlement.libraryPlan || state.entitlement.plan)) === 'pro';
-  const newFriends = ownPro && (GROUPS_LIVE || vfpGroups.some(p => p.i_own))
+  const newFriends = ownPro && (vfpFriendsOpen() || vfpGroups.some(p => p.i_own))
     ? '<div class="settings-row"><span class="grp-act" onclick="vfpNewFriendsGroup()"><i class="ti ti-users-plus"></i> New friends\u2019 group</span></div>' : '';
   if (!vfpGroups.length) {
-    sec.style.display = GROUPS_LIVE ? '' : 'none';
-    box.innerHTML = GROUPS_LIVE ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends : '';
+    sec.style.display = vfpFriendsOpen() ? '' : 'none';
+    box.innerHTML = vfpFriendsOpen() ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends : '';
     return;
   }
   sec.style.display = '';
@@ -15330,6 +15566,11 @@ function renderGroupPlan(pl) {
     const until = pl.takeover_until ? new Date(pl.takeover_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
     h += '<div class="grp-paused">' + (friends ? 'This group is paused because its owner is no longer on Pro.' : 'This plan is paused because its payment stopped.')
        + ' Shared things are kept until ' + grpEsc(until) + '.</div>';
+    // Groups 4b: a friends' group can be taken over by a member whose own plan is Pro (first one wins, the database decides).
+    // Duo, Family and Team: taking over means buying the plan, which comes with step 6.
+    const ownPro = (state.entitlement && state.entitlement.libraryPlan) === 'pro';
+    h += '<div class="grp-row">' + (friends && !own && ownPro ? '<span class="grp-act" onclick="vfpTakeOver(\'' + pl.plan_id + '\')"><i class="ti ti-crown"></i> Take over</span>' : '')
+       + ((pl.groups || [])[0] ? '<span class="grp-act" onclick="vfpKeepGroupCopy(\'' + pl.groups[0].group_id + '\')"><i class="ti ti-copy"></i> Keep a copy in my planner</span>' : '') + '</div>';
   }
   h += friends ? '<div class="grp-meta">People ' + pl.people_now + '</div>'
      : '<div class="grp-meta">Paid seats ' + pl.seats_used + ' of ' + pl.seats_paid + ' \u00b7 People ' + pl.people_now + ' of ' + pl.people_max
@@ -15455,6 +15696,8 @@ async function openJoinSheet() {
   try { r = await vfpRpc('vfp_invite_peek', { p_code: code }); } catch (e) { return; }   // try again next time the app opens
   vfpJoinPeek = r;
   b.style.display = 'none';
+  document.getElementById('gj-name-wrap').style.display = 'none';
+  document.getElementById('gj-name-miss').style.display = 'none';
   if (!r || !r.ok) {
     vfpClearJoin();
     t.textContent = 'This invite can\u2019t be used';
@@ -15480,15 +15723,30 @@ async function openJoinSheet() {
     else seat = 'You\u2019ll get Premium while you\u2019re on the plan.';
     s.textContent = r.owner_name + ' has invited you to their ' + (r.kind === 'friends' ? 'friends\u2019 group' : (GRP_KIND[r.kind] || 'plan')) + '. ' + seat;
     b.style.display = '';
+    // Groups 4b: joining needs a first name; the account's name is filled in when it has one.
+    const nameEl = document.getElementById('gj-name');
+    nameEl.value = r.my_name || '';
+    document.getElementById('gj-name-wrap').style.display = '';
   }
   document.getElementById('groups-join-modal').classList.add('open');
 }
 async function vfpJoinNow() {
   const code = vfpPendingJoin();
+  const nameEl = document.getElementById('gj-name');
+  const name = (nameEl ? nameEl.value : '').replace(/[<>"\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (code && !name) {                                                       // Groups 4b: no name, no join (the database says the same)
+    document.getElementById('gj-name-miss').style.display = '';
+    if (nameEl) nameEl.focus();
+    return;
+  }
   closeGroupsSheet('groups-join-modal');
   if (!code) return;
   try {
-    await vfpRpc('vfp_join', { p_code: code });
+    await vfpRpc('vfp_join', { p_code: code, p_name: name });
+    // The account had no name: this one becomes its name, so the next group fills it in.
+    if (vfpJoinPeek && !vfpJoinPeek.my_name) {
+      try { if (sb.auth.updateUser) await sb.auth.updateUser({ data: { name } }); if (state.user) state.user.name = name; } catch (e) {}
+    }
     vfpClearJoin();
     showToast('You\u2019ve joined ' + ((vfpJoinPeek && vfpJoinPeek.group_name) || 'the group'));
   } catch (e) {
@@ -15498,6 +15756,68 @@ async function vfpJoinNow() {
   await loadGroups();
   await vfpSharedRefresh();
   await loadEntitlement();
+}
+// ---- Groups 4b: warnings before a paused group is deleted (at the pause, 7 days left, 1 day left), once each ----
+let vfpWarnList = [], vfpWarnNow = null;
+async function vfpShowWarnings() {
+  let w = [];
+  try { w = await vfpRpc('vfp_my_warnings'); } catch (e) { return; }          // before 4b, or no signal: nothing
+  vfpWarnList = (Array.isArray(w) ? w : []).filter(x => x && !x.seen);
+  if (document.getElementById('groups-notice-modal').classList.contains('open')) return;   // after the notice's OK
+  vfpWarnNext();
+}
+function vfpWarnResume() { if (!vfpWarnNow && vfpWarnList.length) vfpWarnNext(); }
+function vfpWarnNext() {
+  vfpWarnNow = vfpWarnList.shift() || null;
+  const m = document.getElementById('groups-warn-modal');
+  if (!vfpWarnNow) { m.classList.remove('open'); return; }
+  const x = vfpWarnNow, name = x.group_name || 'Your group';
+  const when = x.delete_at ? new Date(x.delete_at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  document.getElementById('gw-title').textContent = x.stage === '1day' ? name + ': 1 day left' : x.stage === '7days' ? name + ': 7 days left' : name + ' is paused';
+  const why = x.kind !== 'friends' ? 'Its payment has stopped.'
+    : x.i_own ? 'Your account is no longer on Pro.' : 'The person who started it is no longer on Pro.';
+  const canTake = x.kind === 'friends' && !x.i_own && x.own_pro;
+  document.getElementById('gw-sub').textContent = why + ' It will be deleted on ' + when + ' unless someone takes it over.'
+    + (canTake ? ' As you\u2019re on Pro, you can take it over now.' : '') + ' Keep a copy puts its shared list and calendar in your own planner.';
+  document.getElementById('gw-take').style.display = canTake ? '' : 'none';
+  document.getElementById('gw-copy').style.display = x.group_id ? '' : 'none';
+  m.classList.add('open');
+}
+async function vfpWarnGotIt() {
+  const x = vfpWarnNow;
+  if (x) { try { await vfpRpc('vfp_warning_seen', { p_warning: x.warning_id }); } catch (e) {} }
+  vfpWarnNext();
+}
+async function vfpWarnTakeOver() { const x = vfpWarnNow; if (!x) return; document.getElementById('groups-warn-modal').classList.remove('open'); await vfpTakeOver(x.plan_id, x.warning_id); }
+function vfpWarnKeepCopy() { const x = vfpWarnNow; if (x && x.group_id) vfpKeepGroupCopy(x.group_id); }
+async function vfpTakeOver(planId, warningId) {
+  const pl = vfpGroups.find(p => p.plan_id === planId);
+  const name = (pl && (pl.groups || [])[0] && pl.groups[0].name) || (vfpWarnNow && vfpWarnNow.group_name) || 'this group';
+  if (!confirm('Take over ' + name + '? It becomes yours, with its people, shared list and calendar, and it\u2019s active again.')) { if (warningId) vfpWarnNext(); return; }
+  await vfpGroupsDo(async () => {
+    await vfpRpc('vfp_friends_take_over', { p_plan: planId });
+    if (warningId) { try { await vfpRpc('vfp_warning_seen', { p_warning: warningId }); } catch (e) {} }
+  }, 'You now run ' + name);
+  vfpCalRefresh();
+  if (warningId) vfpWarnNext();
+}
+// Keep a copy of a group: its list (what's still to get) and its calendar (from today, repeats kept) into the member's own planner.
+function vfpKeepGroupCopy(gid) {
+  const sh = vfpSharedGroup(gid);
+  const items = sh ? vfpSharedView(sh).filter(i => !i.done) : [];
+  let nItems = 0;
+  if (items.length) {
+    const list = findShopListByName('Shopping') || shopLists()[0];
+    const there = new Set(list.items.map(i => i.text.toLowerCase()));
+    items.forEach(i => { if (there.has(String(i.text).toLowerCase())) return; list.items.push({ id: Date.now() + nItems, text: i.text, done: false }); nItems++; });
+  }
+  const nAppts = vfpCalKeepCopy(gid, true);
+  try { persistNow(); } catch (e) {}
+  try { renderShopping(); apRefresh(); } catch (e) {}
+  const parts = [];
+  if (nItems) parts.push(nItems + (nItems === 1 ? ' list item' : ' list items'));
+  if (nAppts) parts.push(nAppts + (nAppts === 1 ? ' appointment' : ' appointments'));
+  showToast(parts.length ? 'Copied ' + parts.join(' and ') + ' to your planner' : 'Nothing left to copy');
 }
 function vfpJoinNotNow() { vfpClearJoin(); closeGroupsSheet('groups-join-modal'); }
 function vfpShowJoinNote() {
@@ -15727,7 +16047,14 @@ function vfpSharedVoiceTarget(t) {
   const live = vfpShared.filter(g => g.status === 'active');
   if (!live.length) return null;
   const dflt = () => live.find(g => g.group_id === vfpLastShared) || live.find(g => g.group_id === vfpActiveShared) || live[0];
-  const m = t.match(/(?:to|on|onto|in)\s+(?:our|the)\s+([a-z0-9'][a-z0-9' ]*?)\s+list\b/i);
+  const m = t.match(/(?:to|on|onto|in)\s+(?:our|the|my)\s+([a-z0-9'][a-z0-9' ]*?)\s+list\b/i);
+  // Groups 4b fix 2 (Dave, 3 Nov): "my Family list" → the shared Family list, unless the member has an own list of that name.
+  if (m && /\bmy\s/i.test(m[0])) {
+    const nm = m[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').replace(/\s{2,}/g, ' ').trim().toLowerCase();
+    if (!nm || shopLists().some(l => l.name.toLowerCase() === nm)) return null;      // their own list: today's behaviour
+    return live.find(g => g.name.toLowerCase() === nm)
+      || live.find(g => g.name.toLowerCase().indexOf(nm) >= 0 || nm.indexOf(g.name.toLowerCase()) >= 0) || null;
+  }
   if (m) {
     const nm = m[1].replace(/\b(?:shopping|grocery|groceries)\b/gi, '').replace(/\s{2,}/g, ' ').trim().toLowerCase();
     if (nm) {
@@ -15741,6 +16068,24 @@ function vfpSharedVoiceTarget(t) {
   }
   if (/(?:to|on|onto|in)\s+our\s+(?:list|shopping|groceries)\b/i.test(t)) return dflt();
   return null;
+}
+function vfpPluralDays(s) {
+  if (!vfpGroupsOn()) return s;
+  return String(s).replace(/\b(?:every\s+|on\s+)?(sun|mon|tues|wednes|thurs|fri|satur)days\b/gi, (m, d) => 'every ' + d + 'day');
+}
+// Groups 4b: dictation spellings, for members in a group only (everyone else's words go exactly as before).
+//  · a leading "added" / "adding" / "adds" is the command "add" (fix 2: "added Milk to my Family List");
+//  · "calender" is "calendar" (fix 6);
+//  · "Thurs", "Thur", "Tues", "Weds" read as the day; "Thursday's" is read as "Thursdays" (fix 5).
+//  · a plural day is a repeat (Dave, 7 Nov 15:05): "on Thursdays" = every Thursday, weekly; "on Thursday" = next Thursday, once.
+//    That is done for an appointment only (vfpPluralDays), so a task's words stay as they were.
+function vfpVoiceTidy(text) {
+  if (!vfpGroupsOn()) return text;
+  return String(text)
+    .replace(/^(\s*)(?:added|adding|adds)\b/i, '$1Add')
+    .replace(/\bcalend[ae]rs?\b/gi, m => (/s$/i.test(m) ? 'calendars' : 'calendar'))
+    .replace(/\b(sun|mon|tues|wednes|thurs|fri|satur)day(?:'s|’s)(?![a-z])/gi, '$1days')
+    .replace(/\b(?:thurs|thur)\b\.?/gi, 'Thursday').replace(/\btues\b\.?/gi, 'Tuesday').replace(/\bweds\b\.?/gi, 'Wednesday');
 }
 function vfpSharedVoiceAdd(g, text) {
   const raw = text.replace(/^\s*(?:add|put)\s+/i, '')
@@ -15884,7 +16229,7 @@ function renderGroupUpdates() {
     }
     if (nw.changes.length) {
       const upto = nw.changes.reduce((m, c) => (c.at > m ? c.at : m), '');
-      h += '<div class="gu-sub">Changed in a shared space</div>';
+      h += '<div class="gu-sub">Changes from your group</div>';
       h += nw.changes.map(c =>
         '<div class="cal-imp-row gu-row"><div class="cal-imp-main">' +
           '<div class="cal-imp-title gu-change">' + calEsc((c.by_name || 'Member') + ' ' + (VFP_CHANGE_WORD[c.what] || 'changed') + ' “' + c.text + '”') + '</div>' +
@@ -16072,7 +16417,13 @@ function closeVfpSend() { document.getElementById('vfp-send-modal').classList.re
 
 async function vfpSendTo(groupId, userId) {
   const d = vfpSendDraft;
-  if (!d) return;
+  if (!d || d.busy) return;
+  // Groups 4b fix 1: the name tapped lights up at once and the others wait, until the database answers.
+  const picks = Array.from(document.querySelectorAll('#vfp-send-rows .gu-pick'));
+  const tapped = picks.find(b => b.getAttribute('onclick') === "vfpSendTo('" + groupId + "'," + (userId ? "'" + userId + "'" : 'null') + ")");
+  picks.forEach(b => { b.disabled = true; b.classList.toggle('on', b === tapped); });
+  d.busy = true;
+  const unpick = () => { d.busy = false; picks.forEach(b => { b.disabled = false; b.classList.remove('on'); }); };
   const g = vfpSendTargets().find(x => x.group_id === groupId);
   const p = g && userId ? g.people.find(x => x.user_id === userId) : null;
   let res;
@@ -16084,12 +16435,13 @@ async function vfpSendTo(groupId, userId) {
     else if (/inbox_full/.test(m)) showToast((p ? p.name : 'They') + ' has too much waiting — try again later.');
     else if (/bad_item/.test(m)) showToast('That can’t be sent.');
     else showToast(vfpGroupError(res.error));
+    unpick();
     return;                                                        // the sheet stays open to try again
   }
   const r = (res && res.data) || {};
   closeVfpSend();
   if (p) showToast(r.again && !r.sent ? 'Already sent to ' + p.name : 'Sent to ' + p.name);
-  else if (r.full) showToast('Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') + ' — ' + r.full + ' had too much waiting');
+  else if (r.full) showToast('Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') + '. ' + r.full + ' couldn’t take any more right now.');
   else showToast('Sent to everyone in ' + (g ? g.name : 'the group'));
 }
 
@@ -16238,6 +16590,7 @@ function vfpCalInject() {
 }
 function vfpCalRender() {
   if (!vfpCalInject()) return;
+  vfpCalSyncReminders();
   try { renderAppointments(); renderScheduleGrid(); renderCalStrip(); } catch (e) {}
   try { renderWeek(); } catch (e) {}
   try { renderMonth(); renderYear(); } catch (e) {}
@@ -16247,17 +16600,46 @@ function vfpCalRender() {
 // ---- reading ----
 async function vfpCalLoad() {
   if (!sb || !authUserId || isDemo || !(vfpGroups && vfpGroups.length)) {
-    if (vfpGroupsOk && vfpCal.length) { vfpCal = []; vfpCalCacheSave(); }   // left every group: nothing shared stays on screen
+    if (vfpGroupsOk && vfpCal.length) { vfpCal = []; vfpCalCacheSave(); vfpCalFresh = true; }   // left every group: nothing shared stays on screen
     vfpCalRender();
     return;
   }
+  vfpCalFresh = false;
   try {
     const { data, error } = await sb.rpc('vfp_shared_calendars');
-    if (!error && Array.isArray(data)) { vfpCal = data; vfpCalCacheSave(); }
+    if (!error && Array.isArray(data)) { vfpCal = data; vfpCalCacheSave(); vfpCalFresh = true; }
   } catch (e) { /* no signal: keep the copy on this device */ }
   vfpCalRender();
 }
 function vfpCalRefresh() { clearTimeout(vfpCalTimer); vfpCalTimer = setTimeout(vfpCalLoad, 300); }
+
+// Groups 4b: reminders on shared events live in the member's own planner (state.reminders), linked by the event's
+// number, which is the same on every device. After each redraw they follow the event: a moved event moves its
+// reminder (by the same offset), a series reminder re-aims at its next day. When the database has just said an
+// event is gone, its unfired reminders go too. Nothing about a reminder is ever sent to the group.
+let vfpCalFresh = false;   // the calendars on screen are the database's answer from just now (not the copy on this device)
+function vfpCalSyncReminders() {
+  const rs = (state && state.reminders) || [];
+  if (!rs.length) return;
+  let changed = false;
+  rs.forEach(r => {
+    if (r.fired || !r.link || r.offset == null) return;
+    if (r.link.type === 'appt' && r.link.id < 0) {
+      const a = (state.appointments || []).find(x => x.id === r.link.id);
+      if (a) { const w = whenMsFromOffset(a, r.offset); if (w !== r.whenMs || r.text !== a.title) { r.whenMs = w; r.text = a.title; changed = true; } }
+    } else if (r.link.type === 'series' && r.link.seriesId < 0) {
+      const tg = seriesReminderTarget(r.link.seriesId, r.offset);
+      if (tg) { const w = whenMsFromOffset(tg, r.offset); if (w !== r.whenMs || r.text !== tg.title) { r.whenMs = w; r.text = tg.title; changed = true; } }
+    }
+  });
+  if (vfpCalFresh) {
+    const ids = new Set((state.appointments || []).filter(a => a.shared).map(a => a.id));
+    const sids = new Set((state.appointments || []).filter(a => a.shared && a.seriesId).map(a => a.seriesId));
+    const gone = removeRemindersFor(l => (l.type === 'appt' && l.id < 0 && !ids.has(l.id)) || (l.type === 'series' && l.seriesId < 0 && !sids.has(l.seriesId)));
+    if (gone) changed = true;
+  }
+  if (changed) { try { persistNow(); } catch (e) {} try { renderReminders(); } catch (e) {} }
+}
 
 // ---- writing: the queue ----
 function vfpCalEnqueue(op) {
@@ -16319,8 +16701,12 @@ function vfpCalAdd(g, f) {
 function vfpCalFormShow() {
   const sel = document.getElementById('appt-cal');
   if (!sel) return;
+  const lab = document.getElementById('appt-cal-label');
+  const rep = document.getElementById('appt-repeat-wrap');
+  if (rep) { rep.style.display = ''; const r = document.getElementById('appt-repeat'); if (r) r.value = ''; }   // Groups 4b fix 7: every member (Dave, 7 Nov 15:05)
   const live = vfpCalLive();
-  if (!live.length) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  if (!live.length) { sel.style.display = 'none'; sel.innerHTML = ''; if (lab) lab.style.display = 'none'; return; }
+  if (lab) lab.style.display = '';                                                                                              // Groups 4b fix 4
   sel.innerHTML = '<option value="">My calendar</option>'
     + live.map(g => '<option value="' + calEsc(g.group_id) + '">' + calEsc(g.name) + ' calendar (shared)</option>').join('');
   sel.value = '';
@@ -16377,7 +16763,8 @@ function vfpCalPopup(a) {
   if (!a || !a.shared) { box.style.display = 'none'; box.innerHTML = ''; return; }
   const s = a.shared;
   document.getElementById('ap-heading').textContent = s.name + ' calendar';
-  document.getElementById('ap-remind').style.display = 'none';
+  // Groups 4b (Dave, 3 Nov): a member sets their own reminder on a shared event; nobody else sees or gets it.
+  document.getElementById('ap-remind').style.display = s.paused ? 'none' : '';
   vfpApSendShow(false);
   let h = '<i class="ti ti-users"></i> Shared with everyone in ' + calEsc(s.name) + (s.by ? ' · added by ' + calEsc(s.by) : '');
   if (s.paused) {
@@ -16442,22 +16829,47 @@ function vfpCalConfirmDelete(ctx, mode) {
 }
 
 // Paused: copy what's still ahead into the member's own planner (once; tapping again adds nothing twice).
-function vfpCalKeepCopy(gid) {
+// Groups 4b (Dave, 3 Nov): a repeating event is copied as a repeating event — one series of the member's own,
+// from today, with its pattern, its skipped days left out and its end kept — not as separate appointments.
+function vfpCalKeepCopy(gid, quiet) {
   const fromK = dateKey(today);
-  const have = new Set((state.appointments || []).filter(a => !a.shared && a.fromCal).map(a => a.fromCal));
+  const mine = (state.appointments || []).filter(a => !a.shared && a.fromCal);
+  const have = new Set(mine.map(a => a.fromCal));
+  const haveSeries = new Set(mine.filter(a => a.recurring).map(a => a.fromCal.split('|').slice(0, 2).join('|')));
   const list = (state.appointments || []).filter(a => a.shared && a.shared.group_id === gid && a.date >= fromK);
+  const g = vfpCalGroup(gid);
+  const evs = g ? vfpCalView(g) : [];
   const now = Date.now();
-  let n = 0;
+  let n = 0, k = 0;
+  const series = {};
   list.forEach(a => {
     const key = gid + '|' + a.shared.ev + '|' + a.date;
     if (have.has(key)) return;
-    state.appointments.push({ id: now + n, title: a.title, timeStart: a.timeStart, timeEnd: a.timeEnd, date: a.date,
+    if (a.recurring && !a.detached && a.recurType) { (series[a.shared.ev] = series[a.shared.ev] || []).push(a); return; }
+    state.appointments.push({ id: now + k++, title: a.title, timeStart: a.timeStart, timeEnd: a.timeEnd, date: a.date,
                               location: a.location, with: a.with, notes: a.notes, allDay: a.allDay, done: false, fromCal: key });
     n++;
   });
+  Object.keys(series).forEach(ev => {
+    if (haveSeries.has(gid + '|' + ev)) return;                    // this series was copied before
+    const days = series[ev].sort((p, q) => (p.date < q.date ? -1 : 1));
+    const a0 = days[0], e = evs.find(x => x.id === ev) || {};
+    const sid = now + 100000 + k;
+    days.forEach(a => state.appointments.push({ id: now + k++, title: a.title, timeStart: a.timeStart, timeEnd: a.timeEnd, date: a.date,
+      location: a.location, with: a.with, notes: a.notes, allDay: a.allDay, done: false, recurring: true, seriesId: sid, recurType: a0.recurType,
+      fromCal: gid + '|' + ev + '|' + a.date }));
+    state.recurRules = state.recurRules || {};
+    state.recurRules[sid] = { seriesId: sid, type: a0.recurType, startDate: a0.date, timeStart: a0.timeStart, timeEnd: a0.timeEnd, title: a0.title,
+      location: a0.location || '', with: a0.with || '', notes: a0.notes || '', allDay: !!a0.allDay, until: e.until || null,
+      exdates: (e.skip || []).filter(d => d >= a0.date) };
+    if (e.until) { state.recurEnds = state.recurEnds || {}; state.recurEnds[sid] = e.until; }
+    n++;
+  });
+  if (quiet) return n;
   closeApptPopup();
   apRefresh();
   showToast(n ? 'Copied ' + n + (n === 1 ? ' appointment' : ' appointments') + ' to your planner' : 'Nothing left to copy');
+  return n;
 }
 // ============================================================
 // START
@@ -16468,6 +16880,7 @@ attachFieldMics();
 // so visitors land straight on the sign-up tab instead of Sign in.
 if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
 vfpShowJoinNote();   // Groups step 1: "sign in to join" when this device holds an invite link
+vfpConsentNotice();  // brief 1545 v2: the cookie notice, until the person answers here or on the website
 restoreSession();
 </script>
 
