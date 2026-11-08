@@ -235,6 +235,7 @@ html, body {
   text-align: center;
   opacity: 0.8;
 }
+.auth-tagline-2 { margin-top: -34px; }   /* 7 Nov: the second line sits under the first; the space below the pair stays 40px */
 .auth-card {
   background: var(--card);
   border-radius: var(--radius-lg);
@@ -1650,6 +1651,9 @@ button.pm-box:hover { border-color: var(--orange); }
 .gu-pick.on { background: var(--ice); font-weight: 600; }                 /* Groups 4b fix 1: the tap shows at once */
 .gu-pick.on i { color: var(--navy, #0C447C); }
 .gu-pick:disabled { cursor: default; }
+.vg-item { border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin: 0 0 12px; }   /* Groups step 5 */
+.vg-item .cal-imp-title { white-space: normal; }
+.gu-detail { white-space: pre-line; }
 .gu-pick:disabled:not(.on) { opacity: .5; }
 .appt-cal-label { font-size: 11px; font-weight: 600; color: var(--text-mid); margin: 0 0 4px 2px; }
 .grp-name-inp { width: 100%; margin: 4px 0 6px; }
@@ -2388,6 +2392,7 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
   <div class="auth-logo">VoiceFirst<br>Planner</div>
   <div class="auth-sub">voice-first · values-based · cross-platform</div>
   <div class="auth-tagline">"Just talk. We'll handle the rest."</div>
+  <div class="auth-tagline auth-tagline-2">Talk it, type it, or write it.</div>
   <div class="auth-card">
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign in</button>
@@ -2395,6 +2400,7 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
     </div>
     <div id="auth-msg" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;"></div>
     <div id="auth-join-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">You&rsquo;ve been invited to a group. Sign in, or create a free account, to join it.</div>
+    <div id="auth-share-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">Someone sent you something in VoiceFirstPlanner. Sign in, or create a free account, to see it.</div>
     <div id="auth-signin">
       <div class="auth-field"><label>Email</label><input type="email" id="signin-email" placeholder="you@example.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="signin-pw" placeholder="Your password"></div>
@@ -2968,11 +2974,11 @@ body.pv #demo-banner { position: relative; z-index: 3; }
 
   <!-- NAV -->
   <div class="nav-group" id="group-nav">
-    <button class="group-btn active" data-group="daily-planning" onclick="showGroup('daily-planning')"><i class="ti ti-layout-grid"></i>Daily Planning</button>
+    <button class="group-btn active" data-group="daily-planning" onclick="showGroup('daily-planning');vfpDailyShownGoToday()"><i class="ti ti-layout-grid"></i>Daily Planning</button>
     <button class="group-btn" data-group="life-planning" onclick="showGroup('life-planning')"><i class="ti ti-compass"></i>Life Planning</button>
   </div>
   <div class="nav" id="main-nav">
-    <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this)"><i class="ti ti-calendar"></i>Daily</button>
+    <button class="nav-btn active" data-group="daily-planning" onclick="showTab('daily',this);goToToday()"><i class="ti ti-calendar"></i>Daily</button>
     <button class="nav-btn" data-group="daily-planning" onclick="showTab('week',this)"><i class="ti ti-calendar-week"></i>Week</button>
     <button class="nav-btn nav-mv" data-group="daily-planning" onclick="showTab('month',this)"><i class="ti ti-calendar-month"></i>Month</button>
     <button class="nav-btn nav-mv" data-group="daily-planning" onclick="showTab('year',this)"><i class="ti ti-calendar-stats"></i>Year</button>
@@ -3308,7 +3314,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         </div>
         <p style="font-size:12px;color:var(--light-accent-text);margin-bottom:4px;line-height:1.5">One page. What is left in each envelope this week. Set each line's weekly amount; enter what you spend as you go. The week closes Sunday night and whatever is left carries forward.</p>
         <div id="budget-capture-row" style="display:flex;gap:8px;margin:8px 0 4px">
-          <input id="budget-capture-input" type="text" placeholder="Record spending: 40 on petrol, or twelve fifty to pet expenses" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:13px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')budgetTypedCapture()" />
+          <input id="budget-capture-input" type="text" placeholder="Record spending: 40 on gas, or twelve fifty to pet expenses" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:13px;color:var(--text);box-sizing:border-box" onkeydown="if(event.key==='Enter')budgetTypedCapture()" />
           <button class="field-mic" onclick="dictateInto('budget-capture-input',this)" title="Speak" style="flex-shrink:0"><i class="ti ti-microphone"></i></button>
           <button class="save-btn" style="width:auto;padding:0 16px;margin:0;flex-shrink:0" onclick="budgetTypedCapture()">Record</button>
         </div>
@@ -3444,7 +3450,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="pv-chrome pv-chrome-right">
       <div id="pv-rail"></div>
       <div id="pv-stabs">
-        <button class="pv-stab pv-stab-group" data-tab="daily" onclick="showTab('daily')">Daily Planning</button>
+        <button class="pv-stab pv-stab-group" data-tab="daily" onclick="showTab('daily');goToToday()">Daily Planning</button>
         <button class="pv-stab" data-tab="week" onclick="showTab('week')">Week</button>
         <button class="pv-stab" data-tab="month" onclick="showTab('month')">Month</button>
         <button class="pv-stab" data-tab="year" onclick="showTab('year')">Year</button>
@@ -4088,6 +4094,30 @@ body.pv #demo-banner { position: relative; z-index: 3; }
   </div>
 </div>
 
+<!-- GROUPS STEP 5 (7 Nov 2026): share by link -->
+<div class="modal-overlay" id="vfp-share-modal" onclick="if(event.target===this)closeGroupsSheet('vfp-share-modal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Share by link</div>
+    <div class="modal-sub">Send this link to one person. It works once, for 7 days. Whoever opens it first gets it.</div>
+    <input id="vs-link" class="grp-link" readonly aria-label="Share link">
+    <button class="modal-cta" onclick="vfpCopyShareLink()">Copy link</button>
+    <button class="modal-close-btn" id="vs-share" onclick="vfpShareShareLink()">Share&hellip;</button>
+    <button class="modal-close-btn" onclick="closeGroupsSheet('vfp-share-modal')">Done</button>
+  </div>
+</div>
+<div class="modal-overlay" id="vfp-got-modal" role="dialog" aria-labelledby="vg-title" aria-describedby="vg-sub">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="vg-title"></div>
+    <div class="modal-sub" id="vg-sub"></div>
+    <div id="vg-item" class="vg-item" style="display:none"></div>
+    <button class="modal-cta" id="vg-yes" onclick="vfpGotAccept()">Accept</button>
+    <button class="modal-close-btn" id="vg-no" onclick="vfpGotNoThanks()">No thanks</button>
+    <button class="modal-close-btn" id="vg-done" onclick="closeGroupsSheet('vfp-got-modal')">Done</button>
+  </div>
+</div>
+
 <!-- PHOTO VIEWER — full-size view of a project photo capture -->
 <div class="modal-overlay" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
   <div class="modal-sheet" style="max-width:min(96vw,900px);padding:10px">
@@ -4183,7 +4213,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-title">One thing Lifetime does not include: the AI layer.</div>
     <div class="modal-sub">Lifetime is Premium for life. Pro is the AI layer: say the mess and approve the plan, and a goal broken into a week of tasks. Founding members add it for <strong>$1.85 a month, billed annually at $22.25</strong>, or $3.25 month to month. The same 75% off, applied to Pro.</div>
     <button class="modal-cta" id="lifetime-pro-ask-btn" onclick="lifetimeProAskGo()">Add Pro at the founding rate</button>
-    <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.5">You can add it any time from Settings. Cancelling it later leaves your Lifetime exactly as it is.</div>
+    <div style="font-size:12px;color:var(--text-light);margin-top:10px;line-height:1.5">You can add it any time from Settings. Canceling it later leaves your Lifetime exactly as it is.</div>
     <button class="modal-close-btn" onclick="closeLifetimeProAsk()">Not now</button>
   </div>
 </div>
@@ -4891,7 +4921,7 @@ const QUOTES = [
   { t: "We do not learn from experience. We learn from reflecting on experience.", a: "John Dewey" },
   { t: "Tell me what you pay attention to and I will tell you who you are.", a: "José Ortega y Gasset" },
   { t: "Beware of little expenses. A small leak will sink a great ship.", a: "Benjamin Franklin, Poor Richard's Almanack" },
-  { t: "We are what we repeatedly do.", a: "Will Durant, summarising Aristotle" },
+  { t: "We are what we repeatedly do.", a: "Will Durant, summarizing Aristotle" },
   { t: "A goal without a plan is just a wish.", a: "Attributed to Antoine de Saint-Exupéry" },
   { t: "How did it get so late so soon?", a: "Dr. Seuss" },
   { t: "It is not enough to be busy. The question is: what are we busy about?", a: "Henry David Thoreau" },
@@ -4997,6 +5027,16 @@ const VOICE_HINTS = [
   'Say: "Note: call the supplier tomorrow"',
   'Say: "What should I focus on today?"',
 ];
+
+// Dates follow the member's own device: day first ("Thu 26 Nov") or month first ("Thu, Nov 26"), read from the
+// device's own date setting. The words stay English either way (Dave, 8 Nov 2026). Times are not changed.
+const VFP_DATE_LOCALE = (function () {
+  try {
+    const parts = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric' }).formatToParts(new Date(2026, 10, 26));
+    const m = parts.findIndex(p => p.type === 'month'), d = parts.findIndex(p => p.type === 'day');
+    return (m >= 0 && d >= 0 && m < d) ? 'en-US' : 'en-GB';
+  } catch (e) { return 'en-GB'; }
+})();
 
 const DAYS = ['M','T','W','T','F','S','S'];
 
@@ -5106,7 +5146,7 @@ let state = {
   user: null,
   tasks: [
     { id: 1, text: 'Review team proposal', p: 'A', done: false, date: null },
-    { id: 2, text: 'Call Mum', p: 'B', done: false, date: null },
+    { id: 2, text: 'Call Mom', p: 'B', done: false, date: null },
     { id: 3, text: 'Organize desk', p: 'C', done: true, date: null },
   ],
   appointments: [],
@@ -5211,7 +5251,7 @@ function init() {
 }
 
 function setTopbarDate() {
-  document.getElementById('topbar-date').textContent = today.toLocaleDateString('en-GB', {
+  document.getElementById('topbar-date').textContent = today.toLocaleDateString(VFP_DATE_LOCALE, {
     weekday: 'long', day: 'numeric', month: 'long'
   });
 }
@@ -5626,11 +5666,11 @@ function showTab(name, btn, skipGroupSync) {
 // empty.
 const BUDGET_START_EXPENSE = [
   'Rent or Mortgage', 'Electricity, Gas and Water', 'Phone / Internet', 'Mobile phone',
-  'Lawns / Garden / Property maintenance', 'Food', 'Petrol', 'Car finance', 'Vehicle registration',
-  'Vehicle WOF / servicing / tyres', 'Vehicle insurance', 'Contents insurance', 'Life / Medical insurance',
+  'Lawns / Garden / Property maintenance', 'Food', 'Gas', 'Car finance', 'Vehicle registration',
+  'Car inspection / servicing / tires', 'Vehicle insurance', 'Contents insurance', 'Life / Medical insurance',
   'Fitness / Gym', 'Dentist / Medical', 'Hairdresser', 'Clothes', 'Concerts', 'Entertainment / weekend trips',
   'General / coffees etc', 'Subscriptions', 'Pet expenses', 'Gifts', 'Bank fees and tax', 'Hire purchase',
-  'Lotto', 'Holidays / Travel: Wish list 1', 'Holidays / Travel: Wish list 2', 'Shares', 'Kids expenses',
+  'Lottery', 'Vacation / Travel: Wish list 1', 'Vacation / Travel: Wish list 2', 'Shares', 'Kids expenses',
 ];
 const BUDGET_START_INCOME = ['Salary', 'Other income'];
 const FREE_BUDGET_CAP = { expense: 3, income: 1, account: 1 };   // mirrors public.budget_free_cap
@@ -5733,7 +5773,7 @@ function renderBudget() {
   const num = v => (Number(v) || 0) === 0 ? '' : String(Math.round(Number(v) * 100) / 100);
   const ws = budget.weekStart || budgetWeekStart(new Date());
   const wsd = new Date(ws + 'T12:00:00'); const wed = new Date(wsd); wed.setDate(wed.getDate() + 6);
-  const fmtD = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const fmtD = d => d.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
   document.getElementById('budget-week-label').textContent = `Week of ${fmtD(wsd)} to ${fmtD(wed)}`;
   const curSel = document.getElementById('budget-currency');
   if (curSel && curSel.options.length === 0) {
@@ -5973,7 +6013,7 @@ function budgetAskReflection(weekStart, nClosed) {
   const m = document.getElementById('budget-reflect-modal');
   if (!m) return;
   const ws = new Date(weekStart + 'T12:00:00'); const we = new Date(ws); we.setDate(we.getDate() + 6);
-  const fmtD = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const fmtD = d => d.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
   document.getElementById('budget-reflect-week').textContent =
     (nClosed > 1 ? `${nClosed} weeks closed in order. ` : '') + `Week of ${fmtD(ws)} to ${fmtD(we)} is closed; what was left has carried forward.`;
   document.getElementById('budget-reflect-q').textContent = BUDGET_REFLECT_Q;
@@ -6021,7 +6061,7 @@ function budgetClosedMonths() {
   });
   return Object.keys(months).sort().map(mk => ({ key: mk, weeks: months[mk] }));
 }
-function budMonthLabel(mk) { const d = new Date(mk + '-01T12:00:00'); return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); }
+function budMonthLabel(mk) { const d = new Date(mk + '-01T12:00:00'); return d.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long', year: 'numeric' }); }
 
 // Sum a set of closed weeks by line. Carried and left are summed too, as the
 // brief has it: the same columns, summed across the weeks.
@@ -6057,7 +6097,7 @@ function renderBudgetMonth(host, esc) {
     h += `<div class="bud-block"><div class="bud-block-title">Reflections</div>`;
     withRefl.forEach(w => {
       const ws = new Date(w.week_start + 'T12:00:00');
-      h += `<div class="bud-refl"><div class="bud-refl-week">Week of ${esc(ws.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</div><div>${esc(w.reflection)}</div></div>`;
+      h += `<div class="bud-refl"><div class="bud-refl-week">Week of ${esc(ws.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' }))}</div><div>${esc(w.reflection)}</div></div>`;
     });
     h += `</div>`;
   }
@@ -6231,7 +6271,7 @@ function budgetOpenCapture(text, source) {
   const wk = document.getElementById('budcap-week');
   const weeks = []; let w = state.budgetOpenWeek || budget.weekStart; const cur = budgetWeekStart(new Date());
   while (w && w <= cur && weeks.length < 8) { weeks.push(w); w = budAddDays(w, 7); }
-  wk.innerHTML = weeks.map(ws => { const d = new Date(ws + 'T12:00:00'); const e = new Date(d); e.setDate(e.getDate() + 6); const f = x => x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); return `<option value="${ws}">${ws === cur ? 'This week, ' : ''}${f(d)} to ${f(e)}</option>`; }).join('');
+  wk.innerHTML = weeks.map(ws => { const d = new Date(ws + 'T12:00:00'); const e = new Date(d); e.setDate(e.getDate() + 6); const f = x => x.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' }); return `<option value="${ws}">${ws === cur ? 'This week, ' : ''}${f(d)} to ${f(e)}</option>`; }).join('');
   wk.value = cur;
   const heard = document.getElementById('budcap-heard'); heard.textContent = text ? `Heard: "${text}"` : '';
   const why = document.getElementById('budcap-reason');
@@ -6272,7 +6312,7 @@ async function confirmBudgetCapture() {
 function budgetTypedCapture() {
   const inp = document.getElementById('budget-capture-input');
   const text = (inp.value || '').trim();
-  if (!text) { showToast('Say or type what you spent, e.g. "40 on petrol"'); return; }
+  if (!text) { showToast('Say or type what you spent, e.g. "40 on gas"'); return; }
   inp.value = '';
   budgetOpenCapture(text, 'typed');
 }
@@ -6307,7 +6347,7 @@ function searchDateLabel(v) {
   if (!v) return '';
   const d = typeof v === 'number' ? new Date(v) : new Date(v + 'T12:00:00');
   if (isNaN(d)) return '';
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
 }
 
 // The snippet: the matching text with the query wrapped in <mark>. Long texts
@@ -6765,7 +6805,7 @@ const VT_STEPS = [
     expect:'Your exercise habit is marked done.' },
   // ---- Reflect ----
   { key:'reflect', sec:'reflect', title:'Log your reflection',
-    what:'Say you did your morning reflection (or \u201cmeditated\u201d / \u201cjournalled\u201d) to log it. Full written reflections you type in the Reflect tab.',
+    what:'Say you did your morning reflection (or \u201cmeditated\u201d / \u201cjournaled\u201d) to log it. Full written reflections you type in the Reflect tab.',
     say:'I did my morning reflection',
     expect:'Your reflection habit is logged.' },
   // ---- Free practice ----
@@ -6924,7 +6964,7 @@ function vtNiceDate(dk) {
   if (dk === dateKey(today)) return 'today';
   const tm = new Date(today); tm.setDate(today.getDate() + 1);
   if (dk === dateKey(tm)) return 'tomorrow';
-  try { return new Date(dk + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  try { return new Date(dk + 'T12:00:00').toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }); }
   catch (e) { return dk; }
 }
 
@@ -7851,7 +7891,7 @@ function capDayLabel(ms) {
   if (dateKey(d) === dateKey(yest)) return 'yesterday';
   const fmt = { weekday: 'short', day: 'numeric', month: 'short' };
   if (d.getFullYear() !== now.getFullYear()) fmt.year = 'numeric';
-  return d.toLocaleDateString('en-GB', fmt);
+  return d.toLocaleDateString(VFP_DATE_LOCALE, fmt);
 }
 
 // ---- Note/capture date backfill (2 Aug). Every note was created with
@@ -8500,11 +8540,11 @@ function pvSyncDay() {
   const numEl = document.getElementById('pv-day-num');
   if (numEl) numEl.textContent = d.getDate();
   const nameEl = document.getElementById('pv-day-name');
-  if (nameEl) nameEl.textContent = d.toLocaleDateString('en-GB', { weekday: 'long' });
+  if (nameEl) nameEl.textContent = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long' });
   const dateEl = document.getElementById('pv-day-date');
-  if (dateEl) dateEl.textContent = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+  if (dateEl) dateEl.textContent = d.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long', year: 'numeric' }).toUpperCase();
   const h = document.getElementById('pv-notes-date');
-  if (h) h.textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+  if (h) h.textContent = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
   // The planner's day-count line: Nth Day · M Left · Week W
   const meta = document.getElementById('pv-day-meta');
   if (meta) {
@@ -8542,7 +8582,7 @@ function pvRenderMonthTabs() {
   const curM = new Date(viewingDate + 'T12:00:00').getMonth();
   let html = '';
   for (let m = 0; m < 12; m++) {
-    const nm = new Date(2026, m, 1).toLocaleDateString('en-GB', { month: 'short' });
+    const nm = new Date(2026, m, 1).toLocaleDateString(VFP_DATE_LOCALE, { month: 'short' });
     html += `<button class="pv-mtab${m === curM ? ' on' : ''}" onclick="pvJumpMonth(${m})">${nm}</button>`;
   }
   el.innerHTML = html;
@@ -8558,7 +8598,7 @@ function pvRenderRail() {
   const year = d.getFullYear(), month = d.getMonth();
   const last = new Date(year, month + 1, 0).getDate();
   const todayK = dateKey(today);
-  let html = `<div class="pv-rail-month">${d.toLocaleDateString('en-GB', { month: 'short' })}</div>`;
+  let html = `<div class="pv-rail-month">${d.toLocaleDateString(VFP_DATE_LOCALE, { month: 'short' })}</div>`;
   for (let dd = 1; dd <= last; dd++) {
     const k = dateKey(new Date(year, month, dd));
     const cls = 'pv-rail-day' + (k === viewingDate ? ' on' : '') + (k === todayK ? ' tdy' : '');
@@ -9288,7 +9328,7 @@ function dismissApptHint(e) {
 
 function fmtDateLabel(dk) {
   const d = new Date(dk + 'T12:00:00');
-  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function fmt12(m) {
@@ -9423,7 +9463,7 @@ function renderScheduleGrid() {
   const dateEl = document.getElementById('schedule-date');
   if (dateEl) {
     const d = new Date(viewingDate + 'T12:00:00');
-    const full = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const full = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const isToday = viewingDate === dateKey(today);
     dayDrawnFor = viewingDate;
     dateEl.innerHTML = full + (isToday ? ' <span style="font-size:11px;font-weight:700;color:var(--accent-on-tint);background:rgba(var(--orange-rgb),0.12);padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:4px">TODAY</span>' : '');
@@ -10123,7 +10163,7 @@ function formatDateNice(dateStr) {
   if (dateStr === tk) return 'today';
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
   if (dateStr === dateKey(tomorrow)) return 'tomorrow';
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 // The viewed day moves everything that shows it (30 Sep): the label, the schedule
@@ -10176,6 +10216,13 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) roll
 window.addEventListener('focus', rollDayIfNeeded);
 setInterval(rollDayIfNeeded, 60000);
 
+// The Daily tab, tapped in the menu, always opens on today (Dave, 8 Nov 2026); the Today button stays. Only the menu
+// taps do this: a voice command, a day tapped in Week or Month, or a search hit still opens the Daily tab on its own day.
+function vfpDailyShownGoToday() {
+  const sec = document.getElementById('sec-daily');
+  if (sec && sec.classList.contains('active')) goToToday();
+}
+
 function goToToday() {
   // Full return to today: date, the strip's visible month, and every surface
   // that shows the viewed day. (Previously appointments + schedule kept
@@ -10199,7 +10246,7 @@ function renderCalStrip() {
   const lbl = document.getElementById('cal-month-label');
   if (!strip) return;
 
-  lbl.textContent = calViewMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  lbl.textContent = calViewMonth.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long', year: 'numeric' });
 
   const year = calViewMonth.getFullYear();
   const month = calViewMonth.getMonth();
@@ -10640,7 +10687,7 @@ function projDayLabel(dk) {
   const d = new Date(dk + 'T12:00:00');
   const fmt = { weekday: 'short', day: 'numeric', month: 'short' };
   if (d.getFullYear() !== today.getFullYear()) fmt.year = 'numeric';
-  return d.toLocaleDateString('en-GB', fmt);
+  return d.toLocaleDateString(VFP_DATE_LOCALE, fmt);
 }
 function projTargetLabel(dk) {
   if (!dk) return '';
@@ -10648,7 +10695,7 @@ function projTargetLabel(dk) {
   if (isNaN(d)) return '';
   const fmt = { day: 'numeric', month: 'short' };
   if (d.getFullYear() !== today.getFullYear()) fmt.year = 'numeric';
-  return d.toLocaleDateString('en-GB', fmt);
+  return d.toLocaleDateString(VFP_DATE_LOCALE, fmt);
 }
 // The project's name on a task that came from one of its steps (day list, week view).
 function projTaskChip(t) {
@@ -11313,7 +11360,7 @@ function projShortDate(dk) {
   if (!dk) return '';
   const d = new Date(dk + 'T12:00:00'); if (isNaN(d)) return '';
   const f = { day: 'numeric', month: 'short' }; if (d.getFullYear() !== today.getFullYear()) f.year = 'numeric';
-  return d.toLocaleDateString('en-GB', f);
+  return d.toLocaleDateString(VFP_DATE_LOCALE, f);
 }
 
 // ---- the Money card ---------------------------------------------------------
@@ -11880,7 +11927,7 @@ async function onPhotoPicked(inp) {
   }
   const now = new Date();
   const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const entry = { type: 'photo', title: 'Photo', meta: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' · ' + time, body: '', icon: CAP_ICONS.photo, created: now.getTime() };
+  const entry = { type: 'photo', title: 'Photo', meta: now.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' }) + ' · ' + time, body: '', icon: CAP_ICONS.photo, created: now.getTime() };
 
   if (isDemo) {
     // Demo saves nothing: the photo lives in this tab only and dies on reload.
@@ -11964,7 +12011,7 @@ function canShareFiles() {
 // timestamp, sanitised. Never a raw storage key.
 function photoFilename(capture) {
   const proj = (currentProject && currentProject.name) || 'Project';
-  const stamp = (capture && capture.meta) || new Date().toLocaleDateString('en-GB');
+  const stamp = (capture && capture.meta) || new Date().toLocaleDateString(VFP_DATE_LOCALE);
   const safe = (proj + '-' + stamp).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
   return (safe || 'VFP-photo') + '.jpg';
 }
@@ -12575,7 +12622,7 @@ function renderReflectionList() {
   const sorted = [...state.reflections].sort((a,b) => b.date.localeCompare(a.date));
   el.innerHTML = sorted.map(r => {
     const d = new Date(r.date + 'T12:00:00');
-    const label = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const label = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
     const row = (lbl, val) => val ? `<div style="margin-top:6px"><span style="font-size:11px;font-weight:700;color:var(--accent-on-light)">${lbl}</span><div style="font-size:13px;color:var(--text);line-height:1.45">${val}</div></div>` : '';
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px;font-weight:700;color:var(--navy)">${label}</div><button onclick="deleteReflection('${r.date}')" title="Delete" style="background:none;border:none;color:var(--text-light);font-size:16px;line-height:1;cursor:pointer">×</button></div>
@@ -12621,12 +12668,12 @@ function renderHappened() {
   let lastMonth = '';
   sorted.forEach(e => {
     const d = new Date(e.date + 'T12:00:00');
-    const monthLabel = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const monthLabel = d.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long', year: 'numeric' });
     if (monthLabel !== lastMonth) {
       html += `<div style="font-size:11px;font-weight:700;color:var(--accent-on-light);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px">${monthLabel}</div>`;
       lastMonth = monthLabel;
     }
-    const dayLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+    const dayLabel = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'short', day: 'numeric' });
     const isToday = e.date === dateKey(today);
     html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <div style="font-size:11px;font-weight:700;color:${isToday ? 'var(--accent-on-light)' : 'var(--text-mid)'};min-width:46px;flex-shrink:0;padding-top:1px">${dayLabel}</div>
@@ -13906,7 +13953,7 @@ function describePattern(rrule, n) {
   const byDay = (r.BYDAY || '').split(',').filter(Boolean);
   if (freq === 'WEEKLY' && byDay.length === 5 && ['MO','TU','WE','TH','FR'].every(d => byDay.includes(d))) return 'Every weekday';
   if (freq === 'DAILY') return iv === 1 ? 'Every day' : 'Every ' + iv + ' days';
-  if (freq === 'WEEKLY') return iv === 1 ? 'Weekly' : (iv === 2 ? 'Fortnightly' : 'Every ' + iv + ' weeks');
+  if (freq === 'WEEKLY') return iv === 1 ? 'Weekly' : (iv === 2 ? 'Every 2 weeks' : 'Every ' + iv + ' weeks');
   if (freq === 'MONTHLY') return iv === 1 ? 'Monthly' : 'Every ' + iv + ' months';
   if (freq === 'YEARLY') return 'Yearly';
   return 'Repeating';
@@ -13992,7 +14039,7 @@ function renderCalImport() {
   if (c.skippedDuplicate) parts.push(c.skippedDuplicate + ' already in your planner');
   if (c.skippedOutOfWindow) parts.push(c.skippedOutOfWindow + ' outside the next 90 days');
   if (c.skippedUnsupportedRule) parts.push(c.skippedUnsupportedRule + ' with a repeat pattern we can\u2019t read yet');
-  if (c.skippedCancelled) parts.push(c.skippedCancelled + ' cancelled');
+  if (c.skippedCancelled) parts.push(c.skippedCancelled + ' canceled');
   if (c.skippedNoStart) parts.push(c.skippedNoStart + ' with no start time');
   document.getElementById('cal-import-skipped').textContent = parts.length ? 'Skipped: ' + parts.join(' \u00b7 ') + '.' : '';
 
@@ -14003,7 +14050,7 @@ function renderCalImport() {
 }
 function prettyImportDate(dk) {
   const d = new Date(dk + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
 }
 function toggleCalGroup(i, on) {
   if (!calImportPreview) return;
@@ -14062,7 +14109,7 @@ function renderCalImportHistory() {
   if (!el) return;
   const list = (state.calImports || []).slice().reverse();
   el.innerHTML = list.map(im => {
-    const when = new Date(im.at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const when = new Date(im.at).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
     return '<div class="settings-row"><span class="settings-row-label">Imported ' + im.count +
       (im.count === 1 ? ' appointment' : ' appointments') + ' \u00b7 ' + when +
       '</span><span class="settings-row-action" onclick="undoCalImport(\'' + im.id + '\')">Undo</span></div>';
@@ -14327,7 +14374,7 @@ function renderCourseImportHistory() {
   const el = document.getElementById('course-import-history');
   if (!el) return;
   el.innerHTML = (state.courseImports || []).slice().reverse().map(im => {
-    const when = new Date(im.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const when = new Date(im.at).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
     return '<div class="settings-row"><span class="settings-row-label">' + courseEsc(courseDisplayTitle(im.course, im.title)) + ' · brought in ' + courseEsc(when) +
       '</span><span class="course-row-actions">' + courseLinkIcon(im.link) + '<span class="settings-row-action" onclick="undoCourseImport(\'' + courseEsc(im.id) + '\')">Undo</span></span></div>';
   }).join('');
@@ -14695,7 +14742,7 @@ function remWhenLabel(ms) {
   const time = fmt12(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
   if (dateKey(d) === todayK) return 'today at ' + time;
   if (dateKey(d) === dateKey(tom)) return 'tomorrow at ' + time;
-  return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' at ' + time;
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { weekday:'short', day:'numeric', month:'short' }) + ' at ' + time;
 }
 
 // ---- Reminder row wording (Stage 2 fix, 30 Jul). Display only — the record
@@ -14712,7 +14759,7 @@ function remDayLabel(ms) {
   const tom = new Date(); tom.setDate(tom.getDate() + 1);
   if (dateKey(d) === todayK) return 'today';
   if (dateKey(d) === dateKey(tom)) return 'tomorrow';
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 // The nudge label: known presets get words; a custom offset gets the
 // reminder's own clock time ("390 minutes before" means nothing to a reader).
@@ -15216,7 +15263,7 @@ function renderWeek() {
       .sort((a, b) => (a.timeStart || '').localeCompare(b.timeStart || ''));
     const tasks = state.tasks.filter(t => (t.date || todayK) === k && !t.done)
       .sort((a, b) => a.p.localeCompare(b.p));
-    const heading = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const heading = d.toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'short' });
     let tag = '';
     if (k === todayK) tag = '<span class="week-tag">Today</span>';
     else if (i === 1) tag = '<span class="week-tag">Tomorrow</span>';
@@ -15304,7 +15351,7 @@ function renderMonth() {
   const dowrow = document.getElementById('mv-dowrow');
   const lbl = document.getElementById('mv-label');
   if (!grid) return;
-  lbl.textContent = monthCursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  lbl.textContent = monthCursor.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long', year: 'numeric' });
   dowrow.innerHTML = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<div class="mv-dow">${d}</div>`).join('');
 
   const y = monthCursor.getFullYear(), m = monthCursor.getMonth();
@@ -15349,7 +15396,7 @@ function renderYear() {
   let html = '';
   for (let m = 0; m < 12; m++) {
     const first = new Date(yearCursor, m, 1);
-    const name = first.toLocaleDateString('en-GB', { month: 'long' });
+    const name = first.toLocaleDateString(VFP_DATE_LOCALE, { month: 'long' });
     const lead = (first.getDay() + 6) % 7;
     const daysInMonth = new Date(yearCursor, m + 1, 0).getDate();
     let cells = '';
@@ -15461,7 +15508,7 @@ function vfpGroupError(e) {
     plan_paused: 'This plan is paused, so that can\u2019t be done right now.',
     invite_used: 'That invite link has already been used. Ask for a new one.',
     invite_expired: 'That invite link is more than 7 days old. Ask for a new one.',
-    invite_cancelled: 'That invite link was cancelled. Ask for a new one.',
+    invite_cancelled: 'That invite link was canceled. Ask for a new one.',
     invite_not_found: 'That invite link doesn\u2019t work. Ask for a new one.',
     too_many_invites: 'There are 10 invites waiting already. Cancel one first.',
     no_pro_moves_left: 'Every Pro move on this plan is in use.',
@@ -15514,6 +15561,8 @@ async function vfpGroupsStart() {
   await vfpShowNotices();
   await vfpShowWarnings();   // Groups 4b
   if (vfpPendingJoin()) openJoinSheet();
+  else if (vfpPendingShare()) openShareSheet();   // Groups step 5 (an invite link first; a share link the next time)
+  vfpShareLinksLoad();                            // Groups step 5: the sender's list
 }
 // Lines waiting for this member (friends' groups: taken out after going to free). Each shows once.
 async function vfpShowNotices() {
@@ -15549,11 +15598,11 @@ function renderGroups() {
     ? '<div class="settings-row"><span class="grp-act" onclick="vfpNewFriendsGroup()"><i class="ti ti-users-plus"></i> New friends\u2019 group</span></div>' : '';
   if (!vfpGroups.length) {
     sec.style.display = vfpFriendsOpen() ? '' : 'none';
-    box.innerHTML = vfpFriendsOpen() ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends : '';
+    box.innerHTML = vfpFriendsOpen() ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends + vfpShareLinksHtml() : '';
     return;
   }
   sec.style.display = '';
-  box.innerHTML = vfpGroups.map(renderGroupPlan).join('') + newFriends;
+  box.innerHTML = vfpGroups.map(renderGroupPlan).join('') + newFriends + vfpShareLinksHtml();
 }
 function renderGroupPlan(pl) {
   const own = pl.i_own;
@@ -15563,7 +15612,7 @@ function renderGroupPlan(pl) {
   h += '<div class="grp-head"><span class="grp-kind">' + grpEsc(GRP_KIND[pl.kind] || 'Plan') + '</span><span class="grp-owner">'
      + (own ? 'Yours' : grpEsc(pl.owner_name) + '\u2019s') + '</span></div>';
   if (pl.status === 'paused') {
-    const until = pl.takeover_until ? new Date(pl.takeover_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    const until = pl.takeover_until ? new Date(pl.takeover_until).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'long' }) : '';
     h += '<div class="grp-paused">' + (friends ? 'This group is paused because its owner is no longer on Pro.' : 'This plan is paused because its payment stopped.')
        + ' Shared things are kept until ' + grpEsc(until) + '.</div>';
     // Groups 4b: a friends' group can be taken over by a member whose own plan is Pro (first one wins, the database decides).
@@ -15615,7 +15664,7 @@ function renderGroupPlan(pl) {
     }
     if (canRun && pl.status === 'active') {
       (g.invites || []).forEach(i => {
-        const until = new Date(i.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        const until = new Date(i.expires_at).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
         h += '<div class="grp-row grp-invite"><span class="grp-name">Invite link, works until ' + grpEsc(until) + '</span>'
            + '<span class="grp-acts"><span class="grp-act grp-danger" onclick="vfpCancelInvite(\'' + i.invite_id + '\')">Cancel</span></span></div>';
       });
@@ -15654,7 +15703,7 @@ async function vfpShareInvite() {
   try { await navigator.share({ title: 'VoiceFirstPlanner', text: 'Join my group on VoiceFirstPlanner', url: vfpInviteLink }); } catch (e) {}
 }
 function closeGroupsSheet(id) { document.getElementById(id).classList.remove('open'); }
-function vfpCancelInvite(id) { vfpGroupsDo(() => vfpRpc('vfp_invite_cancel', { p_invite: id }), 'Invite cancelled'); }
+function vfpCancelInvite(id) { vfpGroupsDo(() => vfpRpc('vfp_invite_cancel', { p_invite: id }), 'Invite canceled'); }
 function vfpRemovePerson(planId, userId) {
   const p = (vfpGroups.find(x => x.plan_id === planId)?.people || []).find(x => x.user_id === userId);
   if (!confirm('Remove ' + (p ? p.name : 'this person') + ' from the plan? They lose its seat and its groups.')) return;
@@ -15702,7 +15751,7 @@ async function openJoinSheet() {
     vfpClearJoin();
     t.textContent = 'This invite can\u2019t be used';
     s.textContent = r && r.reason === 'paused' ? 'The plan it\u2019s for is paused, so no one can join right now.'
-      : 'It may have been used already, been cancelled, or be more than 7 days old. Ask for a new one.';
+      : 'It may have been used already, been canceled, or be more than 7 days old. Ask for a new one.';
   } else if (r.kind === 'friends' && !r.can_join && !r.already_in) {
     vfpClearJoin();
     t.textContent = 'This group is for Premium members';
@@ -15772,7 +15821,7 @@ function vfpWarnNext() {
   const m = document.getElementById('groups-warn-modal');
   if (!vfpWarnNow) { m.classList.remove('open'); return; }
   const x = vfpWarnNow, name = x.group_name || 'Your group';
-  const when = x.delete_at ? new Date(x.delete_at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  const when = x.delete_at ? new Date(x.delete_at).toLocaleDateString(VFP_DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   document.getElementById('gw-title').textContent = x.stage === '1day' ? name + ': 1 day left' : x.stage === '7days' ? name + ': 7 days left' : name + ' is paused';
   const why = x.kind !== 'friends' ? 'Its payment has stopped.'
     : x.i_own ? 'Your account is no longer on Pro.' : 'The person who started it is no longer on Pro.';
@@ -15971,7 +16020,7 @@ function renderSharedShopping(g) {
   const waiting = vfpQueue().filter(o => o.group_id === g.group_id).length;
   let h = '<div class="shared-head"><i class="ti ti-users"></i> Shared with everyone in ' + grpEsc(g.name) + '</div>';
   if (paused) {
-    const until = g.keep_until ? new Date(g.keep_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    const until = g.keep_until ? new Date(g.keep_until).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'long' }) : '';
     h += '<div class="grp-paused">This list is paused, so it can’t be changed. It’s kept until ' + grpEsc(until) + '.'
        + ' <span class="grp-act" onclick="vfpKeepCopy(\'' + g.group_id + '\')">Keep a copy in my planner</span></div>';
   }
@@ -16340,7 +16389,7 @@ function vfpUpdLiveOn() {
   if (vfpUpdChan && vfpUpdChanKey === key) return;
   vfpUpdLiveOff();
   try {
-    const again = () => { clearTimeout(vfpUpdT); vfpUpdT = setTimeout(loadGroupUpdates, 400); };
+    const again = () => { clearTimeout(vfpUpdT); vfpUpdT = setTimeout(() => { loadGroupUpdates(); vfpShareLinksLoad(); }, 400); };   // step 5: a link opened
     let ch = sb.channel('vfp-updates-' + authUserId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_user_marks', filter: 'user_id=eq.' + authUserId }, again);
     if (ids.length) ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: 'vfp_group_marks', filter: 'group_id=in.(' + ids.join(',') + ')' }, () => { again(); vfpCalRefresh(); });   // step 4: the calendar too
@@ -16352,7 +16401,7 @@ function vfpUpdLiveOff() { if (vfpUpdChan) { try { sb.removeChannel(vfpUpdChan);
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { vfpUpdLiveOff(); return; }
-  if (authUserId && !isDemo) loadGroupUpdates();
+  if (authUserId && !isDemo) { loadGroupUpdates(); vfpShareLinksLoad(); }
 });
 window.addEventListener('online', () => { vfpAnsweredFlush(); });
 setInterval(() => { if (!document.hidden && vfpAnswered().length) vfpAnsweredFlush(); }, 30000);
@@ -16372,10 +16421,12 @@ function vfpSendTargets() {
   return out;
 }
 function vfpCanSend() { return !!(sb && authUserId && !isDemo) && vfpSendTargets().length > 0; }
+function vfpCanShareLink() { return vfpGroupsOn(); }                 // Groups step 5 (the database checks the same)
+function vfpCanSendOrShare() { return vfpCanSend() || vfpCanShareLink(); }
 
 // The "Send to…" button in the edit sheet: tasks, notes and items on your own shopping lists.
 function vfpEditSendButton(wrap) {
-  if (!editCtx || ['task', 'note', 'shopping'].indexOf(editCtx.kind) === -1 || !vfpCanSend()) return;
+  if (!editCtx || ['task', 'note', 'shopping'].indexOf(editCtx.kind) === -1 || !vfpCanSendOrShare()) return;
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'gu-send'; b.id = 'edit-send';
   b.innerHTML = '<i class="ti ti-send"></i> Send to…';
@@ -16395,7 +16446,7 @@ function vfpSendFromEdit() {
     vfpSendOpen('shopping', { text: v('edit-f1') });
   }
 }
-function vfpApSendShow(on) { const b = document.getElementById('ap-send'); if (b) b.style.display = on && vfpCanSend() ? '' : 'none'; }
+function vfpApSendShow(on) { const b = document.getElementById('ap-send'); if (b) b.style.display = on && vfpCanSendOrShare() ? '' : 'none'; }
 function vfpSendFromAppt() {
   const f = apReadForm();
   vfpSendOpen('appointment', { title: f.title, date: f.date, allDay: f.allDay, timeStart: f.timeStart, timeEnd: f.timeEnd, location: f.location, with: f.with, notes: f.notes });
@@ -16410,10 +16461,180 @@ function vfpSendOpen(kind, item) {
     '<div class="gu-group">' + calEsc(g.name) + '</div>' +
     (g.people.length > 1 ? '<button class="gu-pick" onclick="vfpSendTo(\'' + g.group_id + '\',null)"><i class="ti ti-users"></i> Everyone in ' + calEsc(g.name) + '</button>' : '') +
     g.people.map(p => '<button class="gu-pick" onclick="vfpSendTo(\'' + g.group_id + '\',\'' + p.user_id + '\')"><i class="ti ti-user"></i> ' + calEsc(p.name) + '</button>').join('')
-  ).join('');
+  ).join('') + (vfpCanShareLink() ? '<button class="gu-pick" id="vfp-share-pick" onclick="vfpShareByLink()"><i class="ti ti-link"></i> Share by link</button>' : '');
   document.getElementById('vfp-send-modal').classList.add('open');
 }
 function closeVfpSend() { document.getElementById('vfp-send-modal').classList.remove('open'); vfpSendDraft = null; }
+
+// ============================================================
+// GROUPS STEP 5 (7 Nov 2026): SHARE BY LINK (Dave's choice A; file VFP_SQL_5a).
+// · Any task, appointment, note or shopping item, to anyone, by a link that works once, for 7 days.
+//   The first signed-in account to open it gets it; the sender then sees "Opened by <name>", never Accept or No thanks.
+// · The link's code is shown once, here, and kept only scrambled in the database.
+// · Accept writes the copy into the receiver's own planner with the free plan's own checks (vfpAcceptInto),
+//   exactly as sending in a group does. Nothing is ever written into anyone's planner from outside.
+// · Hidden until step 7: only members in a group (or everyone, once friends' groups open) see "Share by link".
+// ============================================================
+const VFP_SHARE_KEY = 'vfp_share_code';
+const VFP_KIND_A = { task: 'a task', appointment: 'an appointment', note: 'a note', shopping: 'a shopping item' };
+let vfpShareLink = '';
+let vfpShareLinks = [];
+let vfpGot = null;
+// A share link (?share=<code>) is read once, kept on this device for 7 days so it survives signing in or
+// creating an account, and taken out of the address bar.
+(function vfpCaptureShare() {
+  try {
+    const p = new URLSearchParams(location.search);
+    if (!p.has('share')) return;
+    const code = (p.get('share') || '').toLowerCase();
+    if (/^[0-9a-f]{64}$/.test(code)) localStorage.setItem(VFP_SHARE_KEY, JSON.stringify({ code, at: Date.now() }));
+    p.delete('share');
+    const q = p.toString();
+    history.replaceState({}, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  } catch (e) {}
+})();
+function vfpPendingShare() {
+  try {
+    const j = JSON.parse(localStorage.getItem(VFP_SHARE_KEY) || 'null');
+    if (!j || !j.code) return null;
+    if (Date.now() - (j.at || 0) > 7 * 864e5) { localStorage.removeItem(VFP_SHARE_KEY); return null; }
+    return j.code;
+  } catch (e) { return null; }
+}
+function vfpClearShare() { try { localStorage.removeItem(VFP_SHARE_KEY); } catch (e) {} }
+function vfpShowShareNote() {
+  const n = document.getElementById('auth-share-note');
+  if (n) n.style.display = vfpPendingShare() && !vfpPendingJoin() ? '' : 'none';
+}
+
+// The sender: one link for what's in the Send sheet.
+async function vfpShareByLink() {
+  const d = vfpSendDraft;
+  if (!d || d.busy) return;
+  const picks = Array.from(document.querySelectorAll('#vfp-send-rows .gu-pick'));
+  picks.forEach(b => { b.disabled = true; b.classList.toggle('on', b.id === 'vfp-share-pick'); });
+  d.busy = true;
+  let res;
+  try { res = await sb.rpc('vfp_share_create', { p_kind: d.kind, p_item: d.item }); }
+  catch (e) { res = { error: { message: String((e && e.message) || e) } }; }
+  if (res && res.error) {
+    const m = String(res.error.message || '');
+    if (!res.error.code) showToast('Couldn’t send — check your signal and try again.');
+    else if (/too_many_links/.test(m)) showToast('You have 20 links waiting. Cancel one, or wait for them to be opened.');
+    else if (/bad_item/.test(m)) showToast('That can’t be sent.');
+    else showToast('That didn’t work — please try again.');
+    d.busy = false; picks.forEach(b => { b.disabled = false; b.classList.remove('on'); });
+    return;
+  }
+  closeVfpSend();
+  vfpShareLink = location.origin + location.pathname + '?share=' + res.data.code;
+  document.getElementById('vs-link').value = vfpShareLink;
+  document.getElementById('vs-share').style.display = navigator.share ? '' : 'none';
+  document.getElementById('vfp-share-modal').classList.add('open');
+  vfpShareLinksLoad();
+}
+async function vfpCopyShareLink() {
+  try { await navigator.clipboard.writeText(vfpShareLink); showToast('Link copied'); }
+  catch (e) { const el = document.getElementById('vs-link'); el.focus(); el.select(); showToast('Select the link and copy it'); }
+}
+async function vfpShareShareLink() {
+  try { await navigator.share({ title: 'VoiceFirstPlanner', text: 'I sent you something on VoiceFirstPlanner', url: vfpShareLink }); } catch (e) {}
+}
+
+// The sender's list (Settings › Groups): the last 30 days.
+async function vfpShareLinksLoad() {
+  if (!vfpCanShareLink()) { vfpShareLinks = []; return; }
+  try { const d = await vfpRpc('vfp_my_share_links'); if (Array.isArray(d)) vfpShareLinks = d; } catch (e) { return; }   // no signal: keep what's shown
+  renderGroups();
+}
+function vfpShareLinksHtml() {
+  if (!vfpCanShareLink() || !vfpShareLinks.length) return '';
+  return '<div class="grp-card" id="vfp-share-links"><div class="grp-head"><span class="grp-kind">Links you’ve shared</span></div>'
+    + vfpShareLinks.map(l => {
+      let st;
+      if (l.state === 'opened') st = 'Opened by ' + (l.opened_by || 'Member');
+      else if (l.state === 'cancelled') st = 'Canceled';
+      else if (l.state === 'expired') st = 'Ran out';
+      else st = 'Waiting · works until ' + new Date(l.expires_at).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'short' });
+      return '<div class="grp-row grp-share-link" data-link="' + grpEsc(l.link_id) + '"><span class="grp-name">' + grpEsc((VFP_KIND_WORD[l.kind] || 'Item') + ': ' + (l.title || ''))
+        + '<br><span class="grp-seat">' + grpEsc(st) + '</span></span>'
+        + (l.state === 'waiting' ? '<span class="grp-acts"><span class="grp-act grp-danger" onclick="vfpShareCancel(\'' + grpEsc(l.link_id) + '\')">Cancel</span></span>' : '') + '</div>';
+    }).join('') + '</div>';
+}
+async function vfpShareCancel(id) {
+  try { await vfpRpc('vfp_share_cancel', { p_link: id }); }
+  catch (e) {
+    const m = String((e && e.message) || e);
+    showToast(/link_opened/.test(m) ? 'That didn’t work — please try again.' : (e && e.code ? 'That didn’t work — please try again.' : 'That didn’t work — check your signal and try again.'));
+  }
+  await vfpShareLinksLoad();
+}
+
+// The receiver, after sign-in: what the link holds, with Accept and No thanks.
+async function openShareSheet() {
+  const code = vfpPendingShare();
+  if (!code || !sb || !authUserId || isDemo) return;
+  let r;
+  try { r = await vfpRpc('vfp_share_open', { p_code: code }); } catch (e) { return; }   // try again next time the app opens
+  const t = document.getElementById('vg-title'), sub = document.getElementById('vg-sub'), box = document.getElementById('vg-item');
+  const show = (yes) => {
+    document.getElementById('vg-yes').style.display = yes ? '' : 'none';
+    document.getElementById('vg-no').style.display = yes ? '' : 'none';
+    document.getElementById('vg-done').style.display = yes ? 'none' : '';
+    document.getElementById('vfp-got-modal').classList.add('open');
+  };
+  sub.textContent = ''; box.style.display = 'none'; box.innerHTML = '';
+  if (!r || !r.ok) {
+    vfpClearShare(); vfpGot = null;
+    const why = r && r.reason;
+    t.textContent = why === 'own' ? 'This is your own link. Send it to someone else.'
+      : why === 'expired' ? 'This link has run out.'
+      : why === 'cancelled' ? 'This link was canceled.'
+      : why === 'used' ? 'This link has already been used.'
+      : 'This link doesn’t work.';
+    show(false);
+    return;
+  }
+  vfpGot = { id: 'share-' + r.link_id, link_id: r.link_id, kind: r.kind, item: r.item || {}, from_name: r.from_name || 'Member' };
+  if (vfpShareAlreadyIn(vfpGot)) { vfpGotDone(true); return; }        // accepted already on this device; the answer didn't reach the database
+  t.textContent = vfpGot.from_name + ' sent you ' + (VFP_KIND_A[vfpGot.kind] || 'something');
+  const d = vfpSentDetail(vfpGot);
+  const meta = vfpSentMeta(vfpGot).replace(/^[^·]*·\s*/, '');           // the date and time, without "Task from …" again
+  box.innerHTML = '<div class="cal-imp-title">' + calEsc(vfpSentTitle(vfpGot) || 'Note') + '</div>'
+    + (meta && meta !== vfpSentMeta(vfpGot) ? '<div class="cal-imp-meta">' + calEsc(meta) + '</div>' : '')
+    + (d ? '<div class="gu-detail">' + calEsc(d) + '</div>' : '');
+  box.style.display = '';
+  show(true);
+}
+function vfpShareAlreadyIn(s) {
+  const has = arr => (arr || []).some(x => x && x.fromSend === s.id);
+  if (s.kind === 'task') return has(state.tasks);
+  if (s.kind === 'appointment') return has(state.appointments);
+  if (s.kind === 'note') return has(state.notes);
+  if (s.kind === 'shopping') return shopLists().some(l => has(l.items));
+  return false;
+}
+function vfpGotAccept() {
+  const s = vfpGot;
+  if (!s) return;
+  const r = vfpAcceptInto(s);
+  if (r !== 'ok') {                                       // the link stays on this device: it opens again next time
+    closeGroupsSheet('vfp-got-modal'); showToast(r);
+    if (/^Free plan/.test(r)) showUpgrade();
+    return;
+  }
+  try { persistNow(); } catch (e) {}
+  vfpGotDone(true);
+  showToast('Added to your planner');
+}
+function vfpGotNoThanks() { vfpGotDone(false); }
+function vfpGotDone(accepted) {
+  const s = vfpGot;
+  vfpGot = null;
+  vfpClearShare();
+  closeGroupsSheet('vfp-got-modal');
+  if (s) vfpRpc('vfp_share_answer', { p_link: s.link_id, p_accept: accepted }).catch(() => {});   // the sender never sees it; best effort
+}
 
 async function vfpSendTo(groupId, userId) {
   const d = vfpSendDraft;
@@ -16768,7 +16989,7 @@ function vfpCalPopup(a) {
   vfpApSendShow(false);
   let h = '<i class="ti ti-users"></i> Shared with everyone in ' + calEsc(s.name) + (s.by ? ' · added by ' + calEsc(s.by) : '');
   if (s.paused) {
-    const until = s.keep_until ? new Date(s.keep_until).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
+    const until = s.keep_until ? new Date(s.keep_until).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'long' }) : '';
     h += '<div class="grp-paused">This calendar is paused, so it can’t be changed. It’s kept until ' + calEsc(until) + '.'
        + ' <span class="grp-act" onclick="vfpCalKeepCopy(\'' + calEsc(s.group_id) + '\')">Keep a copy in my planner</span></div>';
     document.getElementById('ap-save').style.display = 'none';
@@ -16880,6 +17101,7 @@ attachFieldMics();
 // so visitors land straight on the sign-up tab instead of Sign in.
 if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
 vfpShowJoinNote();   // Groups step 1: "sign in to join" when this device holds an invite link
+vfpShowShareNote();  // Groups step 5: "sign in to see it" when this device holds a share link
 vfpConsentNotice();  // brief 1545 v2: the cookie notice, until the person answers here or on the website
 restoreSession();
 </script>
