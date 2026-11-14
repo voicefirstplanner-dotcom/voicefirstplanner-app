@@ -2400,6 +2400,7 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
     </div>
     <div id="auth-msg" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;"></div>
     <div id="auth-join-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">You&rsquo;ve been invited to a group. Sign in, or create a free account, to join it.</div>
+    <div id="auth-bf-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">Black Friday: 2 years for the price of 1. Sign in, or create a free account, to get it.</div>
     <div id="auth-share-note" style="display:none;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.4;color:var(--text-mid)">Someone sent you something in VoiceFirstPlanner. Sign in, or create a free account, to see it.</div>
     <div id="auth-signin">
       <div class="auth-field"><label>Email</label><input type="email" id="signin-email" placeholder="you@example.com"></div>
@@ -3704,6 +3705,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div class="settings-row"><span class="settings-row-label">Name</span><span class="settings-row-value" id="set-name">Dave</span></div>
         <div class="settings-row"><span class="settings-row-label">Email</span><span class="settings-row-value" id="set-email">dave@example.com</span></div>
         <div class="settings-row"><span class="settings-row-label">Plan</span><span class="settings-row-value" id="set-plan">Free</span><span class="settings-row-action" id="set-plan-action" onclick="showUpgrade()">Upgrade</span></div>
+        <div class="settings-row" id="set-bf-row" style="display:none"><span class="settings-row-label">Black Friday</span><span class="settings-row-value" id="set-bf-text"></span><span class="settings-row-action" id="set-bf-action"></span></div>
       </div>
       <!-- GROUPS (31 Oct 2026 · step 1): shown only to an account on a Duo, Family or Team plan -->
       <div class="settings-section" id="groups-section" style="display:none">
@@ -4197,9 +4199,26 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <div class="modal-title">Go Pro</div>
     <div class="modal-sub">Pro unlocks the AI brain-dump: say everything on your mind — tasks, people, times — and it comes back sorted for your approval. Nothing enters your planner until you say so. Every planning feature included.</div>
     <div id="pro-modal-priceline" style="font-size:12px;color:var(--text-light);margin-bottom:4px">$7.42 a month billed annually at $89, or $12.99 month to month — save 43%</div>
+    <div id="bf-founding" style="display:none;margin:4px 0 12px;padding:12px 14px;border-radius:10px;background:var(--surface-2,#F0F5FB);border-left:3px solid var(--accent,#F2771A)">
+      <div style="font-weight:700;color:var(--navy);font-size:15px">Black Friday: 2 years for the price of 1.</div>
+      <div id="bf-founding-line" style="font-size:13px;line-height:1.5;margin:6px 0 10px">Pro for $0.93 a month for two years, billed once at $22.25 (usually $22.25 a year at the founding rate, $44.50 for two years). From the third year, $22.25 a year.</div>
+      <button class="modal-cta" id="bf-founding-btn" onclick="vfpBfCheckout('lifetime')">Get 2 years of Pro</button>
+    </div>
+    <div id="bf-founding-ended" style="display:none;font-size:13px;margin:4px 0 10px;color:var(--text-mid)">The Black Friday offer has ended.</div>
     <button class="modal-cta" id="pro-modal-btn-monthly" onclick="startCheckout(STRIPE_PRICES.pro_monthly)">Pro — $12.99/mo</button>
     <button class="modal-cta" id="pro-modal-btn-annual" style="margin-top:8px" onclick="startCheckout(STRIPE_PRICES.pro_annual)">Pro Annual — $7.42/mo, billed $89 · save 43%</button>
     <button class="modal-close-btn" onclick="closeProUpgrade()">Not now</button>
+  </div>
+</div>
+
+<!-- Black Friday (14 Nov 2026): told plainly when the offer isn't for this account. -->
+<div class="modal-overlay" id="bf-note-modal" onclick="if(event.target===this)vfpBfNoteClose()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="bf-note-title"></div>
+    <div class="modal-sub" id="bf-note-line"></div>
+    <button class="modal-cta" id="bf-note-go" style="display:none" onclick="vfpBfNoteGo()">See my Black Friday deal</button>
+    <button class="modal-close-btn" onclick="vfpBfNoteClose()">OK</button>
   </div>
 </div>
 
@@ -5479,7 +5498,7 @@ function launchApp() {
   try { addHelpChips(); } catch (e) {}
   applyDemoBanner();     // guest-only notice; harmless and correct on every entry path
   loadWhatsNew();        // the "What's new" box: off unless the website reports a newer entry
-  loadEntitlement().then(() => { try { loadBudget(); } catch (e) { console.warn('budget', e); } });
+  loadEntitlement().then(() => { try { loadBudget(); } catch (e) { console.warn('budget', e); } try { vfpBfStart(); } catch (e) {} });
   vfpGroupsStart();      // Groups step 1: the Settings section (plan members only) and any invite link held
   handleCheckoutReturn();
 }
@@ -8952,6 +8971,7 @@ function openProModal() {
     }
   }
   document.getElementById('pro-upgrade-modal').classList.add('open');
+  vfpBfFoundingBlock(founding);
 }
 function closeAiDump() { document.getElementById('ai-dump-modal').classList.remove('open'); }
 
@@ -12982,6 +13002,7 @@ async function loadEntitlement() {
 }
 
 function renderPlan() {
+  try { vfpBfRenewalRow(); } catch (e) {}
   const ent = state.entitlement || { plan: 'free' };
   const labels = { free: 'Free', premium: 'Premium', pro: 'Pro' };
   const valEl = document.getElementById('set-plan');
@@ -17093,6 +17114,173 @@ function vfpCalKeepCopy(gid, quiet) {
   return n;
 }
 // ============================================================
+// BLACK FRIDAY: 2 YEARS FOR THE PRICE OF 1 (14 Nov 2026 · brief v2 · Pricing v10.8 §1B)
+// · Three links: ?bf=pro, ?bf=premium, ?bf=lifetime. The link is kept on this device for 2 days, so it survives
+//   signing in or creating an account, and taken out of the address bar.
+// · Every rule is the server's (api/create-checkout-session.js): who may buy, the cut-off, no promotion codes.
+//   The app only asks, and says plainly what the answer was.
+// · The on/off comes from GET /api/black-friday (one setting in the database).
+// ============================================================
+const VFP_BF_KEY = 'vfp_bf_link';
+const VFP_BF_ROUTES = ['pro', 'premium', 'lifetime'];
+const VFP_BF_WORDS = {
+  ended: 'The Black Friday offer has ended.',
+  lifetimeOnlyReason: 'That Black Friday deal is for Lifetime members.',
+  notOpenTitle: 'Black Friday isn’t open to your account',
+  notOpenLine: 'Black Friday is for new members and members on the free plan.',
+  notOpenLifetimeLine: 'This Black Friday deal is for Lifetime members who aren’t on Pro yet.',
+  lifetimeTitle: 'You’re a Lifetime member',
+  lifetimeLine: 'Premium is already yours for life. Your Black Friday deal is 2 years of Pro at the founding rate.',
+};
+(function vfpCaptureBf() {
+  try {
+    const p = new URLSearchParams(location.search);
+    if (!p.has('bf')) return;
+    const route = (p.get('bf') || '').toLowerCase();
+    if (VFP_BF_ROUTES.includes(route)) localStorage.setItem(VFP_BF_KEY, JSON.stringify({ route, at: Date.now() }));
+    p.delete('bf');
+    const q = p.toString();
+    history.replaceState({}, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  } catch (e) {}
+})();
+function vfpPendingBf() {
+  try {
+    const j = JSON.parse(localStorage.getItem(VFP_BF_KEY) || 'null');
+    if (!j || !VFP_BF_ROUTES.includes(j.route)) return null;
+    if (Date.now() - (j.at || 0) > 2 * 864e5) { localStorage.removeItem(VFP_BF_KEY); return null; }
+    return j.route;
+  } catch (e) { return null; }
+}
+function vfpClearBf() { try { localStorage.removeItem(VFP_BF_KEY); } catch (e) {} }
+function vfpShowBfNote() {
+  const n = document.getElementById('auth-bf-note');
+  if (n) n.style.display = vfpPendingBf() && !(typeof vfpPendingJoin === 'function' && vfpPendingJoin()) && !(typeof vfpPendingShare === 'function' && vfpPendingShare()) ? '' : 'none';
+}
+let vfpBfStatusCache = null;
+async function vfpBfStatus() {
+  if (vfpBfStatusCache && Date.now() - vfpBfStatusCache.t < 60000) return vfpBfStatusCache.v;
+  let v = { open: false };
+  try {
+    const r = await fetch('/api/black-friday', { cache: 'no-store' });
+    if (r.ok) v = await r.json();
+  } catch (e) {}
+  vfpBfStatusCache = { t: Date.now(), v };
+  return v;
+}
+function vfpBfNote(title, line, showGo) {
+  document.getElementById('bf-note-title').textContent = title;
+  document.getElementById('bf-note-line').textContent = line;
+  document.getElementById('bf-note-go').style.display = showGo ? '' : 'none';
+  document.getElementById('bf-note-modal').classList.add('open');
+}
+function vfpBfNoteClose() { document.getElementById('bf-note-modal').classList.remove('open'); }
+function vfpBfNoteGo() { vfpBfNoteClose(); openProModal(); }
+
+// The link, acted on after sign-in. Nothing happens for a guest or before the plan is known.
+async function vfpBfStart() {
+  const route = vfpPendingBf();
+  if (!route || !sb || isDemo || !authUserId) return;
+  vfpClearBf();
+  const ent = state.entitlement || {};
+  if (route === 'lifetime') {
+    if (ent.source !== 'lifetime') { showUpgrade(VFP_BF_WORDS.lifetimeOnlyReason); return; }
+    if (ent.plan === 'pro') { vfpBfNote(VFP_BF_WORDS.notOpenTitle, VFP_BF_WORDS.notOpenLifetimeLine, false); return; }
+    vfpBfArrivedByLink = true;
+    openProModal();
+    return;
+  }
+  return vfpBfCheckout(route);
+}
+let vfpBfArrivedByLink = false;
+
+// One Black Friday checkout. The server answers; every "no" is said plainly.
+async function vfpBfCheckout(route) {
+  if (!sb || isDemo || !authUserId) { showToast('Create an account or sign in to upgrade'); return; }
+  const tok = await vfpAccessToken();
+  if (!tok) { showToast('Create an account or sign in to upgrade'); return; }
+  let r, data = {};
+  try {
+    const referral = (window.Rewardful && window.Rewardful.referral) || undefined;
+    r = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ bf: route, referral }),
+    });
+    data = await r.json().catch(() => ({}));
+  } catch (e) { showToast('Could not reach checkout — please try again'); return; }
+  if (data.url) { window.location.href = data.url; return; }
+  const err = data.error || '';
+  vfpBfStatusCache = null;
+  if (err === 'bf_ended') {
+    if (route === 'lifetime') { vfpBfArrivedByLink = true; openProModal(); }
+    else { closeProUpgrade(); showUpgrade(VFP_BF_WORDS.ended); }
+    return;
+  }
+  if (err === 'bf_lifetime_use_founding') { vfpBfNote(VFP_BF_WORDS.lifetimeTitle, VFP_BF_WORDS.lifetimeLine, true); return; }
+  if (err === 'bf_already_paying') {
+    vfpBfNote(VFP_BF_WORDS.notOpenTitle, route === 'lifetime' ? VFP_BF_WORDS.notOpenLifetimeLine : VFP_BF_WORDS.notOpenLine, false);
+    return;
+  }
+  if (err === 'bf_lifetime_only') { closeProUpgrade(); showUpgrade(VFP_BF_WORDS.lifetimeOnlyReason); return; }
+  showToast(err && !/^bf_/.test(err) ? err : 'Could not start checkout');
+}
+
+// The founding sheet: the Black Friday choice while it's open, for a Lifetime member not on Pro.
+async function vfpBfFoundingBlock(founding) {
+  const box = document.getElementById('bf-founding'), ended = document.getElementById('bf-founding-ended');
+  if (!box || !ended) return;
+  box.style.display = 'none'; ended.style.display = 'none';
+  const byLink = vfpBfArrivedByLink; vfpBfArrivedByLink = false;
+  const ent = state.entitlement || {};
+  if (!founding || ent.plan === 'pro') return;
+  const st = await vfpBfStatus();
+  if (st.open) box.style.display = '';
+  else if (byLink) ended.style.display = '';
+}
+
+// Settings: only for a Black Friday subscription, the date it's paid to, and Stop renewal / Keep renewing.
+// Stripe's billing page can't cancel a subscription with a change scheduled, so this is where it's done.
+let vfpBfRowBusy = false;
+// Returns true only when a Stop or Keep actually took effect, so the toast never says it did when it didn't.
+async function vfpBfRenewalRow(action) {
+  const row = document.getElementById('set-bf-row');
+  if (!row) return false;
+  const ent = state.entitlement || {};
+  const mayBe = sb && !isDemo && authUserId && !ent.viaGroup && ((ent.source === 'annual' && (ent.plan === 'premium' || ent.plan === 'pro')) || (ent.source === 'lifetime' && ent.plan === 'pro'));
+  if (!mayBe) { row.style.display = 'none'; return false; }
+  if (vfpBfRowBusy) return false;
+  vfpBfRowBusy = true;
+  try {
+    const tok = await vfpAccessToken();
+    if (!tok) { if (!action) row.style.display = 'none'; return false; }
+    const r = await fetch('/api/create-portal-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ action: action || 'bf_info' }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!d.bf) { if (!action) row.style.display = 'none'; return false; }
+    const day = new Date(d.paid_to).toLocaleDateString(typeof VFP_DATE_LOCALE !== 'undefined' ? VFP_DATE_LOCALE : undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const then = d.then_amount != null ? '$' + (d.then_amount % 100 ? (d.then_amount / 100).toFixed(2) : String(d.then_amount / 100)) : '';
+    const txt = document.getElementById('set-bf-text'), act = document.getElementById('set-bf-action');
+    if (d.stopping) {
+      txt.textContent = 'Paid to ' + day + '. It won’t renew.';
+      act.textContent = 'Keep renewing';
+      act.onclick = () => vfpBfRenewalRow('bf_keep').then((ok) => showToast(ok ? 'Renewal is back on.' : 'Could not save that change \u2014 try again'));
+    } else {
+      txt.textContent = 'Paid to ' + day + '. Then ' + then + ' a year.';
+      act.textContent = 'Stop renewal';
+      act.onclick = () => vfpBfRenewalRow('bf_stop').then((ok) => showToast(ok ? 'Renewal stopped. Your plan stays until ' + day + '.' : 'Could not save that change \u2014 try again'));
+    }
+    row.style.display = '';
+    return action === 'bf_stop' ? d.stopping === true : action === 'bf_keep' ? d.stopping === false : true;
+  } catch (e) {
+    if (!action) row.style.display = 'none';
+    return false;
+  } finally { vfpBfRowBusy = false; }
+}
+
+// ============================================================
 // START
 // ============================================================
 init();
@@ -17102,6 +17290,7 @@ attachFieldMics();
 if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
 vfpShowJoinNote();   // Groups step 1: "sign in to join" when this device holds an invite link
 vfpShowShareNote();  // Groups step 5: "sign in to see it" when this device holds a share link
+vfpShowBfNote();     // Black Friday: "sign in to get it" when this device holds a Black Friday link
 vfpConsentNotice();  // brief 1545 v2: the cookie notice, until the person answers here or on the website
 restoreSession();
 </script>

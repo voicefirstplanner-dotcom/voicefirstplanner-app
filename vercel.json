@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/workbook-download", "destination": "/api/capture" }
+    { "source": "/api/workbook-download", "destination": "/api/capture" },
+    { "source": "/api/black-friday", "destination": "/api/create-checkout-session?bf_status=1" }
   ]
 }
