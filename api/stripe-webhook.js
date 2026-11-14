@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { mintToken, downloadUrl } from './_lib/token.js';
 import { mainLine, latestPeriodEnd } from './_lib/sub-lines.js';   // 31 Oct 2026: Groups step 0
+import { bfSchedule } from './_lib/black-friday.js';   // 14 Nov 2026: Black Friday, 2 years for the price of 1
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -606,6 +607,12 @@ export default async function handler(req, res) {
             stripe_subscription_id: session.subscription,
           });
           await syncSubscriptionById(session.subscription);
+          // 14 Nov 2026 · Black Friday: the paid two years run to their end, then the usual yearly price takes over.
+          // If this throws, the event 500s and Stripe retries; bfSchedule is safe to run twice.
+          if (session.metadata?.vfp_bf) {
+            const r = await bfSchedule(stripe, session.subscription);
+            console.log('Black Friday schedule', session.subscription, JSON.stringify(r));
+          }
           // Entitlement is now synced to its current state — deliver the right
           // welcome (Annual: its 6 files; Monthly: a thank-you).
           await fireSubscriptionWelcome(session, userId);

@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
+import { bfStatus, bfPrice, bfWho, bfExpiresAt, isBfPrice, BF_ROUTES } from './_lib/black-friday.js';   // 14 Nov 2026
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const APP_URL = process.env.APP_URL || 'https://app.voicefirstdayplanner.com';
@@ -24,14 +25,71 @@ const FOUNDING_PRICES = new Set([
 // 31 Oct 2026 (Groups step 0): the buyer is the SIGNED-IN account and its own
 // email. A userId or email in the body is ignored. Before this, the founding-
 // price check and the purchase's account were whatever id the browser sent.
+// 14 Nov 2026 · Black Friday status for the website and the app: GET /api/black-friday (vercel.json sends it here,
+// so no new function counts toward the Hobby plan's 12). Public, no sign-in, nothing private in it.
+async function blackFridayStatus(req, res) {
+  const st = await bfStatus(supabase);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=60');
+  return res.status(200).json({ open: st.open, ends_at: st.ends_at || null, last_checkout_at: st.last_checkout_at || null });
+}
+
+// 14 Nov 2026 · Black Friday checkout: POST { bf: 'pro' | 'premium' | 'lifetime', referral? }, signed in.
+// Every rule is checked here, not in the app (Pricing v10.8 §1B, brief v2 §5).
+async function blackFridayCheckout(req, res, me, route, referral) {
+  const st = await bfStatus(supabase);
+  if (!st.open) return res.status(410).json({ error: 'bf_ended' });
+  const { data: ent } = await supabase
+    .from('entitlements')
+    .select('plan,source,status,comp,stripe_subscription_id')
+    .eq('user_id', me.id)
+    .maybeSingle();
+  const who = bfWho(route, ent);
+  if (who !== 'ok') return res.status(route === 'lifetime' && who === 'lifetime_only' ? 403 : 409).json({ error: 'bf_' + who });
+  const price = await bfPrice(stripe, route);
+  if (!price) return res.status(410).json({ error: 'bf_ended' });
+  const expiresAt = bfExpiresAt(st);
+  if (!expiresAt) return res.status(410).json({ error: 'bf_ended' });
+  // TEST MODE ONLY: Stripe's test clocks, so the test run can move time past one and two years. Does nothing unless the
+  // key is a test key AND VFP_BF_TEST_CLOCK is '1' (set on the black-friday-test preview only). Live never has either.
+  let buyer = { customer_email: me.email || undefined };
+  if (process.env.VFP_BF_TEST_CLOCK === '1' && String(process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test_')) {
+    const clock = await stripe.testHelpers.testClocks.create({ frozen_time: Math.floor(Date.now() / 1000), name: ('BF ' + route + ' ' + (me.email || me.id)).slice(0, 300) });
+    const cus = await stripe.customers.create({ email: me.email || undefined, test_clock: clock.id, metadata: { supabase_user_id: me.id } });
+    buyer = { customer: cus.id };
+  }
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    line_items: [{ price: price.id, quantity: 1 }],
+    success_url: `${APP_URL}/?checkout=success&bf=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${APP_URL}/?checkout=cancel`,
+    ...(referral ? { client_reference_id: referral } : {}),
+    ...buyer,
+    // No promotion code field at this checkout, so TOOLFINDER50 can't go on top (brief v2 §5.1).
+    allow_promotion_codes: false,
+    expires_at: expiresAt,   // it can't stay open past the cut-off
+    ...(price.metadata && price.metadata.checkout_line ? { custom_text: { submit: { message: price.metadata.checkout_line } } } : {}),
+    metadata: { supabase_user_id: me.id, vfp_bf: route },
+    subscription_data: { metadata: { supabase_user_id: me.id, vfp_bf: route } },
+  });
+  return res.status(200).json({ url: session.url });
+}
+
 export default async function handler(req, res) {
+  if (req.method === 'GET') return blackFridayStatus(req, res);   // 14 Nov 2026: the only GET this function answers
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { priceId, referral } = req.body || {};
+    const { priceId, referral, bf } = req.body || {};
+    if (bf !== undefined) {
+      if (!BF_ROUTES.includes(bf)) return res.status(400).json({ error: 'Unknown offer' });
+      const meBf = await signedInUser(req, supabase);
+      if (!meBf) return res.status(401).json({ error: 'Create an account or sign in to upgrade' });
+      return await blackFridayCheckout(req, res, meBf, bf, referral);
+    }
     if (!priceId) return res.status(400).json({ error: 'Missing priceId' });
     const me = await signedInUser(req, supabase);
     if (!me) return res.status(401).json({ error: 'Create an account or sign in to upgrade' });
@@ -52,6 +110,8 @@ export default async function handler(req, res) {
 
     // Let the price itself decide: recurring => subscription, otherwise => one-off payment (lifetime).
     const price = await stripe.prices.retrieve(priceId);
+    // 14 Nov 2026: a Black Friday price is sold only through its own route above, with its own checks.
+    if (isBfPrice(price)) return res.status(400).json({ error: 'Missing priceId' });
     const mode = price.recurring ? 'subscription' : 'payment';
 
     const session = await stripe.checkout.sessions.create({
