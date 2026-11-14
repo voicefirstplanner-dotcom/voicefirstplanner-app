@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { mintToken, downloadUrl } from './_lib/token.js';
 import { mainLine, latestPeriodEnd } from './_lib/sub-lines.js';   // 31 Oct 2026: Groups step 0
-import { bfSchedule } from './_lib/black-friday.js';   // 14 Nov 2026: Black Friday, 2 years for the price of 1
+import { bfSchedule, bfReleaseIfDone } from './_lib/black-friday.js';   // 14 Nov 2026: Black Friday, 2 years for the price of 1
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -624,6 +624,9 @@ export default async function handler(req, res) {
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         await syncSubscriptionById(sub.id, sub);
+        // 14 Nov 2026 · Black Friday: past the paid two years, the schedule lets go (an ordinary yearly subscription).
+        try { const r = await bfReleaseIfDone(stripe, sub); if (r.released) console.log('Black Friday schedule released', r.schedule, 'sub', sub.id); }
+        catch (e) { console.error('bfReleaseIfDone failed:', e && e.message); }
         break;
       }
 

@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
-import { bfSubState, bfStopRenewal, bfKeepRenewing } from './_lib/black-friday.js';   // 14 Nov 2026
+import { bfSubState, bfStopRenewal, bfKeepRenewing, bfPortalConfig } from './_lib/black-friday.js';   // 14 Nov 2026
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -55,9 +55,20 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'No billing account found for this user' });
     }
 
+    // 14 Nov 2026 (fault F3): a Black Friday subscription gets the billing page without Cancel or plan changes, so
+    // cancelling can only be Settings › Stop renewal (the plan runs to the end of the paid two years). Everyone else:
+    // the usual billing page, exactly as before.
+    let configuration = null;
+    if (data.stripe_subscription_id) {
+      let st = { bf: false };
+      try { st = await bfSubState(stripe, data.stripe_subscription_id); }
+      catch (e) { if (e && e.statusCode !== 404) throw e; }        // a subscription Stripe no longer has: as before
+      if (st.bf) configuration = await bfPortalConfig(stripe);
+    }
     const session = await stripe.billingPortal.sessions.create({
       customer: data.stripe_customer_id,
       return_url: APP_URL,
+      ...(configuration ? { configuration } : {}),
     });
 
     return res.status(200).json({ url: session.url });

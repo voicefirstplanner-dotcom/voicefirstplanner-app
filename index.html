@@ -13171,17 +13171,29 @@ function handleCheckoutReturn() {
     return;
   }
   if (c === 'success') {
-    showToast('Payment received — unlocking Premium…');
+    // 14 Nov 2026 (Black Friday fault F1; Management Q2 (a) for every checkout): the success address says which plan
+    // was bought (?bought=pro|premium|lifetime), so the message names that plan and waits for it. A Lifetime member is
+    // Premium already, so waiting for "Premium" after buying Pro would stop at once and name the wrong plan.
+    // An address without it (a checkout opened before this change): wait for Premium or Pro, as before.
+    const bought = (params.get('bought') || '').toLowerCase();
+    const wantPro = bought === 'pro';
+    const ent = () => state.entitlement || {};
+    const got = () => wantPro ? ent().plan === 'pro'
+      : bought === 'lifetime' ? (isPremium() && ent().source === 'lifetime')
+      : isPremium();
+    const planName = () => wantPro || ent().plan === 'pro' ? 'Pro'
+      : (bought === 'lifetime' || (!bought && ent().source === 'lifetime')) ? 'Lifetime' : 'Premium';
+    showToast('Payment received — unlocking ' + (wantPro ? 'Pro' : bought === 'lifetime' ? 'Lifetime' : 'Premium') + '…');
     let tries = 0;
     const poll = setInterval(async () => {
       tries++;
       await loadEntitlement();
-      if (isPremium() || tries >= 5) {
+      if (got() || tries >= 5) {
         clearInterval(poll);
-        if (isPremium()) {
-          showToast("You're Premium — thank you!");
-          // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep).
-          maybeShowLifetimeProAsk();
+        if (got()) {
+          showToast("You're on " + planName() + ' — thank you!');
+          // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep). Never after buying Pro.
+          if (!wantPro) maybeShowLifetimeProAsk();
         }
       }
     }, 1500);

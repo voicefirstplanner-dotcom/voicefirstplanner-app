@@ -61,12 +61,14 @@ export function bfWho(route, ent) {
   return 'ok';
 }
 
-// When the checkout must close: at the cut-off, and never later than Stripe's 24 hours.
+// When the checkout must close: at the cut-off, and never more than an hour after it opens (Dave, 14 Nov, Q1 (a):
+// after an early switch-off, any checkout already open closes within the hour). Stripe needs at least 30 minutes.
+export const BF_CHECKOUT_SECONDS = 3600;
 export function bfExpiresAt(status, nowMs) {
   const cut = Date.parse(status && status.ends_at);
   const now = nowMs || Date.now();
   if (!Number.isFinite(cut)) return null;
-  const max = Math.floor(now / 1000) + 24 * 3600 - 60;
+  const max = Math.floor(now / 1000) + BF_CHECKOUT_SECONDS;
   const at = Math.min(Math.floor(cut / 1000), max);
   return at - Math.floor(now / 1000) >= 30 * 60 ? at : null;   // Stripe needs at least 30 minutes
 }
@@ -105,6 +107,8 @@ export async function bfSubState(stripe, subscriptionId) {
   const sched = await stripe.subscriptionSchedules.retrieve(schedId);
   if (!sched.metadata || sched.metadata.vfp_bf !== 'set' || ['released', 'canceled', 'completed'].includes(sched.status)) return { bf: false };
   const p0 = sched.phases[0];
+  // Past the paid two years (the schedule is on its yearly phase): an ordinary yearly subscription from here.
+  if (sched.current_phase && sched.current_phase.start_date >= p0.end_date) return { bf: false };
   const thenItem = sched.phases[1] && sched.phases[1].items && sched.phases[1].items[0];
   return {
     bf: true,
@@ -138,4 +142,47 @@ export async function bfKeepRenewing(stripe, state, thenPrice) {
       { items: [{ price: thenPrice, quantity: 1 }], iterations: 1, proration_behavior: 'none' },
     ],
   });
+}
+
+// 14 Nov 2026 (fault F2/F3 follow-up): once the two paid years are over and the subscription has moved to the usual
+// yearly price, let the schedule go, so from the third year it's an ordinary yearly subscription (Stripe's billing
+// page, renewals and cancelling as for any member). Called by the webhook on customer.subscription.created/updated.
+export async function bfReleaseIfDone(stripe, sub) {
+  const schedId = sub && sub.schedule ? (typeof sub.schedule === 'string' ? sub.schedule : sub.schedule.id) : null;
+  if (!schedId) return { released: false };
+  const item = sub.items && sub.items.data && sub.items.data[0];
+  if (!item || isBfPrice(item.price)) return { released: false };          // still in the paid two years
+  const sched = await stripe.subscriptionSchedules.retrieve(schedId);
+  if (!sched.metadata || sched.metadata.vfp_bf !== 'set' || sched.status !== 'active') return { released: false };
+  await stripe.subscriptionSchedules.release(schedId);
+  return { released: true, schedule: schedId };
+}
+
+// 14 Nov 2026 (fault F3): Stripe's billing page for a Black Friday subscription, with no Cancel and no plan change.
+// Dave's ruling: cancelling keeps the plan to the end of the two years. In the app, Settings › Stop renewal does that.
+// One portal setting, found by its metadata (vfp_bf = no_cancel), made the first time it's needed, copying the default
+// setting's business details. Invoices, receipts and the card stay on it.
+export async function bfPortalConfig(stripe) {
+  const list = await stripe.billingPortal.configurations.list({ active: true, limit: 100 });
+  const mine = (list.data || []).find(c => c.metadata && c.metadata.vfp_bf === 'no_cancel');
+  if (mine) return mine.id;
+  const def = (list.data || []).find(c => c.is_default) || null;
+  const bp = (def && def.business_profile) || {};
+  const cu = def && def.features && def.features.customer_update;
+  const cfg = await stripe.billingPortal.configurations.create({
+    business_profile: {
+      ...(bp.headline ? { headline: bp.headline } : {}),
+      ...(bp.privacy_policy_url ? { privacy_policy_url: bp.privacy_policy_url } : {}),
+      ...(bp.terms_of_service_url ? { terms_of_service_url: bp.terms_of_service_url } : {}),
+    },
+    features: {
+      invoice_history: { enabled: true },
+      payment_method_update: { enabled: true },
+      customer_update: cu && cu.enabled ? { enabled: true, allowed_updates: cu.allowed_updates } : { enabled: false },
+      subscription_cancel: { enabled: false },
+      subscription_update: { enabled: false },
+    },
+    metadata: { vfp_bf: 'no_cancel' },
+  });
+  return cfg.id;
 }

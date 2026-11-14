@@ -61,7 +61,7 @@ async function blackFridayCheckout(req, res, me, route, referral) {
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price: price.id, quantity: 1 }],
-    success_url: `${APP_URL}/?checkout=success&bf=1&session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${APP_URL}/?checkout=success&bought=${route === 'premium' ? 'premium' : 'pro'}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/?checkout=cancel`,
     ...(referral ? { client_reference_id: referral } : {}),
     ...buyer,
@@ -113,11 +113,13 @@ export default async function handler(req, res) {
     // 14 Nov 2026: a Black Friday price is sold only through its own route above, with its own checks.
     if (isBfPrice(price)) return res.status(400).json({ error: 'Missing priceId' });
     const mode = price.recurring ? 'subscription' : 'payment';
+    // 14 Nov 2026 (Management Q2 (a)): the success address says which plan was bought, so the app's message names it.
+    const bought = !price.recurring ? 'lifetime' : (price.metadata && price.metadata.plan === 'pro' ? 'pro' : 'premium');
 
     const session = await stripe.checkout.sessions.create({
       mode,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${APP_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${APP_URL}/?checkout=success&bought=${bought}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
       // Rewardful referral ONLY. Must be OMITTED entirely when absent — a blank
       // client_reference_id makes Stripe throw and breaks all checkout. The buyer's
