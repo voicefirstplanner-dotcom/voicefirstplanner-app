@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { mintToken, downloadUrl } from './_lib/token.js';
 import { mainLine, latestPeriodEnd } from './_lib/sub-lines.js';   // 31 Oct 2026: Groups step 0
+import { bfGrant, bfReleaseIfStarted, bfCancelFuture } from './_lib/black-friday.js';   // 14 Nov 2026: Black Friday, 2 years for the price of 1
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -60,6 +61,14 @@ function planFromPrice(price) {
 function periodEnd(sub) {
   const ts = latestPeriodEnd(sub);
   return ts ? new Date(ts * 1000).toISOString() : null;
+}
+
+// 14 Nov 2026 · Black Friday: the same write, but a failure THROWS, so the event 500s and Stripe sends it again.
+async function writeEntitlementOrThrow(row) {
+  const { error } = await supabase
+    .from('entitlements')
+    .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+  if (error) throw new Error('Supabase upsert error: ' + error.message);
 }
 
 async function upsertEntitlement(row) {
@@ -567,6 +576,16 @@ export default async function handler(req, res) {
           break;
         }
 
+        // 14 Nov 2026 · Black Friday (F4): ONE payment for two years. It's a one-off payment, so it MUST be handled
+        // before the Lifetime branch below, which treats every one-off payment as a Lifetime purchase.
+        // If this throws, the event 500s and Stripe retries; bfGrant is safe to run twice.
+        if (session.metadata?.vfp_bf) {
+          const r = await bfGrant(stripe, session, { getEntitlement, writeGrant: writeEntitlementOrThrow });
+          console.log('Black Friday grant', session.id, JSON.stringify(r));
+          if (r.done) await fireSubscriptionWelcome(session, userId);
+          break;
+        }
+
         if (session.mode === 'payment') {
           // One-off Lifetime purchase.
           // plan='premium' + source='lifetime' — NEVER plan='lifetime'. The app's
@@ -617,6 +636,16 @@ export default async function handler(req, res) {
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         await syncSubscriptionById(sub.id, sub);
+        // 14 Nov 2026 · Black Friday (F4): the two paid years are over and the yearly subscription has started. Let the
+        // schedule go (an ordinary yearly subscription from here) and clear the Black Friday marker.
+        try {
+          const r = await bfReleaseIfStarted(stripe, sub);
+          if (r.released) {
+            console.log('Black Friday schedule released', r.schedule, 'sub', sub.id);
+            const uid = r.user_id || sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
+            if (uid) await writeEntitlementOrThrow({ user_id: uid, bf_paid_to: null, bf_route: null });
+          }
+        } catch (e) { console.error('bfReleaseIfStarted failed:', e && e.message); }
         break;
       }
 
@@ -673,10 +702,12 @@ export default async function handler(req, res) {
         // Job 6c: uidFromPI is tracked separately — it doubles as the POSITIVE
         // identification of the Lifetime one-off below.
         let uidFromPI = null;
+        let bfRoute = null;   // 14 Nov 2026 · Black Friday: set on the Black Friday payment's PI metadata
         if (charge.payment_intent) {
           try {
             const pi = await stripe.paymentIntents.retrieve(charge.payment_intent);
             uidFromPI = pi.metadata?.supabase_user_id || null;
+            bfRoute = pi.metadata?.vfp_bf || null;
           } catch (e) {
             console.warn('Could not retrieve PI for refunded charge', charge.id, e.message);
           }
@@ -704,6 +735,28 @@ export default async function handler(req, res) {
         const comped = await getEntitlement(userId);
         if (comped?.comp === true) {
           console.log('Comp account', userId, '— refund on charge', charge.id, 'ignored; entitlement untouched');
+          break;
+        }
+        // 14 Nov 2026 · Black Friday (F4): a Black Friday payment is a one-off with supabase_user_id on its PI, just
+        // like Lifetime. It MUST NOT be taken for a Lifetime refund: a Lifetime member who added Pro the Black Friday
+        // way would lose Lifetime. Full refund: the Black Friday grant is put back (Lifetime members to Lifetime
+        // Premium, everyone else to free) and the future yearly start is cancelled. Partial: no change (as Lifetime).
+        if (bfRoute) {
+          const fully = charge.refunded === true || charge.amount_refunded >= charge.amount;
+          if (!fully) { console.log('Partial refund on Black Friday charge', charge.id, '— no change'); break; }
+          const heldBf = await getEntitlement(userId);
+          const lifetimeBf = heldBf?.source === 'lifetime';
+          await writeEntitlementOrThrow({
+            user_id: userId,
+            plan: lifetimeBf ? 'premium' : 'free',
+            source: lifetimeBf ? 'lifetime' : null,
+            status: lifetimeBf ? 'active' : 'refunded',
+            current_period_end: null,
+            bf_paid_to: null,
+            bf_route: null,
+          });
+          const c = await bfCancelFuture(stripe, charge.customer);
+          console.log('Black Friday refund', charge.id, 'user', userId, 'future start cancelled:', c.cancelled);
           break;
         }
         const isLifetimeOneOff = !!uidFromPI && !String(charge.description || '').startsWith('Subscription');
