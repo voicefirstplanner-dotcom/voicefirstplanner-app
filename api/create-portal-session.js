@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
-import { bfSubState, bfStopRenewal, bfKeepRenewing, bfPortalConfig } from './_lib/black-friday.js';   // 14 Nov 2026
+import { bfSubState, bfStopRenewal, bfKeepRenewing } from './_lib/black-friday.js';   // 14 Nov 2026
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -24,26 +24,27 @@ export default async function handler(req, res) {
     if (!me) return res.status(401).json({ error: 'Could not open billing — please try again' });
     const userId = me.id;   // any userId in the body is ignored
 
-    const { data } = await supabase
+    let { data, error: readErr } = await supabase
       .from('entitlements')
-      .select('stripe_customer_id,stripe_subscription_id')
+      .select('stripe_customer_id,stripe_subscription_id,bf_paid_to,bf_route')
       .eq('user_id', userId)
       .maybeSingle();
+    if (readErr) {
+      // Before the Black Friday columns exist (SQL BF12), read what this always read, so billing keeps working.
+      ({ data } = await supabase.from('entitlements').select('stripe_customer_id').eq('user_id', userId).maybeSingle());
+    }
 
-    // 14 Nov 2026 · Black Friday: Stripe's billing page can't cancel a subscription that has a scheduled change, so a
-    // Black Friday buyer stops (or restarts) the renewal here. Their plan runs to the end of the paid two years either
-    // way (Dave, 14 Nov). { action: 'bf_info' | 'bf_stop' | 'bf_keep' }, the signed-in account's own subscription only.
+    // 14 Nov 2026 · Black Friday (F4): a Black Friday member paid once for two years; their yearly subscription is set
+    // up to START when the two years end. Settings shows that, and stops (or restarts) it here. Their plan runs to the
+    // end of the paid two years either way (Dave, 14 Nov). { action: 'bf_info' | 'bf_stop' | 'bf_keep' }, the
+    // signed-in account's own only.
     const action = (req.body || {}).action;
     if (action === 'bf_info' || action === 'bf_stop' || action === 'bf_keep') {
-      const st = await bfSubState(stripe, data && data.stripe_subscription_id);
+      const st = await bfSubState(stripe, data);
       if (!st.bf) return res.status(200).json({ bf: false });
       if (action === 'bf_stop' && !st.stopping) await bfStopRenewal(stripe, st);
-      if (action === 'bf_keep' && st.stopping) {
-        const p0price = st._phase0.items[0].price;
-        const price = await stripe.prices.retrieve(typeof p0price === 'string' ? p0price : p0price.id);
-        await bfKeepRenewing(stripe, st, price.metadata.then_price);
-      }
-      const now = action === 'bf_info' ? st : await bfSubState(stripe, data.stripe_subscription_id);
+      if (action === 'bf_keep' && st.stopping) await bfKeepRenewing(stripe, st, { customerId: data.stripe_customer_id, userId });
+      const now = action === 'bf_info' ? st : await bfSubState(stripe, data);
       let thenAmount = null;
       if (now.then_price) {
         try { const tp = await stripe.prices.retrieve(now.then_price); thenAmount = tp.unit_amount; } catch (e) {}
@@ -55,20 +56,9 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'No billing account found for this user' });
     }
 
-    // 14 Nov 2026 (fault F3): a Black Friday subscription gets the billing page without Cancel or plan changes, so
-    // cancelling can only be Settings › Stop renewal (the plan runs to the end of the paid two years). Everyone else:
-    // the usual billing page, exactly as before.
-    let configuration = null;
-    if (data.stripe_subscription_id) {
-      let st = { bf: false };
-      try { st = await bfSubState(stripe, data.stripe_subscription_id); }
-      catch (e) { if (e && e.statusCode !== 404) throw e; }        // a subscription Stripe no longer has: as before
-      if (st.bf) configuration = await bfPortalConfig(stripe);
-    }
     const session = await stripe.billingPortal.sessions.create({
       customer: data.stripe_customer_id,
       return_url: APP_URL,
-      ...(configuration ? { configuration } : {}),
     });
 
     return res.status(200).json({ url: session.url });

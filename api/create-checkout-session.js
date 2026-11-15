@@ -39,11 +39,12 @@ async function blackFridayStatus(req, res) {
 async function blackFridayCheckout(req, res, me, route, referral) {
   const st = await bfStatus(supabase);
   if (!st.open) return res.status(410).json({ error: 'bf_ended' });
-  const { data: ent } = await supabase
+  const { data: ent, error: entErr } = await supabase
     .from('entitlements')
-    .select('plan,source,status,comp,stripe_subscription_id')
+    .select('plan,source,status,comp,stripe_subscription_id,bf_paid_to')
     .eq('user_id', me.id)
     .maybeSingle();
+  if (entErr) { console.error('Black Friday entitlement read failed:', entErr.message); return res.status(503).json({ error: 'Could not start checkout' }); }
   const who = bfWho(route, ent);
   if (who !== 'ok') return res.status(route === 'lifetime' && who === 'lifetime_only' ? 403 : 409).json({ error: 'bf_' + who });
   const price = await bfPrice(stripe, route);
@@ -58,8 +59,10 @@ async function blackFridayCheckout(req, res, me, route, referral) {
     const cus = await stripe.customers.create({ email: me.email || undefined, test_clock: clock.id, metadata: { supabase_user_id: me.id } });
     buyer = { customer: cus.id };
   }
+  // Fault F4 (14 Nov 20:40): ONE payment, no subscription at Checkout, so nothing says "every 2 years". The card is
+  // saved for the yearly charge from the third year; the webhook sets that up (bfGrant).
   const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
+    mode: 'payment',
     line_items: [{ price: price.id, quantity: 1 }],
     success_url: `${APP_URL}/?checkout=success&bought=${route === 'premium' ? 'premium' : 'pro'}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/?checkout=cancel`,
@@ -69,8 +72,14 @@ async function blackFridayCheckout(req, res, me, route, referral) {
     allow_promotion_codes: false,
     expires_at: expiresAt,   // it can't stay open past the cut-off
     ...(price.metadata && price.metadata.checkout_line ? { custom_text: { submit: { message: price.metadata.checkout_line } } } : {}),
+    ...(buyer.customer ? {} : { customer_creation: 'always' }),
+    payment_intent_data: {
+      setup_future_usage: 'off_session',
+      // vfp_bf marks it as Black Friday, so the refund handler never mistakes it for a Lifetime purchase.
+      metadata: { supabase_user_id: me.id, vfp_bf: route },
+    },
+    invoice_creation: { enabled: true, invoice_data: { metadata: { vfp_bf: route } } },   // one paid invoice and receipt
     metadata: { supabase_user_id: me.id, vfp_bf: route },
-    subscription_data: { metadata: { supabase_user_id: me.id, vfp_bf: route } },
   });
   return res.status(200).json({ url: session.url });
 }
@@ -105,6 +114,15 @@ export default async function handler(req, res) {
       if (ent?.source !== 'lifetime') {
         console.warn('Founding price refused for non-lifetime user', userId, priceId);
         return res.status(403).json({ error: 'founding_rate_lifetime_only' });
+      }
+    }
+
+    // 14 Nov 2026 (Black Friday, F4): a member in their two paid Black Friday years has their year-3 subscription
+    // already set up; a second checkout would charge twice. Moving plan is Dave's ruling to make (brief v2 §5.8).
+    {
+      const { data: bfEnt, error: bfErr } = await supabase.from('entitlements').select('bf_paid_to').eq('user_id', userId).maybeSingle();
+      if (!bfErr && bfEnt && bfEnt.bf_paid_to && Date.parse(bfEnt.bf_paid_to) > Date.now()) {
+        return res.status(409).json({ error: "Your Black Friday plan is already paid for. Changing plan isn't open yet." });
       }
     }
 
