@@ -5368,7 +5368,10 @@ async function signUp() {
   }
   authMsg('Creating your account…');
   // vfp_src: where this person came from (brief 1545), saved by the database with the new account. Never sent to Meta.
-  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, vfp_src: vfpFirstVisit() || { first_visit: new Date().toISOString() } } } });
+  // 24 Nov 2026 (Black Friday, new visitor): with a Pro or Premium deal pressed, the deal goes with the account
+  // and in the confirm link, so it is still there whichever device or browser opens the email (vfpBfSignUpOptions).
+  // With no deal, the call is exactly as before.
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: vfpBfSignUpOptions({ data: { name, vfp_src: vfpFirstVisit() || { first_visit: new Date().toISOString() } } }) });
   if (error) { authMsg(error.message, true); return; }
   if (!data.session) {
     // Email confirmation is enabled in Supabase — user must confirm first.
@@ -17188,10 +17191,47 @@ function vfpBfNote(title, line, showGo) {
 function vfpBfNoteClose() { document.getElementById('bf-note-modal').classList.remove('open'); }
 function vfpBfNoteGo() { vfpBfNoteClose(); openProModal(); }
 
+// 24 Nov 2026 (brief "Black Friday new visitor keeps the deal" v1). A new visitor from a Pro or Premium deal button:
+// · the sign-in screen opens on Create account (members: Sign in is the tab beside it);
+// · sign-up keeps the deal with the account (user_metadata.vfp_bf, 2 days, as the device's copy) and puts it in the
+//   confirm link (?bf=…), so the first sign-in takes them to that checkout from whichever device opens the email;
+// · the account's copy is taken off at the first sign-in, used or not, so it is acted on once.
+// The Lifetime link and a sign-up with no deal are as before. The server still decides who may buy (bfWho).
+function vfpBfNewVisitorRoute() {
+  const r = vfpPendingBf();
+  return r === 'pro' || r === 'premium' ? r : null;
+}
+function vfpBfOpenOnCreate() {
+  try {
+    if (!vfpBfNewVisitorRoute() || AUTH_RETURN_ERROR || vfpWasSignedIn()) return;
+    if ((typeof vfpPendingJoin === 'function' && vfpPendingJoin()) || (typeof vfpPendingShare === 'function' && vfpPendingShare())) return;
+    switchAuthTab('signup');
+  } catch (e) {}
+}
+function vfpBfSignUpOptions(opts) {
+  const route = vfpBfNewVisitorRoute();
+  if (!route) return opts;
+  return { ...opts, data: { ...(opts.data || {}), vfp_bf: { route, at: Date.now() } }, emailRedirectTo: location.origin + '/?bf=' + route };
+}
+// The deal kept with the account at sign-up: its route if still within 2 days, else null. Taken off the account either way.
+async function vfpBfAccountDeal() {
+  try {
+    const { data } = await sb.auth.getSession();
+    const kept = data && data.session && data.session.user && (data.session.user.user_metadata || {}).vfp_bf;
+    if (!kept) return null;
+    try { await sb.auth.updateUser({ data: { vfp_bf: null } }); } catch (e) {}
+    const route = kept && (kept.route === 'pro' || kept.route === 'premium') ? kept.route : null;
+    if (!route || !(Date.now() - (Number(kept.at) || 0) <= 2 * 864e5)) return null;
+    return route;
+  } catch (e) { return null; }
+}
+
 // The link, acted on after sign-in. Nothing happens for a guest or before the plan is known.
 async function vfpBfStart() {
-  const route = vfpPendingBf();
-  if (!route || !sb || isDemo || !authUserId) return;
+  if (!sb || isDemo || !authUserId) return;
+  const kept = await vfpBfAccountDeal();   // 24 Nov 2026: the deal kept with a new account (another device's button)
+  const route = vfpPendingBf() || kept;
+  if (!route) return;
   vfpClearBf();
   const ent = state.entitlement || {};
   if (route === 'lifetime') {
@@ -17303,6 +17343,7 @@ if (new URLSearchParams(location.search).get('signup')) switchAuthTab('signup');
 vfpShowJoinNote();   // Groups step 1: "sign in to join" when this device holds an invite link
 vfpShowShareNote();  // Groups step 5: "sign in to see it" when this device holds a share link
 vfpShowBfNote();     // Black Friday: "sign in to get it" when this device holds a Black Friday link
+vfpBfOpenOnCreate(); // 24 Nov 2026: a Pro or Premium deal link opens on Create account (not after an ended sign-in or a link error)
 vfpConsentNotice();  // brief 1545 v2: the cookie notice, until the person answers here or on the website
 restoreSession();
 </script>
