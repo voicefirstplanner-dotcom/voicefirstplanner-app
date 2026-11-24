@@ -17,13 +17,17 @@
      checkout. NOTE: verify data-rewardful key against Rewardful > Company settings
      before ship — 1e3933 is from records, dashboard wins if it differs. -->
 <script>(function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');</script>
-<!-- Brief 1545 v2 + Dave 16:39: Rewardful's script loads only after Accept (cookie vfp_consent=yes, shared with the
-     website). Before an answer, or after No thanks, it is never fetched. With a yes it loads as before, at once, with
-     the same key and domains, so a ?via= referral still reaches checkout (window.Rewardful.referral). -->
+<!-- Brief 1545 v2 + Dave 16:39: Rewardful's script loads after a yes (cookie vfp_consent=yes, shared with the website),
+     with the same key and domains, so a ?via= referral still reaches checkout (window.Rewardful.referral).
+     24 Nov 2026 (Dave, Q2 = B): also with no answer yet outside the asked-first places (the region rule calls it). After
+     No thanks it is never fetched. -->
 <script>
-window.vfpRewardfulStart = function () {
+// 24 Nov 2026 (Dave, Q2 = B): as on the website, Rewardful also starts with no answer yet outside the asked-first places;
+// the region rule further down calls vfpRewardfulStart(true) then. A "no" always wins.
+window.vfpRewardfulStart = function (allow) {
   try {
-    if (window.__vfpRw || !/(?:^|;\s*)vfp_consent=yes(?:;|$)/.test(document.cookie)) return;
+    if (window.__vfpRw || /(?:^|;\s*)vfp_consent=no(?:;|$)/.test(document.cookie)) return;
+    if (allow !== true && !/(?:^|;\s*)vfp_consent=yes(?:;|$)/.test(document.cookie)) return;
     window.__vfpRw = true;
     var t = document.createElement('script');
     t.async = true; t.src = 'https://r.wdfl.co/rw.js';
@@ -1673,6 +1677,26 @@ button.pm-box:hover { border-color: var(--orange); }
 .vfp-consent .vfp-yes { background: var(--orange); color: var(--on-accent); border: none; }
 .vfp-consent .vfp-no { background: none; color: var(--text); border: 1px solid var(--border); }
 .vfp-consent a { margin-left: auto; color: var(--accent-on-light); font-weight: 600; }
+/* 24 Nov 2026 (brief 1311): the thin bar outside the EU and UK: words, Privacy, OK, No thanks */
+.vfp-consent.vfp-consent-bar { padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); font-size: 13px; }
+.vfp-consent-bar .vfp-consent-in { max-width: 960px; display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.vfp-consent-bar p { margin: 0; flex: 1 1 320px; }
+.vfp-consent-bar p a { margin-left: 4px; }
+.vfp-consent-bar .vfp-consent-row { flex: 0 0 auto; flex-wrap: nowrap; }
+.vfp-consent-bar button { padding: 7px 14px; font-size: 13px; }
+/* 24 Nov 2026: while either notice shows, everything that reaches the foot of the screen ends above it */
+:root { --vfp-notice-h: 0px; }
+body.vfp-notice-on { padding-bottom: var(--vfp-notice-h); }
+body.vfp-notice-on #auth-screen, body.vfp-notice-on #onboarding-screen, body.vfp-notice-on .modal-overlay,
+body.vfp-notice-on .vt-overlay, body.vfp-notice-on #vfp-a2hs { bottom: var(--vfp-notice-h) !important; }
+body.pv.vfp-notice-on #pv-footer { bottom: var(--vfp-notice-h); }
+/* the sign-in screen scrolls while a notice shows, so nothing on it can sit under the notice; centred when it fits */
+body.vfp-notice-on #auth-screen { overflow-y: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; }
+body.vfp-notice-on #auth-screen > :first-child { margin-top: auto; }
+body.vfp-notice-on #auth-screen > :last-child { margin-bottom: auto; }
+/* the desktop grid runs a few pixels past the app's foot (the scrolling part still scrolls); clip it at the notice */
+body.vfp-notice-on #app { overflow-y: clip; }
+body.vfp-notice-on .modal-overlay > .modal-sheet, body.vfp-notice-on .vt-overlay > .vt-card { max-height: calc(100% - 8px) !important; }
 .toast {
   position: absolute;
   left: 0;
@@ -3759,6 +3783,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
         <div class="settings-section-title">Legal</div>
         <div class="settings-row" onclick=""><span class="settings-row-label">Privacy policy</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
         <div class="settings-row" onclick=""><span class="settings-row-label">Terms of service</span><i class="ti ti-external-link" style="font-size:14px;color:var(--text-light)"></i></div>
+        <div class="settings-row" id="set-cookie-row" role="button" tabindex="0" style="cursor:pointer" onclick="vfpCookieSettings()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();vfpCookieSettings()}"><span class="settings-row-label">Cookie settings</span><i class="ti ti-chevron-right" aria-hidden="true" style="font-size:14px;color:var(--text-light)"></i></div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">Data</div>
@@ -4324,6 +4349,41 @@ const VFP_PIXEL_ID = '1386339244568589';
 const VFP_FIRST_VISIT_KEY = 'vfp_first_visit';
 const VFP_PRIVACY_URL = 'https://voicefirstdayplanner.com/privacy-policy';
 function vfpConsent() { try { const m = document.cookie.match(/(?:^|;\s*)vfp_consent=(yes|no)(?:;|$)/); return m ? m[1] : ''; } catch (e) { return ''; } }
+// ------------------------------------------------------------
+// BY REGION (24 Nov 2026, brief 1311 v1; Dave's ruling 13:07). Changes only WHEN the Pixel may run:
+// · EU, UK and the eight places of Dave's 14:08 ruling, or a region that can't be told: as before. The notice,
+//   and nothing before Accept. (The website's rule, below.)
+// · Everyone else: the Pixel from the start, with a thin bar (OK · No thanks · Privacy). OK keeps it on (vfp_consent=yes);
+//   No thanks stops it (vfp_consent=no).
+// · An answer already given here or on the website (the shared vfp_consent cookie) wins everywhere, either way.
+// · Rewardful works the same way (Dave, Q2 = B): from the start outside the asked-first places, else only after a yes.
+// · Settings › Cookie settings reopens the choice (Dave, Q3 = B), as the website's Cookie settings does.
+// ------------------------------------------------------------
+// THE REGION RULE (Dave, 24 Nov 14:08): the website's own askFirst() and EU_UK, copied as they are in the website's pages
+// (Web Room 1330 delivery, get-started.html md5 5050f2cb92ae5ef92d3f068979fe5c8f), with the eight places of the 14:08 ruling added at
+// the end of the list: Norway (with Svalbard), Iceland, Liechtenstein, Switzerland, Gibraltar, Jersey, Guernsey, the Isle of Man.
+// The time zone the device reports, read here in the browser; nothing is sent anywhere to find it. No time zone, UTC, GMT, Etc/…: ask first.
+// KEEP IDENTICAL TO THE WEBSITE: region_rule_check.mjs compares the two lines between the markers with any website page.
+const vfpAskFirst = (function () {
+// VFP-REGION-RULE START
+var EU_UK=' Europe/London Europe/Belfast GB GB-Eire Europe/Vienna Europe/Brussels Europe/Sofia Europe/Zagreb Asia/Nicosia Asia/Famagusta Europe/Nicosia Europe/Prague Europe/Copenhagen Europe/Tallinn Europe/Helsinki Europe/Mariehamn Europe/Paris Europe/Berlin Europe/Busingen Europe/Athens Europe/Budapest Europe/Dublin Eire Europe/Rome Europe/Riga Europe/Vilnius Europe/Luxembourg Europe/Malta Europe/Amsterdam Europe/Warsaw Poland Europe/Lisbon Portugal Atlantic/Madeira Atlantic/Azores Europe/Bucharest Europe/Bratislava Europe/Ljubljana Europe/Madrid Africa/Ceuta Atlantic/Canary Europe/Stockholm America/Guadeloupe America/Martinique America/Cayenne America/Marigot Indian/Reunion Indian/Mayotte CET EET WET MET Europe/Oslo Arctic/Longyearbyen Atlantic/Jan_Mayen Atlantic/Reykjavik Iceland Europe/Vaduz Europe/Zurich Europe/Gibraltar Europe/Jersey Europe/Guernsey Europe/Isle_of_Man ';
+function askFirst(){var z='';try{z=Intl.DateTimeFormat().resolvedOptions().timeZone||''}catch(e){}
+ if(!z||/^(UTC|UCT|GMT|Etc\/|Universal|Zulu|Greenwich)/.test(z))return true;return EU_UK.indexOf(' '+z+' ')>=0}
+// VFP-REGION-RULE END
+  return askFirst;
+})();
+let vfpRegion = { ask: true };
+try { vfpRegion = { ask: vfpAskFirst() !== false }; } catch (e) {}
+window.vfpAskFirst = vfpRegion.ask;   // as the website sets it, for tests
+const vfpRegionReady = Promise.resolve(vfpRegion);   // known at once (kept as a promise: the code that waits on it is unchanged)
+// May the Pixel run? A yes or a no wins; with no answer, only outside the EU and UK, once the region is known.
+function vfpTrackingOn() {
+  const c = vfpConsent();
+  if (c === 'yes') return true;
+  if (c === 'no') return false;
+  return !!(vfpRegion && vfpRegion.ask === false);
+}
+let vfpAuthUrlRead = false;   // set once restoreSession() has let Supabase read a sign-in return from the address
 function vfpSetConsent(v) {
   try {
     const shared = /(^|\.)voicefirstdayplanner\.com$/.test(location.hostname) ? '; domain=.voicefirstdayplanner.com' : '';
@@ -4349,14 +4409,14 @@ function vfpFirstVisitKeep() {
   try {
     const c = vfpConsent();
     if (c === 'no') { localStorage.removeItem(VFP_FIRST_VISIT_KEY); return; }
-    if (c === 'yes' && vfpLanding && !localStorage.getItem(VFP_FIRST_VISIT_KEY)) localStorage.setItem(VFP_FIRST_VISIT_KEY, JSON.stringify(vfpLanding));
+    if (vfpTrackingOn() && vfpLanding && !localStorage.getItem(VFP_FIRST_VISIT_KEY)) localStorage.setItem(VFP_FIRST_VISIT_KEY, JSON.stringify(vfpLanding));   // 24 Nov: a yes, or on by region
   } catch (e) {}
 }
 vfpFirstVisitKeep();
 // The first visit: the one kept on this device (yes only), else this visit's.
 function vfpFirstVisit() {
   try {
-    if (vfpConsent() === 'yes') {
+    if (vfpTrackingOn()) {   // 24 Nov: a yes, or on by region
       const v = JSON.parse(localStorage.getItem(VFP_FIRST_VISIT_KEY) || 'null');
       if (v && typeof v === 'object' && !Array.isArray(v)) return v;
     }
@@ -4365,7 +4425,8 @@ function vfpFirstVisit() {
 }
 let vfpPixelOn = false;
 function vfpPixelStart() {
-  if (vfpPixelOn || vfpConsent() !== 'yes') return;                          // only after Accept
+  // 24 Nov: after a yes, or from the start outside the EU and UK; never before Supabase has read a sign-in return
+  if (vfpPixelOn || !vfpAuthUrlRead || !vfpTrackingOn()) return;
   vfpPixelOn = true;
   try {
     // What Meta is told of the address: nothing that isn't for it. Only these leave the address bar.
@@ -4384,34 +4445,87 @@ function vfpPixelStart() {
     fbq('track', 'PageView');
   } catch (e) {}
 }
-function vfpPixelTrack(name) { try { if (vfpConsent() !== 'yes') return; vfpPixelStart(); if (typeof window.fbq === 'function') window.fbq('track', name); } catch (e) {} }
+function vfpPixelTrack(name) { try { if (!vfpTrackingOn()) return; vfpPixelStart(); if (vfpPixelOn && typeof window.fbq === 'function') window.fbq('track', name); } catch (e) {} }
 // Once signed in: the database fills in a missing source (new accounts only, either way), and, only with a yes,
 // says once per account whether this is a new account's first session; then CompleteRegistration goes to Meta.
 async function vfpSignupCheck() {
   if (!sb || !authUserId || isDemo) return;
-  const yes = vfpConsent() === 'yes';
+  await vfpRegionReady;   // 24 Nov: decide once the region is known (at most 4 s)
+  const yes = vfpTrackingOn();
   try {
     const { data, error } = await sb.rpc('vfp_signup_first_session', { p_src: vfpFirstVisit(), p_send: yes });
     if (yes && !error && data && data.registration === true) vfpPixelTrack('CompleteRegistration');
   } catch (e) { /* before the SQL is in, or no signal: nothing sent */ }
 }
 // The notice: the website's words, until the person answers (here or on the website).
+// 24 Nov 2026: shown once the region is known. EU and UK (or not known): this notice, exactly as before.
+// Everyone else: the thin bar (brief 1311 §6B), with the Pixel already running.
 function vfpConsentNotice() {
   if (vfpConsent() || document.getElementById('vfp-consent')) return;
+  vfpRegionReady.then(function () { try { vfpConsentNoticeShow(); } catch (e) {} });
+}
+function vfpConsentNoticeShow(force) {
+  if (!force && (vfpConsent() || document.getElementById('vfp-consent'))) return;
+  const old = document.getElementById('vfp-consent'); if (old) old.remove();
   const bar = document.createElement('div');
   bar.id = 'vfp-consent'; bar.className = 'vfp-consent'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Cookies');
-  bar.innerHTML = '<div class="vfp-consent-in"><p>We use cookies to see how people use this site, and whether our posts on Facebook and Instagram are working. They only start if you say yes.</p>'
-    + '<div class="vfp-consent-row"><button type="button" class="vfp-yes" onclick="vfpConsentAnswer(\'yes\')">Accept</button>'
-    + '<button type="button" class="vfp-no" onclick="vfpConsentAnswer(\'no\')">No thanks</button>'
-    + '<a href="' + VFP_PRIVACY_URL + '" target="_blank" rel="noopener">Privacy</a></div></div>';
+  if (vfpRegion && vfpRegion.ask === false) {
+    bar.className = 'vfp-consent vfp-consent-bar';
+    bar.innerHTML = '<div class="vfp-consent-in"><p>We use cookies to see how people use this site, and whether our posts on Facebook and Instagram are working. '
+      + '<a href="' + VFP_PRIVACY_URL + '" target="_blank" rel="noopener">Privacy</a></p>'
+      + '<div class="vfp-consent-row"><button type="button" class="vfp-yes" onclick="vfpConsentAnswer(\'yes\')">OK</button>'
+      + '<button type="button" class="vfp-no" onclick="vfpConsentAnswer(\'no\')">No thanks</button></div></div>';
+  } else {
+    bar.innerHTML = '<div class="vfp-consent-in"><p>We use cookies to see how people use this site, and whether our posts on Facebook and Instagram are working. They only start if you say yes.</p>'
+      + '<div class="vfp-consent-row"><button type="button" class="vfp-yes" onclick="vfpConsentAnswer(\'yes\')">Accept</button>'
+      + '<button type="button" class="vfp-no" onclick="vfpConsentAnswer(\'no\')">No thanks</button>'
+      + '<a href="' + VFP_PRIVACY_URL + '" target="_blank" rel="noopener">Privacy</a></div></div>';
+  }
   document.body.appendChild(bar);
+  vfpNoticeSpace(bar);
+}
+// 24 Nov 2026: while a notice shows, the screens, sheets and bars that reach the foot of the screen end above it,
+// so it never covers a button (CSS: body.vfp-notice-on, --vfp-notice-h).
+let vfpNoticeObs = null;
+function vfpNoticeSpace(bar) {
+  const set = function () {
+    const h = bar && bar.isConnected ? Math.ceil(bar.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--vfp-notice-h', h + 'px');
+    document.body.classList.toggle('vfp-notice-on', h > 0);
+  };
+  try { if (vfpNoticeObs) vfpNoticeObs.disconnect(); } catch (e) {}
+  if (bar && typeof ResizeObserver === 'function') { vfpNoticeObs = new ResizeObserver(set); vfpNoticeObs.observe(bar); }
+  set();
+}
+// No thanks after the Pixel has run (outside the asked-first places, or a change in Cookie settings): Meta is told to stop,
+// and its cookies and Rewardful's come off. Nothing loads on later visits.
+function vfpPixelStop() {
+  try { if (vfpPixelOn && typeof window.fbq === 'function') window.fbq('consent', 'revoke'); } catch (e) {}
+  try {
+    const base = '=; path=/; max-age=0; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+    const names = ['_fbp', '_fbc'];
+    document.cookie.split(';').forEach(function (c) { const n = c.split('=')[0].trim(); if (/^rewardful/.test(n)) names.push(n); });   // Q2 = B: Rewardful's too
+    names.forEach(function (n) {
+      document.cookie = n + base;
+      if (/(^|\.)voicefirstdayplanner\.com$/.test(location.hostname)) document.cookie = n + base + '; domain=.voicefirstdayplanner.com';
+    });
+  } catch (e) {}
+}
+// 24 Nov 2026 (Dave, Q3 = B): Settings › Cookie settings reopens the choice: the bar outside the asked-first places, the
+// notice inside them, whatever was answered before. The answer goes in the shared vfp_consent cookie, as on the website.
+function vfpCookieSettings() {
+  vfpRegionReady.then(function () { try { vfpConsentNoticeShow(true); } catch (e) {} });
 }
 function vfpConsentAnswer(v) {
   vfpSetConsent(v);
   const bar = document.getElementById('vfp-consent'); if (bar) bar.remove();
+  vfpNoticeSpace(null);
   vfpFirstVisitKeep();
-  if (v === 'yes') { if (window.vfpRewardfulStart) window.vfpRewardfulStart(); vfpPixelStart(); vfpSignupCheck(); }
+  if (v === 'no') vfpPixelStop();
+  if (v === 'yes') { if (window.vfpRewardfulStart) window.vfpRewardfulStart(); try { if (vfpPixelOn && typeof window.fbq === 'function') window.fbq('consent', 'grant'); } catch (e) {} vfpPixelStart(); vfpSignupCheck(); }   // 24 Nov: grant again after a No thanks earlier in this visit
 }
+// 24 Nov 2026: once the region is known, the Pixel starts if it may (outside the EU and UK, no answer yet).
+vfpRegionReady.then(function () { try { vfpFirstVisitKeep(); vfpPixelStart(); if (vfpTrackingOn() && window.vfpRewardfulStart) window.vfpRewardfulStart(true); } catch (e) {} });
 
 const AUTH_RETURN_ERROR = (function () {
   try {
@@ -4633,8 +4747,9 @@ function startAutosave() {
 // On load: if there's an existing Supabase session, restore it and skip sign-in.
 async function restoreSession() {
   startAutosave();
-  if (!sb) return;  // local mode -> stay on the auth screen
+  if (!sb) { vfpAuthUrlRead = true; vfpPixelStart(); return; }  // local mode -> stay on the auth screen
   const { data: { session } } = await sb.auth.getSession();
+  vfpAuthUrlRead = true;   // 24 Nov: Supabase has read any sign-in return; the Pixel may now clean the address
   vfpPixelStart();   // Meta Pixel, only after Accept: PageView (the address has been read by now; it takes out what isn't for Meta)
   if (AUTH_RETURN_ERROR) {
     try { history.replaceState({}, '', location.pathname); } catch (e) {}   // the error leaves the address bar
@@ -17371,6 +17486,7 @@ restoreSession();
     var bar = document.createElement('div');
     bar.setAttribute('role', 'dialog');
     bar.setAttribute('aria-label', 'Add to Home Screen');
+    bar.id = 'vfp-a2hs';   // 24 Nov 2026: so it sits above the cookie notice while that shows
     bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;'
       + 'background:var(--bar-dark);color:#fff;font-family:inherit;font-size:14px;line-height:1.4;'
       + 'padding:12px 14px;box-shadow:0 -2px 12px rgba(0,0,0,0.18);'
