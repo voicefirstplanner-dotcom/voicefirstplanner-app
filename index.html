@@ -312,6 +312,16 @@ html, body {
   transition: background 0.15s;
 }
 .auth-btn-primary:hover { background: var(--orange-hover); color: var(--on-accent); }
+.auth-forgot { text-align: right; margin: -6px 0 12px; font-size: 13px; }
+.auth-forgot a { color: var(--accent-on-light); font-weight: 600; text-decoration: none; }
+.auth-back { text-align: center; margin: 14px 0 4px; }
+#vfp-ask-modal { z-index: 55; }   /* above any other sheet it is opened from */
+#va-more .ap-label { display: block; margin: 10px 0 4px; }
+#va-more .task-inp { width: 100%; box-sizing: border-box; }
+#va-input.va-has-label { margin-top: 0; }
+.auth-reset-title { font-size: 17px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
+.auth-reset-sub { font-size: 13px; color: var(--text-mid); line-height: 1.45; margin: 0 0 14px; }
+.np-inp { width: 100%; box-sizing: border-box; margin: 4px 0 10px; }
 .auth-divider {
   display: flex;
   align-items: center;
@@ -1628,6 +1638,7 @@ button.pm-box:hover { border-color: var(--orange); }
 .appt-cal { width: 100%; margin-bottom: 8px; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: var(--font); font-size: 12px; color: var(--text); background: var(--card); }
 
 /* GROUPS STEP 3 (1 Nov 2026): the orange Group updates button, its sheet, and Send */
+.gu-send.gu-sent { border-color: var(--green, #2e7d32); color: var(--green, #2e7d32); }   /* 25 Nov 2026: "Sent to Paul" on the button */
 .gu-btn {
   display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 26px; padding: 0 5px 0 9px; margin-right: 6px; max-width: 52vw;
   border: 1px solid var(--orange); border-radius: 8px; background: var(--orange); color: var(--on-accent);
@@ -2429,6 +2440,7 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
     <div id="auth-signin">
       <div class="auth-field"><label>Email</label><input type="email" id="signin-email" placeholder="you@example.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="signin-pw" placeholder="Your password"></div>
+      <div class="auth-forgot"><a href="#" onclick="event.preventDefault(); showResetPw()">Forgot your password?</a></div>
       <button class="auth-btn-primary" onclick="signIn()">Sign in to VoiceFirstPlanner</button>
       <div class="auth-divider">or</div>
       <button class="auth-btn-apple" onclick="signInApple()">
@@ -2439,6 +2451,14 @@ a.modal-cta.course-join { display: block; text-align: center; text-decoration: n
         <i class="ti ti-player-play" style="font-size:16px;color:var(--icon-demo-link)"></i>
         Take a look around first — no account needed
       </button>
+    </div>
+    <!-- 25 Nov 2026 (brief 1315 §4.1): reset a forgotten password by email -->
+    <div id="auth-reset" class="hidden">
+      <div class="auth-reset-title">Reset your password</div>
+      <p class="auth-reset-sub">Enter your email and we&rsquo;ll send you a link to set a new password.</p>
+      <div class="auth-field"><label>Email</label><input type="email" id="reset-email" placeholder="you@example.com"></div>
+      <button class="auth-btn-primary" onclick="sendResetPw()">Email me a link</button>
+      <div class="auth-forgot auth-back"><a href="#" onclick="event.preventDefault(); switchAuthTab('signin')">Back to sign in</a></div>
     </div>
     <div id="auth-signup" class="hidden">
       <div class="auth-field"><label>Your name</label><input type="text" id="signup-name" placeholder="Dave"></div>
@@ -3890,6 +3910,32 @@ body.pv #demo-banner { position: relative; z-index: 3; }
     <button class="modal-close-btn" onclick="vfpWarnGotIt()">Got it</button>
   </div>
 </div>
+<!-- 25 Nov 2026 (brief 1315 §4.5): the app's own box for a question or a name, in place of the browser's pop-ups -->
+<div class="modal-overlay" id="vfp-ask-modal" role="alertdialog" aria-labelledby="va-title" aria-describedby="va-sub" onclick="if(event.target===this)vfpAskDone(null)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="va-title"></div>
+    <div class="modal-sub" id="va-sub"></div>
+    <input class="task-inp grp-name-inp" id="va-input" style="display:none" aria-labelledby="va-title"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();vfpAskOk()} else if(event.key==='Escape'){vfpAskDone(null)}">
+    <div id="va-more"></div>
+    <button class="modal-cta" id="va-ok" onclick="vfpAskOk()"></button>
+    <button class="modal-close-btn" id="va-cancel" onclick="vfpAskDone(null)">Cancel</button>
+  </div>
+</div>
+<!-- 25 Nov 2026 (brief 1315 §4.1): after a reset link, the new password -->
+<div class="modal-overlay" id="vfp-newpw-modal" role="dialog" aria-labelledby="np-title">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="np-title">Set a new password</div>
+    <div class="modal-sub">You&rsquo;re signed in. Choose a new password for next time.</div>
+    <input type="password" class="task-inp np-inp" id="np-pw" autocomplete="new-password" placeholder="New password" aria-labelledby="np-title"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();vfpSaveNewPw()}">
+    <div class="grp-name-miss" id="np-msg" style="display:none"></div>
+    <button class="modal-cta" onclick="vfpSaveNewPw()">Save new password</button>
+    <button class="modal-close-btn" onclick="closeGroupsSheet('vfp-newpw-modal'); vfpNewPwDone()">Not now</button>
+  </div>
+</div>
 <div class="modal-overlay" id="groups-join-modal" role="dialog" aria-labelledby="gj-title" aria-describedby="gj-sub">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -3902,6 +3948,7 @@ body.pv #demo-banner { position: relative; z-index: 3; }
       <div class="grp-name-miss" id="gj-name-miss" style="display:none">Add your first name to join.</div>
     </div>
     <button class="modal-cta" id="gj-join" onclick="vfpJoinNow()">Join</button>
+    <button class="modal-cta" id="gj-upgrade" style="display:none" onclick="vfpJoinUpgrade()">See Premium plans</button>
     <button class="modal-close-btn" onclick="vfpJoinNotNow()">Not now</button>
   </div>
 </div>
@@ -4533,6 +4580,9 @@ const AUTH_RETURN_ERROR = (function () {
     return p.get('error_description') || p.get('error') || '';
   } catch (e) { return ''; }
 })();
+// 25 Nov 2026 (brief 1315 §4.1): a password-reset link comes back with type=recovery. Read now, before Supabase
+// reads and clears the address; the app asks for the new password after it opens (launchApp).
+let vfpPwRecovery = (function () { try { return /(^|[#&?])type=recovery(&|$)/.test(location.hash + '&' + location.search); } catch (e) { return false; } })();
 const sb = (SB_CONFIGURED && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
@@ -4604,6 +4654,7 @@ if (sb) {
   // Supabase says the sign-in is over (a refresh refused, the session missing).
   // Do nothing heavy in here: just show the sheet.
   sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') { vfpPwRecovery = true; if (authUserId) setTimeout(vfpOpenNewPw, 0); }   // 25 Nov: the reset link
     if (event === 'SIGNED_OUT' && authUserId && !vfpSigningOut && !isDemo) setTimeout(vfpSessionEnded, 0);
   });
   // Back on the screen after a while: check, at most once a minute.
@@ -5448,7 +5499,47 @@ function switchAuthTab(tab) {
   });
   document.getElementById('auth-signin').classList.toggle('hidden', tab !== 'signin');
   document.getElementById('auth-signup').classList.toggle('hidden', tab !== 'signup');
+  const rs = document.getElementById('auth-reset'); if (rs) rs.classList.add('hidden');   // 25 Nov: the reset box closes with any tab
 }
+// 25 Nov 2026 (brief 1315 §4.1): Forgot your password? Supabase emails a link; the link signs the member in and the
+// app asks for a new password (vfpOpenNewPw). The email is Supabase's "Reset Password" template.
+function showResetPw() {
+  document.getElementById('auth-signin').classList.add('hidden');
+  document.getElementById('auth-signup').classList.add('hidden');
+  document.getElementById('auth-reset').classList.remove('hidden');
+  const e = document.getElementById('reset-email'); e.value = document.getElementById('signin-email').value.trim(); e.focus();
+}
+async function sendResetPw() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) { showToast('Please enter your email'); return; }
+  if (!sb) { showToast('Please enter your email'); return; }
+  authMsg('Sending…');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
+  if (error) { authMsg(error.message, true); return; }
+  // The same answer whether or not the email has an account, so the screen never tells anyone who is a member.
+  authMsg('If that email has an account, a link to set a new password is on its way. Check your email.');
+  switchAuthTab('signin');
+  document.getElementById('signin-email').value = email;
+}
+// The reset link comes back signed in. The app then asks for the new password, once.
+function vfpOpenNewPw() {
+  vfpPwRecovery = false;
+  const m = document.getElementById('vfp-newpw-modal'); if (!m) return;
+  document.getElementById('np-pw').value = ''; document.getElementById('np-msg').style.display = 'none';
+  m.classList.add('open'); setTimeout(() => { try { document.getElementById('np-pw').focus(); } catch (e) {} }, 50);
+}
+async function vfpSaveNewPw() {
+  const pw = document.getElementById('np-pw').value, msg = document.getElementById('np-msg');
+  if (!pw) { msg.textContent = 'Choose a new password.'; msg.style.display = ''; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { msg.textContent = error.message; msg.style.display = ''; return; }
+  closeGroupsSheet('vfp-newpw-modal');
+  showToast('New password saved');
+  vfpNewPwDone();
+}
+// A Black Friday deal kept with the account waits until the new password is saved (or Not now), then goes on as before.
+let vfpBfAfterPw = false;
+function vfpNewPwDone() { if (vfpBfAfterPw) { vfpBfAfterPw = false; try { vfpBfStart(); } catch (e) {} } }
 
 async function signIn() {
   const email = document.getElementById('signin-email').value.trim();
@@ -5598,6 +5689,7 @@ async function signOut() {
 }
 
 function launchApp() {
+  if (vfpPwRecovery) setTimeout(vfpOpenNewPw, 0);   // 25 Nov 2026: signed in by a reset link: ask for the new password
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('onboarding-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -6005,7 +6097,7 @@ async function budgetEdit(lineId, field, value) {
 async function budgetAdd(kind) {
   if (budCapReached(kind)) { budCapToast(kind); return; }
   const label = kind === 'account' ? 'Account name' : (kind === 'income' ? 'Income line' : 'Line name');
-  const name = (prompt(label) || '').trim();
+  const name = ((await vfpAsk({ title: label, input: { value: '', max: 80 }, ok: 'Add' })) || '').trim();   // 25 Nov 2026 (brief 1520): the app's box
   if (!name) return;
   const sort = budLines(kind).length;
   if (!sb || !authUserId) {
@@ -6028,7 +6120,7 @@ async function budgetAdd(kind) {
 async function budgetRemove(lineId) {
   const l = budget.lines.find(x => String(x.id) === String(lineId));
   if (!l) return;
-  if (!confirm(`Remove "${l.name}"? Its history is kept.`)) return;
+  if (!(await vfpAsk({ title: `Remove "${l.name}"?`, sub: 'Its history is kept.', ok: 'Remove' }))) return;
   l.removed_at = new Date().toISOString();
   renderBudget();
   if (sb && authUserId && !String(lineId).startsWith('local-')) {
@@ -8227,7 +8319,7 @@ function requestDeleteAppointment(id) {
   if (a.shared) { vfpCalRequestDelete(a); return; }          // Groups step 4: deleted for the whole group
   const members = (a.recurring && a.seriesId) ? seriesMembers(a.seriesId) : [];
   if (members.length <= 1) {
-    if (confirm(`Delete "${a.title}"?`)) deleteAppointment(id);
+    vfpAsk({ title: `Delete "${a.title}"?`, ok: 'Delete' }).then(yes => { if (yes) deleteAppointment(id); });
     return;
   }
   openRecurDeleteModal(a, members);
@@ -10591,27 +10683,23 @@ function changeGoal(id, delta) {
   renderGoals();
 }
 
-function deleteGoal(id) {
-  if (!confirm('Delete this goal?')) return;
+async function deleteGoal(id) {
+  if (!(await vfpAsk({ title: 'Delete this goal?', ok: 'Delete' }))) return;
   state.goals = state.goals.filter(x => x.id !== id);
   renderGoals(); showToast('Goal deleted');
 }
-function editGoal(id) {
+// 25 Nov 2026 (brief 1520 §2.2): one box for the name, the target and the life role, picked from the member's roles.
+async function editGoal(id) {
   const g = state.goals.find(x => x.id === id); if (!g) return;
-  const name = prompt('Goal name:', g.name); if (name === null) return;
-  if (name.trim()) g.name = name.trim();
-  const tot = prompt('Target number (e.g. 24):', g.tot);
-  if (tot !== null) { const n = parseInt(tot); if (!isNaN(n) && n > 0) { g.tot = n; g.cur = Math.min(g.cur, n); } }
   const roles = state.roles || [];
-  if (roles.length) {
-    const listing = roles.map((r, i) => (i + 1) + ' = ' + r.name).join('\n');
-    const curIdx = roles.findIndex(r => r.name === g.role);
-    const pick = prompt('Link to a life role — type a number (0 = none):\n' + listing, curIdx >= 0 ? String(curIdx + 1) : '0');
-    if (pick !== null) {
-      const n = parseInt(pick);
-      if (!isNaN(n) && n >= 0 && n <= roles.length) g.role = (n === 0) ? '' : roles[n - 1].name;
-    }
-  }
+  const fields = [{ label: 'Target number (e.g. 24)', type: 'number', value: g.tot }];
+  if (roles.length) fields.push({ label: 'Link to a life role', type: 'select', value: roles.some(r => r.name === g.role) ? g.role : '',
+    options: [['', 'No role link']].concat(roles.map(r => [r.name, r.name])) });
+  const a = await vfpAsk({ title: 'Goal name', input: { value: g.name, max: 120 }, fields, ok: 'Save' });
+  if (!a) return;
+  g.name = a.text;
+  const n = parseInt(a.fields[0]); if (!isNaN(n) && n > 0) { g.tot = n; g.cur = Math.min(g.cur, n); }
+  if (roles.length) g.role = a.fields[1];
   renderGoals(); showToast('Goal updated');
 }
 function addGoal() {
@@ -10687,29 +10775,30 @@ function addHabit() {
   inp.value = '';
   renderHabits(); showToast('Habit added');
 }
-function editHabit(id) {
+async function editHabit(id) {
   const h = state.habits.find(x => x.id === id); if (!h) return;
-  const name = prompt('Habit name:', h.name); if (name === null) return;
+  const name = await vfpAsk({ title: 'Habit name', input: { value: h.name, max: 80 }, ok: 'Save' }); if (name === null) return;
   if (name.trim()) h.name = name.trim();
   renderHabits(); showToast('Habit updated');
 }
-function deleteHabit(id) {
-  if (!confirm('Remove this habit?')) return;
+async function deleteHabit(id) {
+  if (!(await vfpAsk({ title: 'Remove this habit?', ok: 'Remove' }))) return;
   state.habits = state.habits.filter(x => x.id !== id);
   renderHabits(); showToast('Habit removed');
 }
-function deleteReflection(date) {
-  if (!confirm('Delete this reflection?')) return;
+async function deleteReflection(date) {
+  if (!(await vfpAsk({ title: 'Delete this reflection?', ok: 'Delete' }))) return;
   state.reflections = state.reflections.filter(r => r.date !== date);
   renderReflectionList(); showToast('Reflection deleted');
 }
-function deleteHappened(date) {
-  if (!confirm('Delete this entry?')) return;
+async function deleteHappened(date) {
+  if (!(await vfpAsk({ title: 'Delete this entry?', ok: 'Delete' }))) return;
   state.happenedLog = state.happenedLog.filter(e => e.date !== date);
   renderHappened(); showToast('Entry deleted');
 }
-function startFresh() {
-  if (!confirm('Clear all sample tasks, appointments, goals, projects, notes, habits, shopping and bucket items so you can start with a clean slate? Your values, roles and account stay. This cannot be undone.')) return;
+async function startFresh() {
+  if (!(await vfpAsk({ title: 'Clear all sample tasks, appointments, goals, projects, notes, habits, shopping and bucket items so you can start with a clean slate?',
+    sub: 'Your values, roles and account stay. This cannot be undone.', ok: 'Clear' }))) return;
   state.tasks = []; state.appointments = []; state.goals = []; state.projects = [];
   if (typeof vfpCalInject === 'function') vfpCalInject();   // Groups step 4: shared events aren't the member's to clear
   state.notes = []; state.habits = []; state.habitLog = {}; state.bucket = [];
@@ -10984,7 +11073,7 @@ function editProject() {
 async function deleteProject(id) {
   const p = projById(id);
   if (!p) return;
-  if (!confirm('Delete this project and everything in it?')) return;
+  if (!(await vfpAsk({ title: 'Delete this project and everything in it?', ok: 'Delete' }))) return;
   const paths = [];
   (p.captures || []).forEach(c => { if (c.storagePath) paths.push(c.storagePath); });
   (p.files || []).forEach(f => { if (f.storagePath) paths.push(f.storagePath); });
@@ -11262,7 +11351,7 @@ async function openProjectFile(fileId, ev) {
 async function deleteProjectFile(fileId) {
   const p = currentProject; if (!p) return;
   const f = (p.files || []).find(x => x.id === fileId); if (!f) return;
-  if (!confirm('Delete "' + f.name + '"?')) return;
+  if (!(await vfpAsk({ title: 'Delete "' + f.name + '"?', ok: 'Delete' }))) return;
   if (f.storagePath && !isDemo) {
     if (!sb) { showToast('Couldn\'t delete the stored file — try again'); return; }
     const { error } = await sb.storage.from('project-captures').remove([f.storagePath]);
@@ -12561,22 +12650,23 @@ function addShopList(name, opts) {
   renderShopping(); try { persistNow(); } catch (e) {}
   return l;
 }
-function promptNewShopList() {
+async function promptNewShopList() {
   if (!isPremium() && shopLists().length >= 1) {
     showToast('Free plan: one shopping list — upgrade for unlimited named lists'); showUpgrade(); return;
   }
-  var name = prompt('Name your new list (e.g. Groceries, Travel, Hardware):', ''); if (name === null) return;
+  var name = await vfpAsk({ title: 'Name your new list', input: { value: '', max: 60, placeholder: 'e.g. Groceries, Travel, Hardware' }, ok: 'Add' }); if (name === null) return;
   addShopList(name);
 }
-function renameShopList(id) {
+async function renameShopList(id) {
   var l = shopLists().filter(function(x){ return x.id === id; })[0]; if (!l) return;
-  var name = prompt('Rename list:', l.name); if (name === null) return;
+  var name = await vfpAsk({ title: 'Rename list', input: { value: l.name, max: 60 }, ok: 'Save' }); if (name === null) return;
   if (name.trim()) { l.name = name.trim(); renderShopping(); try { persistNow(); } catch (e) {} }
 }
-function deleteShopList(id) {
+async function deleteShopList(id) {
   var ls = shopLists();
   if (ls.length <= 1) { showToast('You need at least one list'); return; }
-  if (!confirm('Delete this list and everything in it?')) return;
+  if (!(await vfpAsk({ title: 'Delete this list and everything in it?', ok: 'Delete' }))) return;
+  ls = shopLists();
   state.shoppingLists = ls.filter(function(x){ return x.id !== id; });
   if (state.activeShopId === id) state.activeShopId = state.shoppingLists[0].id;
   renderShopping(); try { persistNow(); } catch (e) {}
@@ -13289,6 +13379,7 @@ function handleCheckoutReturn() {
     return;
   }
   if (c === 'success') {
+    vfpCheckoutWaiting = true;   // 25 Nov 2026 (brief 1315 §4.2): an invite held on this device opens once the plan is in
     // 14 Nov 2026 (Black Friday fault F1; Management Q2 (a) for every checkout): the success address says which plan
     // was bought (?bought=pro|premium|lifetime), so the message names that plan and waits for it. A Lifetime member is
     // Premium already, so waiting for "Premium" after buying Pro would stop at once and name the wrong plan.
@@ -13308,11 +13399,13 @@ function handleCheckoutReturn() {
       await loadEntitlement();
       if (got() || tries >= 5) {
         clearInterval(poll);
+        vfpCheckoutWaiting = false;
         if (got()) {
           showToast("You're on " + planName() + ' — thank you!');
           // Lifetime buyer, no Pro yet: the ask goes on screen now (brief 7 Sep). Never after buying Pro.
           if (!wantPro) maybeShowLifetimeProAsk();
         }
+        if (vfpPendingJoin()) openJoinSheet();   // 25 Nov 2026: the invite this device holds, now with the new plan
       }
     }, 1500);
   }
@@ -15624,6 +15717,7 @@ const GROUPS_JOIN_KEY = 'vfp_join_code';
 let vfpGroups = [];
 let vfpInviteLink = '';
 let vfpJoinPeek = null;
+let vfpCheckoutWaiting = false;   // 25 Nov 2026: back from a checkout, the plan isn't in yet
 
 // An invite link (?join=<code>) is read once, kept on this device for 7 days so it survives
 // signing in or creating an account, and taken out of the address bar.
@@ -15760,7 +15854,10 @@ function renderGroupPlan(pl) {
   const team = pl.kind === 'team';
   const friends = pl.kind === 'friends';
   let h = '<div class="grp-card" data-plan="' + grpEsc(pl.plan_id) + '">';
-  h += '<div class="grp-head"><span class="grp-kind">' + grpEsc(GRP_KIND[pl.kind] || 'Plan') + '</span><span class="grp-owner">'
+  // 25 Nov 2026 (brief 1315 v2 §4.6): a friends' group's card is headed with its own name (Walkers, Book club), so a
+  // member in two groups can tell them apart; "Friends' group" moves to the small line under it. Duo, Family and Team as before.
+  const fName = friends && (pl.groups || [])[0] && pl.groups[0].name;
+  h += '<div class="grp-head"><span class="grp-kind">' + grpEsc(fName || GRP_KIND[pl.kind] || 'Plan') + '</span><span class="grp-owner">'
      + (own ? 'Yours' : grpEsc(pl.owner_name) + '\u2019s') + '</span></div>';
   if (pl.status === 'paused') {
     const until = pl.takeover_until ? new Date(pl.takeover_until).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'long' }) : '';
@@ -15790,7 +15887,7 @@ function renderGroupPlan(pl) {
   }
   (pl.groups || []).forEach(g => {
     const canRun = own || g.i_run;
-    h += '<div class="grp-sub">' + (team ? 'Group: ' : '') + grpEsc(g.name)
+    h += '<div class="grp-sub">' + (team ? 'Group: ' : '') + grpEsc(friends ? GRP_KIND.friends : g.name)
        + (canRun ? ' <span class="grp-act" onclick="vfpRenameGroup(\'' + g.group_id + '\')">Rename</span>' : '') + '</div>';
     if (team) {
       h += '<div class="grp-runner">Run by ' + grpEsc(g.runner_name) + (g.i_run ? ' (you)' : '');
@@ -15854,35 +15951,86 @@ async function vfpShareInvite() {
   try { await navigator.share({ title: 'VoiceFirstPlanner', text: 'Join my group on VoiceFirstPlanner', url: vfpInviteLink }); } catch (e) {}
 }
 function closeGroupsSheet(id) { document.getElementById(id).classList.remove('open'); }
-function vfpCancelInvite(id) { vfpGroupsDo(() => vfpRpc('vfp_invite_cancel', { p_invite: id }), 'Invite canceled'); }
-function vfpRemovePerson(planId, userId) {
-  const p = (vfpGroups.find(x => x.plan_id === planId)?.people || []).find(x => x.user_id === userId);
-  if (!confirm('Remove ' + (p ? p.name : 'this person') + ' from the plan? They lose its seat and its groups.')) return;
-  vfpGroupsDo(() => vfpRpc('vfp_remove_person', { p_plan: planId, p_user: userId }), 'Removed');
+// 25 Nov 2026 (brief 1315 §4.5): the app's own box. vfpAsk({ title, sub, ok, input: { value, max } }) answers true (or the
+// text typed) for the button, null for Cancel, a tap outside, or Escape. Nothing in groups uses the browser's pop-ups now.
+let vfpAskResolve = null, vfpAskInput = false, vfpAskFields = null;
+function vfpAsk(o) {
+  return new Promise(res => {
+    if (vfpAskResolve) vfpAskResolve(null);
+    vfpAskResolve = res;
+    vfpAskInput = !!o.input;
+    document.getElementById('va-title').textContent = o.title || '';
+    const sub = document.getElementById('va-sub'); sub.textContent = o.sub || ''; sub.style.display = o.sub ? '' : 'none';
+    const inp = document.getElementById('va-input');
+    inp.style.display = vfpAskInput ? '' : 'none';
+    if (vfpAskInput) { inp.value = o.input.value || ''; inp.maxLength = o.input.max || 60; inp.placeholder = o.input.placeholder || ''; }
+    // 25 Nov 2026 (brief 1520 §2.2): extra fields under the text box (a goal's target and life role). Each has its label above it.
+    vfpAskFields = o.fields || null;
+    const more = document.getElementById('va-more');
+    more.innerHTML = (vfpAskFields || []).map((f, i) => '<label class="ap-label" for="va-f' + i + '">' + calEsc(f.label) + '</label>'
+      + (f.type === 'select'
+        ? '<select class="task-inp" id="va-f' + i + '">' + f.options.map(op => '<option value="' + calEsc(op[0]) + '"' + (op[0] === f.value ? ' selected' : '') + '>' + calEsc(op[1]) + '</option>').join('') + '</select>'
+        : '<input class="task-inp" id="va-f' + i + '" type="' + (f.type || 'text') + '"' + (f.type === 'number' ? ' min="1" inputmode="numeric"' : '') + ' value="' + calEsc(String(f.value == null ? '' : f.value)) + '">')).join('');
+    more.querySelectorAll('input').forEach(el => el.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); vfpAskOk(); } else if (ev.key === 'Escape') vfpAskDone(null); }));
+    document.getElementById('va-ok').textContent = o.ok || 'OK';
+    document.getElementById('vfp-ask-modal').classList.add('open');
+    setTimeout(() => { try { (vfpAskInput ? inp : document.getElementById('va-ok')).focus(); } catch (e) {} }, 50);
+  });
 }
-function vfpLeavePlan(planId) {
-  const isFriends = (vfpGroups.find(x => x.plan_id === planId) || {}).kind === 'friends';
-  if (!confirm(isFriends ? 'Leave this group? Everything you accepted from it stays in your planner. To come back you\u2019ll need a new invite.'
-                         : 'Leave this plan? You lose its seat and its groups. To come back you\u2019ll need a new invite.')) return;
-  vfpGroupsDo(() => vfpRpc('vfp_leave', { p_plan: planId }), 'You\u2019ve left the plan');
+function vfpAskOk() {
+  if (!vfpAskInput) { vfpAskDone(true); return; }
+  const inp = document.getElementById('va-input'), v = inp.value.trim();
+  if (!v) { inp.focus(); return; }
+  if (vfpAskFields) { vfpAskDone({ text: v, fields: vfpAskFields.map((f, i) => document.getElementById('va-f' + i).value) }); return; }
+  vfpAskDone(v);
+}
+function vfpAskDone(v) {
+  document.getElementById('vfp-ask-modal').classList.remove('open');
+  const r = vfpAskResolve; vfpAskResolve = null;
+  if (r) r(v);
+}
+function vfpCancelInvite(id) { vfpGroupsDo(() => vfpRpc('vfp_invite_cancel', { p_invite: id }), 'Invite canceled'); }
+async function vfpRemovePerson(planId, userId) {
+  const pl = vfpGroups.find(x => x.plan_id === planId) || {};
+  const p = (pl.people || []).find(x => x.user_id === userId);
+  const who = p ? p.name : 'this person';
+  // 25 Nov 2026 (brief 1315 §4.4): a friends' group has its own words; the plan's words are only for Duo, Family and Team.
+  const friends = pl.kind === 'friends';
+  const gname = friends && (pl.groups || [])[0] ? pl.groups[0].name : '';
+  const yes = await vfpAsk(friends
+    ? { title: 'Take ' + who + ' out of ' + (gname || 'this group') + '?', sub: 'They keep their own plan, and everything they accepted from the group stays in their planner. To come back they\u2019ll need a new invite.', ok: 'Take out' }
+    : { title: 'Remove ' + who + ' from the plan?', sub: 'They lose its seat and its groups.', ok: 'Remove' });
+  if (!yes) return;
+  vfpGroupsDo(() => vfpRpc('vfp_remove_person', { p_plan: planId, p_user: userId }), friends ? 'Taken out' : 'Removed');
+}
+async function vfpLeavePlan(planId) {
+  const lpl = vfpGroups.find(x => x.plan_id === planId) || {};
+  const isFriends = lpl.kind === 'friends';
+  const lname = isFriends && (lpl.groups || [])[0] ? lpl.groups[0].name : '';
+  const yes = await vfpAsk(isFriends
+    ? { title: 'Leave this group?', sub: 'Everything you accepted from it stays in your planner. To come back you\u2019ll need a new invite.', ok: 'Leave' }
+    : { title: 'Leave this plan?', sub: 'You lose its seat and its groups. To come back you\u2019ll need a new invite.', ok: 'Leave' });
+  if (!yes) return;
+  // 25 Nov 2026 (brief 1520 §2.1): a friends' group says its own name; Duo, Family and Team keep the plan's words.
+  vfpGroupsDo(() => vfpRpc('vfp_leave', { p_plan: planId }), lname ? 'You\u2019ve left ' + lname : 'You\u2019ve left the plan');
 }
 function vfpSetSeat(planId, userId, seat) { vfpGroupsDo(() => vfpRpc('vfp_set_seat', { p_plan: planId, p_user: userId, p_seat: seat }), seat === 'pro' ? 'Moved up to Pro' : 'Moved back to Premium'); }
 function vfpSetRunner(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_set_runner', { p_group: groupId, p_user: userId }), 'Done'); }
 function vfpGroupAdd(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_add', { p_group: groupId, p_user: userId }), 'Added'); }
 function vfpTakeOut(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_take_out', { p_group: groupId, p_user: userId }), 'Taken out'); }
-function vfpRenameGroup(groupId) {
+async function vfpRenameGroup(groupId) {
   const g = vfpGroups.flatMap(p => p.groups || []).find(x => x.group_id === groupId);
-  const name = (prompt('Group name', g ? g.name : '') || '').trim();
+  const name = ((await vfpAsk({ title: 'Group name', input: { value: g ? g.name : '', max: 60 }, ok: 'Save' })) || '').trim();
   if (!name) return;
   vfpGroupsDo(() => vfpRpc('vfp_group_rename', { p_group: groupId, p_name: name.slice(0, 60) }), 'Renamed');
 }
-function vfpNewFriendsGroup() {
-  const name = (prompt('Name your friends\u2019 group', '') || '').trim();
+async function vfpNewFriendsGroup() {
+  const name = ((await vfpAsk({ title: 'Name your friends\u2019 group', input: { value: '', max: 60 }, ok: 'Make group' })) || '').trim();
   if (!name) return;
   vfpGroupsDo(() => vfpRpc('vfp_friends_create', { p_name: name.slice(0, 60) }), 'Group made');
 }
-function vfpNewGroup(planId) {
-  const name = (prompt('Name the new group', '') || '').trim();
+async function vfpNewGroup(planId) {
+  const name = ((await vfpAsk({ title: 'Name the new group', input: { value: '', max: 60 }, ok: 'Make group' })) || '').trim();
   if (!name) return;
   vfpGroupsDo(() => vfpRpc('vfp_group_create', { p_plan: planId, p_name: name.slice(0, 60) }), 'Group made');
 }
@@ -15896,6 +16044,7 @@ async function openJoinSheet() {
   try { r = await vfpRpc('vfp_invite_peek', { p_code: code }); } catch (e) { return; }   // try again next time the app opens
   vfpJoinPeek = r;
   b.style.display = 'none';
+  document.getElementById('gj-upgrade').style.display = 'none';
   document.getElementById('gj-name-wrap').style.display = 'none';
   document.getElementById('gj-name-miss').style.display = 'none';
   if (!r || !r.ok) {
@@ -15904,7 +16053,10 @@ async function openJoinSheet() {
     s.textContent = r && r.reason === 'paused' ? 'The plan it\u2019s for is paused, so no one can join right now.'
       : 'It may have been used already, been canceled, or be more than 7 days old. Ask for a new one.';
   } else if (r.kind === 'friends' && !r.can_join && !r.already_in) {
-    vfpClearJoin();
+    // 25 Nov 2026 (brief 1315 §4.2): the link stays on this device (only Join uses it up; vfp_invite_peek only reads), and the
+    // member can go straight to the Premium checkout. After paying, the app opens this invite again (handleCheckoutReturn).
+    if (vfpCheckoutWaiting) return;   // back from a checkout: wait until the plan shows, then open it again
+    document.getElementById('gj-upgrade').style.display = '';
     t.textContent = 'This group is for Premium members';
     s.textContent = r.owner_name + '\u2019s friends\u2019 group is for members on Premium or above. Your account is on the free plan, so it can\u2019t join.';
   } else if (!r.has_room && !r.already_in) {
@@ -15993,7 +16145,7 @@ function vfpWarnKeepCopy() { const x = vfpWarnNow; if (x && x.group_id) vfpKeepG
 async function vfpTakeOver(planId, warningId) {
   const pl = vfpGroups.find(p => p.plan_id === planId);
   const name = (pl && (pl.groups || [])[0] && pl.groups[0].name) || (vfpWarnNow && vfpWarnNow.group_name) || 'this group';
-  if (!confirm('Take over ' + name + '? It becomes yours, with its people, shared list and calendar, and it\u2019s active again.')) { if (warningId) vfpWarnNext(); return; }
+  if (!(await vfpAsk({ title: 'Take over ' + name + '?', sub: 'It becomes yours, with its people, shared list and calendar, and it\u2019s active again.', ok: 'Take over' }))) { if (warningId) vfpWarnNext(); return; }
   await vfpGroupsDo(async () => {
     await vfpRpc('vfp_friends_take_over', { p_plan: planId });
     if (warningId) { try { await vfpRpc('vfp_warning_seen', { p_warning: warningId }); } catch (e) {} }
@@ -16020,6 +16172,7 @@ function vfpKeepGroupCopy(gid) {
   showToast(parts.length ? 'Copied ' + parts.join(' and ') + ' to your planner' : 'Nothing left to copy');
 }
 function vfpJoinNotNow() { vfpClearJoin(); closeGroupsSheet('groups-join-modal'); }
+function vfpJoinUpgrade() { closeGroupsSheet('groups-join-modal'); showUpgrade(); }   // 25 Nov: the existing Premium checkout
 function vfpShowJoinNote() {
   const n = document.getElementById('auth-join-note');
   if (n) n.style.display = vfpPendingJoin() ? '' : 'none';
@@ -16214,10 +16367,10 @@ function vfpSharedToggle(gid, id) {
   const it = vfpSharedView(g).find(i => i.id === id); if (!it) return;
   vfpEnqueue({ op: 'done', group_id: gid, id, done: !it.done });     // sent as "done" or "not done", never "flip"
 }
-function vfpSharedEdit(gid, id) {
+async function vfpSharedEdit(gid, id) {
   const g = vfpSharedGroup(gid); if (!g || vfpSharedPausedToast(g)) return;
   const it = vfpSharedView(g).find(i => i.id === id); if (!it) return;
-  const text = (prompt('Edit item', it.text) || '').trim();
+  const text = ((await vfpAsk({ title: 'Edit item', input: { value: it.text, max: 200 }, ok: 'Save' })) || '').trim();
   if (text && text !== it.text) vfpEnqueue({ op: 'edit', group_id: gid, id, text: text.slice(0, 200) });
 }
 function vfpSharedRemove(gid, id) {
@@ -16812,9 +16965,22 @@ async function vfpSendTo(groupId, userId) {
   }
   const r = (res && res.data) || {};
   closeVfpSend();
-  if (p) showToast(r.again && !r.sent ? 'Already sent to ' + p.name : 'Sent to ' + p.name);
-  else if (r.full) showToast('Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') + '. ' + r.full + ' couldn’t take any more right now.');
-  else showToast('Sent to everyone in ' + (g ? g.name : 'the group'));
+  let said;
+  if (p) said = r.again && !r.sent ? 'Already sent to ' + p.name : 'Sent to ' + p.name;
+  else if (r.full) said = 'Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') + '. ' + r.full + ' couldn’t take any more right now.';
+  else said = 'Sent to everyone in ' + (g ? g.name : 'the group');
+  showToast(said);
+  vfpSentMark(p ? said : (r.full ? 'Sent to ' + r.sent + ' in ' + (g ? g.name : 'the group') : said));
+}
+// 25 Nov 2026 (brief 1315 §4.3): the message at the top of the screen is easy to miss from the Edit sheet, so the
+// Send to… button there says it too, with a tick, for a few seconds. Same words as the message.
+function vfpSentMark(text) {
+  const b = document.getElementById('edit-send');
+  if (!b || !document.getElementById('edit-modal').classList.contains('open')) return;
+  b.innerHTML = '<i class="ti ti-check"></i> ' + calEsc(text);
+  b.classList.add('gu-sent'); b.setAttribute('aria-live', 'polite');
+  clearTimeout(b._vfpSent);
+  b._vfpSent = setTimeout(() => { if (b.isConnected) { b.innerHTML = '<i class="ti ti-send"></i> Send to…'; b.classList.remove('gu-sent'); } }, 4000);
 }
 
 // ============================================================
@@ -17179,7 +17345,7 @@ function vfpCalRequestDelete(a) {
   if (s.paused) { showToast('This calendar is paused, so it can’t be changed.'); return; }
   const members = s.series ? seriesMembers(a.seriesId) : [];
   if (members.length <= 1) {
-    if (confirm('Delete “' + a.title + '” for everyone in ' + s.name + '?')) vfpCalEnqueue({ op: 'remove', group_id: s.group_id, id: s.ev });
+    vfpAsk({ title: 'Delete “' + a.title + '” for everyone in ' + s.name + '?', ok: 'Delete' }).then(yes => { if (yes) vfpCalEnqueue({ op: 'remove', group_id: s.group_id, id: s.ev }); });
     return;
   }
   openRecurDeleteModal(a, members);
@@ -17344,6 +17510,9 @@ async function vfpBfAccountDeal() {
 // The link, acted on after sign-in. Nothing happens for a guest or before the plan is known.
 async function vfpBfStart() {
   if (!sb || isDemo || !authUserId) return;
+  // 25 Nov 2026 (brief 1325 §4.1): signed in by a reset link: set the new password first, then the deal (vfpNewPwDone).
+  const np = document.getElementById('vfp-newpw-modal');
+  if (vfpPwRecovery || (np && np.classList.contains('open'))) { vfpBfAfterPw = true; return; }
   const kept = await vfpBfAccountDeal();   // 24 Nov 2026: the deal kept with a new account (another device's button)
   const route = vfpPendingBf() || kept;
   if (!route) return;
