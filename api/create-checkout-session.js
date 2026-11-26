@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
 import { bfStatus, bfPrice, bfWho, bfExpiresAt, isBfPrice, BF_ROUTES } from './_lib/black-friday.js';   // 14 Nov 2026
+import { groupCheckout } from './_lib/groups.js';   // 26 Nov 2026: Groups step 6, Duo, Family and Team
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const APP_URL = process.env.APP_URL || 'https://app.voicefirstdayplanner.com';
@@ -92,7 +93,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { priceId, referral, bf } = req.body || {};
+    const { priceId, referral, bf, group } = req.body || {};
+    // 26 Nov 2026 · Groups step 6: POST { group: { kind, billing, takeover? } }. Every rule is in _lib/groups.js, checked
+    // here on the server (hidden, Black Friday, Lifetime prices, takeover, switching over). Nothing else changes.
+    if (group !== undefined) {
+      const meG = await signedInUser(req, supabase);
+      if (!meG) return res.status(401).json({ error: 'Create an account or sign in to upgrade' });
+      const [code, out] = await groupCheckout({ stripe, supabase, me: meG, body: req.body, referral, appUrl: APP_URL });
+      return res.status(code).json(out);
+    }
     if (bf !== undefined) {
       if (!BF_ROUTES.includes(bf)) return res.status(400).json({ error: 'Unknown offer' });
       const meBf = await signedInUser(req, supabase);
@@ -126,8 +135,16 @@ export default async function handler(req, res) {
       }
     }
 
+    // 26 Nov 2026 · TEST MODE ONLY (Groups step 6 walk): the app's price ids are live ones, so on the test preview the
+    // Sandbox price with lookup key 'vfp_test_<live id>' is sold instead. Does nothing unless the key is a test key AND
+    // VFP_TEST_PRICES is '1' (set on the groups-step6-test preview only). Live never has either.
+    let sellId = priceId;
+    if (process.env.VFP_TEST_PRICES === '1' && String(process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test_')) {
+      const tl = await stripe.prices.list({ lookup_keys: ['vfp_test_' + priceId], active: true, limit: 1 });
+      if (tl && tl.data && tl.data[0]) sellId = tl.data[0].id;
+    }
     // Let the price itself decide: recurring => subscription, otherwise => one-off payment (lifetime).
-    const price = await stripe.prices.retrieve(priceId);
+    const price = await stripe.prices.retrieve(sellId);
     // 14 Nov 2026: a Black Friday price is sold only through its own route above, with its own checks.
     if (isBfPrice(price)) return res.status(400).json({ error: 'Missing priceId' });
     const mode = price.recurring ? 'subscription' : 'payment';
@@ -136,7 +153,7 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: sellId, quantity: 1 }],
       success_url: `${APP_URL}/?checkout=success&bought=${bought}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
       // Rewardful referral ONLY. Must be OMITTED entirely when absent — a blank

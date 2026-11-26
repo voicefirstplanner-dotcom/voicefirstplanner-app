@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { signedInUser } from './_lib/signed-in.js';   // 31 Oct 2026: Groups step 0
 import { bfSubState, bfStopRenewal, bfKeepRenewing } from './_lib/black-friday.js';   // 14 Nov 2026
+import { groupAddOn, groupJoined } from './_lib/groups.js';   // 26 Nov 2026: Groups step 6
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -23,6 +24,17 @@ export default async function handler(req, res) {
     const me = await signedInUser(req, supabase);
     if (!me) return res.status(401).json({ error: 'Could not open billing — please try again' });
     const userId = me.id;   // any userId in the body is ignored
+
+    // 26 Nov 2026 · Groups step 6 (no new function: Vercel's Hobby plan allows 12). The signed-in account's own only.
+    //   { action: 'group_add', plan_id, what: 'person' | 'five' | 'pro_move' }  the plan's owner buys an add-on (§2B.4)
+    //   { action: 'group_joined', stop_own }                                    after joining a plan (§2B.9)
+    const gAction = (req.body || {}).action;
+    if (gAction === 'group_add' || gAction === 'group_joined') {
+      const [code, out] = gAction === 'group_add'
+        ? await groupAddOn({ stripe, supabase, me, body: req.body })
+        : await groupJoined({ stripe, supabase, me, body: req.body });
+      return res.status(code).json(out);
+    }
 
     let { data, error: readErr } = await supabase
       .from('entitlements')
