@@ -49,6 +49,17 @@ export async function pricesByKey(stripe, keys) {
   return out;
 }
 export function isGroupSub(sub) { return !!(sub && sub.metadata && sub.metadata.vfp_group); }
+// 26 Nov 2026 (walk faults WF2–WF4): a subscription that pays for a Duo, Family or Team is never a member's own plan,
+// whatever their entitlements row says. The database knows every one the server has seen (6h: vfp_is_group_sub); Stripe's
+// own mark (metadata vfp_group) is the second check. If the database can't be asked: treat it as a group plan, so
+// nothing is switched over, credited or stopped.
+export async function isGroupPlanSub({ stripe, supabase, subId }) {
+  if (!subId) return false;
+  const { data, error } = await supabase.rpc('vfp_is_group_sub', { p_sub: subId });
+  if (error) { console.warn('vfp_is_group_sub:', error.message); return true; }
+  if (data === true) return true;
+  try { return isGroupSub(await stripe.subscriptions.retrieve(subId)); } catch (e) { return false; }
+}
 const lineOf = (it) => (it && it.price && it.price.metadata && it.price.metadata.vfp_line) || '';
 // The plan's size from its subscription's lines.
 export function sizeOf(sub) {
@@ -72,6 +83,7 @@ export async function switchCredit(stripe, subId, nowMs) {
   try { sub = await stripe.subscriptions.retrieve(subId, { expand: ['latest_invoice'] }); }
   catch (e) { return { cents: 0, sub: null }; }
   if (!sub || !['active', 'past_due'].includes(sub.status)) return { cents: 0, sub: null };
+  if (isGroupSub(sub)) return { cents: 0, sub: null };                     // WF4: a group plan is never switched over
   const inv = sub.latest_invoice && typeof sub.latest_invoice === 'object' ? sub.latest_invoice : null;
   const paid = inv && inv.status === 'paid' ? (inv.amount_paid || 0) : 0;
   const item = sub.items && sub.items.data && sub.items.data[0];
@@ -123,7 +135,8 @@ export async function groupCheckout({ stripe, supabase, me, body, referral, appU
   if (expiresAt - nowS < 30 * 60) return [409, { error: 'takeover_closed' }];
   // switching over: their own paying plan (not a comp, not Lifetime Premium itself)
   let credit = { cents: 0, sub: null };
-  const paying = e.stripe_subscription_id && e.comp !== true && ['premium', 'pro'].includes(e.plan) && ['active', 'trialing', 'past_due'].includes(e.status || '');
+  const paying = e.stripe_subscription_id && e.comp !== true && ['premium', 'pro'].includes(e.plan) && ['active', 'trialing', 'past_due'].includes(e.status || '')
+    && !(await isGroupPlanSub({ stripe, supabase, subId: e.stripe_subscription_id }));   // WF4: a Duo/Family/Team they pay for isn't their own plan
   if (paying) credit = await switchCredit(stripe, e.stripe_subscription_id);
   const couponCents = Math.min(credit.cents, firstBill);
   const rest = credit.cents - couponCents;
@@ -152,6 +165,20 @@ export async function groupCheckout({ stripe, supabase, me, body, referral, appU
     subscription_data: { metadata: { supabase_user_id: me.id, vfp_group: kind, vfp_billing: billing, vfp_lifetime: lifetime ? '1' : '0' } },
   });
   return [200, { url: session.url }];
+}
+
+// 26 Nov 2026 (WF2): switched over, their own subscription has just been stopped, so their row says so now, without
+// waiting for Stripe's "deleted" event (which says the same). Only if the row still carries that subscription, and as the
+// webhook's own rules: a comp row is never touched; a Lifetime member's founding-rate Pro falls back to Lifetime Premium.
+async function endOwnPlan(supabase, userId, subId) {
+  const { data: e, error } = await supabase.from('entitlements').select('plan,source,comp,stripe_subscription_id').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error('entitlements read: ' + error.message);
+  if (!e || e.comp === true || e.stripe_subscription_id !== subId) return;
+  const row = e.source === 'lifetime'
+    ? { plan: 'premium', source: 'lifetime', status: 'active', stripe_subscription_id: null, current_period_end: null }
+    : { plan: 'free', status: 'canceled' };
+  const { error: e2 } = await supabase.from('entitlements').update({ ...row, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('stripe_subscription_id', subId);
+  if (e2) throw new Error('entitlements update: ' + e2.message);
 }
 
 // The member's entitlements row carries their Stripe customer (the billing page uses it). Never changes their plan.
@@ -195,9 +222,10 @@ export async function groupComplete({ stripe, supabase, session }) {
   if (r && r.ok) {
     await ensureCustomer(supabase, userId, idOf(session.customer));
     // switched over: their own plan stops now; the credit was given at checkout (and any rest goes on their balance)
-    if (m.vfp_switch_from) {
+    if (m.vfp_switch_from && !(await isGroupPlanSub({ stripe, supabase, subId: m.vfp_switch_from }))) {   // WF4: never a group plan
       try { await stripe.subscriptions.cancel(m.vfp_switch_from, { prorate: false, invoice_now: false }); }
       catch (e) { if (!/canceled|No such subscription|resource_missing/i.test(String(e && e.message))) throw e; }
+      await endOwnPlan(supabase, userId, m.vfp_switch_from);               // WF2: their row shows their own plan ended
     }
     const rest = parseInt(m.vfp_credit_rest || '0', 10);
     if (rest > 0) {
@@ -277,6 +305,7 @@ export async function groupJoined({ stripe, supabase, me, body }) {
   if (!e || e.comp === true || e.source === 'lifetime' || !e.stripe_subscription_id) return [200, { stopped: false }];
   if (e.bf_paid_to && Date.parse(e.bf_paid_to) > Date.now()) return [200, { stopped: false }];
   if (!['active', 'trialing', 'past_due'].includes(e.status || '')) return [200, { stopped: false }];
+  if (await isGroupPlanSub({ stripe, supabase, subId: e.stripe_subscription_id })) return [200, { stopped: false }];   // WF3: never a plan they pay for
   const stop = e.plan === 'premium' || (e.plan === 'pro' && body && body.stop_own === true);
   if (!stop) return [200, { stopped: false }];
   const sub = await stripe.subscriptions.update(e.stripe_subscription_id, { cancel_at_period_end: true });

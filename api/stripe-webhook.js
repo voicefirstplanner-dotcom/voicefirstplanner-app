@@ -146,6 +146,8 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
     console.warn('Could not re-fetch subscription, using event payload:', e.message);
   }
   if (!sub) return;
+  // 26 Nov 2026 (walk fault WF1): a Duo, Family or Team's subscription is never written as anyone's own plan.
+  if (isGroupSub(sub)) { console.log('Group subscription', sub.id, '— not an own plan; entitlement untouched'); return; }
 
   const userId =
     sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));

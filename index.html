@@ -15894,7 +15894,7 @@ function renderGroups() {
   if (!sec || !box) return;
   // Friends' groups (brief 1345): anyone whose OWN plan is Pro can start one. Hidden until live:
   // until then only an account that already owns a group sees the button (the database checks the same).
-  // 26 Nov 2026 (Groups step 6; Dave 8 Nov, answer 1): the person paying for a Duo, Family or Team counts as paying for Pro.
+  // 26 Nov 2026 (Groups step 6i; Pricing v10.10 §2B.6): anyone who holds Pro, however they hold it (vfpPaysPro).
   const ownPro = vfpPaysPro();
   const newFriends = ownPro && (vfpFriendsOpen() || vfpGroups.some(p => p.i_own))
     ? '<div class="settings-row"><span class="grp-act" onclick="vfpNewFriendsGroup()"><i class="ti ti-users-plus"></i> New friends\u2019 group</span></div>' : '';
@@ -16013,10 +16013,11 @@ const GRP_ADDON = {
   five:     '$12.42 a month billed annually at $149, or $22.99 month to month',
   pro_move: '$3.42 a month billed annually at $41, or $5.00 month to month',
 };
-// Dave 8 Nov, answer 1: their own Pro, or a Duo, Family or Team they pay for (the database decides the same).
+// Pricing v10.10 §2B.6 (Dave, 26 Nov, 19:09): anyone who holds Pro, however they hold it: their own Pro, the Pro seat of a
+// Duo, Family or Team they pay for, or a Team seat moved up to Pro. state.entitlement.plan is vfp_my_plan (own plan or seat).
+// The database decides the same (6i: vfp_pays_pro = vfp_effective_plan = 'pro').
 function vfpPaysPro() {
-  const own = (state.entitlement && (state.entitlement.libraryPlan || state.entitlement.plan)) === 'pro';
-  return own || (vfpGroups || []).some(p => p.i_own && p.kind !== 'friends' && p.status === 'active' && p.source === 'stripe');
+  return !!(state.entitlement && state.entitlement.plan === 'pro');
 }
 function vfpPlanButtons(kind, life, takeover) {
   const P = GRP_PLANS[kind], t = takeover ? ',\'' + takeover + '\'' : '';
