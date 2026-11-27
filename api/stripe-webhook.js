@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { mintToken, downloadUrl } from './_lib/token.js';
 import { mainLine, latestPeriodEnd } from './_lib/sub-lines.js';   // 31 Oct 2026: Groups step 0
 import { bfGrant, bfReleaseIfStarted, bfCancelFuture } from './_lib/black-friday.js';   // 14 Nov 2026: Black Friday, 2 years for the price of 1
+import { isGroupSub, groupComplete, groupSync } from './_lib/groups.js';   // 26 Nov 2026: Groups step 6
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -145,6 +146,8 @@ async function syncSubscriptionById(subscriptionId, fallbackSub) {
     console.warn('Could not re-fetch subscription, using event payload:', e.message);
   }
   if (!sub) return;
+  // 26 Nov 2026 (walk fault WF1): a Duo, Family or Team's subscription is never written as anyone's own plan.
+  if (isGroupSub(sub)) { console.log('Group subscription', sub.id, '— not an own plan; entitlement untouched'); return; }
 
   const userId =
     sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
@@ -586,6 +589,16 @@ export default async function handler(req, res) {
           break;
         }
 
+        // 26 Nov 2026 · Groups step 6: a Duo, Family or Team. It's a subscription, but NOT the payer's own plan: it must be
+        // handled before the subscription branch below, which writes the payer's entitlements row. The plan (and its Pro
+        // seat) lives in the database's Groups tables. If this throws, the event 500s and Stripe sends it again; every
+        // step is safe to run twice.
+        if (session.metadata?.vfp_group) {
+          const r = await groupComplete({ stripe, supabase, session });
+          console.log('Group checkout', session.id, JSON.stringify(r));
+          break;
+        }
+
         if (session.mode === 'payment') {
           // One-off Lifetime purchase.
           // plan='premium' + source='lifetime' — NEVER plan='lifetime'. The app's
@@ -635,6 +648,9 @@ export default async function handler(req, res) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object;
+        // 26 Nov 2026 · Groups step 6: a group plan's subscription changes the plan (its size, active or paused), never
+        // the payer's own entitlements row.
+        if (isGroupSub(sub)) { console.log('Group subscription', sub.id, event.type, JSON.stringify(await groupSync({ stripe, supabase, sub }))); break; }
         await syncSubscriptionById(sub.id, sub);
         // 14 Nov 2026 · Black Friday (F4): the two paid years are over and the yearly subscription has started. Let the
         // schedule go (an ordinary yearly subscription from here) and clear the Black Friday marker.
@@ -651,6 +667,9 @@ export default async function handler(req, res) {
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
+        // 26 Nov 2026 · Groups step 6: the payer stopped. The plan pauses (its seats stop now: Dave 8 Nov, answer 5), and
+        // the 30 days for a takeover begin. The payer's own entitlements row is not touched.
+        if (isGroupSub(sub)) { console.log('Group subscription ended', sub.id, JSON.stringify(await groupSync({ stripe, supabase, sub, status: 'canceled' }))); break; }
         const userId =
           sub.metadata?.supabase_user_id || (await findUserIdByCustomer(sub.customer));
         if (!userId) break;

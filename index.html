@@ -316,6 +316,13 @@ html, body {
 .auth-forgot a { color: var(--accent-on-light); font-weight: 600; text-decoration: none; }
 .auth-back { text-align: center; margin: 14px 0 4px; }
 #vfp-ask-modal { z-index: 55; }   /* above any other sheet it is opened from */
+/* 26 Nov 2026 (Groups step 6): the Duo, Family and Team sheet */
+.grp-buy-plan { border: 1px solid var(--border, #d9e2ec); border-radius: 12px; padding: 12px 14px; margin: 12px 0 0; }
+.grp-buy-name { font-weight: 700; color: var(--navy); font-size: 15px; }
+.grp-buy-who { font-size: 13px; color: var(--text-mid); margin: 2px 0 6px; }
+.grp-buy-line { font-size: 12px; color: var(--text-light); margin-bottom: 8px; }
+.grp-buy-plan .modal-cta + .modal-cta { margin-top: 8px; }
+.grp-buy-note { font-size: 13px; color: var(--text-mid); background: var(--bg-soft, #f2f6fa); border-radius: 10px; padding: 10px 12px; margin: 10px 0 0; }
 #va-more .ap-label { display: block; margin: 10px 0 4px; }
 #va-more .task-inp { width: 100%; box-sizing: border-box; }
 #va-input.va-has-label { margin-top: 0; }
@@ -3947,9 +3954,20 @@ body.pv #demo-banner { position: relative; z-index: 3; }
       <div class="grp-name-hint">Everyone in the group sees this name.</div>
       <div class="grp-name-miss" id="gj-name-miss" style="display:none">Add your first name to join.</div>
     </div>
-    <button class="modal-cta" id="gj-join" onclick="vfpJoinNow()">Join</button>
+    <button class="modal-cta" id="gj-join" onclick="vfpJoinNow(false)">Join</button>
+    <button class="modal-cta" id="gj-join-stop" style="display:none" onclick="vfpJoinNow(true)">Join and let my Pro stop renewing</button>
     <button class="modal-cta" id="gj-upgrade" style="display:none" onclick="vfpJoinUpgrade()">See Premium plans</button>
     <button class="modal-close-btn" onclick="vfpJoinNotNow()">Not now</button>
+  </div>
+</div>
+<!-- 26 Nov 2026 (Groups step 6): Duo, Family and Team: buying one, or taking a paused one over. Filled by vfpPlanSheet(). -->
+<div class="modal-overlay" id="gp-buy-modal" role="dialog" aria-labelledby="gpb-title" aria-describedby="gpb-sub" onclick="if(event.target===this)closeGroupsSheet('gp-buy-modal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="gpb-title"></div>
+    <div class="modal-sub" id="gpb-sub"></div>
+    <div id="gpb-body"></div>
+    <button class="modal-close-btn" onclick="closeGroupsSheet('gp-buy-modal')">Not now</button>
   </div>
 </div>
 <div class="modal-overlay" id="upgrade-modal" onclick="if(event.target===this)closeUpgrade()">
@@ -13223,6 +13241,9 @@ function renderPlan() {
   // nothing to manage in billing, so no button; a member who also pays keeps their own button.
   if (ent.viaGroup) {
     if (valEl) valEl.textContent = (labels[ent.plan] || 'Free') + ' \u00b7 group plan';
+    // 26 Nov 2026 (Groups step 6): the person paying for a Duo, Family or Team manages that subscription here.
+    const paysForPlan = (vfpGroups || []).some(p => p.i_own && p.kind !== 'friends' && p.source === 'stripe');
+    if (paysForPlan) { actEl.style.display = ''; actEl.textContent = 'Manage billing'; actEl.onclick = openBillingPortal; return; }
     if ((ent.libraryPlan || 'free') === 'free') { actEl.style.display = 'none'; return; }
   }
   if (ent.source === 'lifetime' && ent.plan === 'pro') {
@@ -13376,6 +13397,25 @@ function handleCheckoutReturn() {
   if (c === 'pro') {
     if (!proPathOpen()) { showToast('Pro is coming soon'); return; }
     openProModal();
+    return;
+  }
+  if (c === 'success' && /^group_(duo|family|team)$/.test((params.get('bought') || '').toLowerCase())) {
+    // 26 Nov 2026 (Groups step 6): a Duo, Family or Team (new, or taken over: ?plan=). Wait until the database has it.
+    const kind = params.get('bought').toLowerCase().slice(6), planId = params.get('plan') || '';
+    const name = GRP_KIND[kind] || 'plan';
+    showToast('Payment received — setting up your ' + name + '…');
+    let tries = 0;
+    const poll = setInterval(async () => {
+      tries++;
+      await loadGroups();
+      const got = vfpGroups.find(p => p.i_own && p.kind === kind && p.status === 'active' && p.source === 'stripe' && (!planId || p.plan_id === planId));
+      if (got || tries >= 8) {
+        clearInterval(poll);
+        await loadEntitlement();
+        if (got) showToast(planId ? 'The ' + name + ' is yours now.' : 'Your ' + name + ' is ready. Invite people from Settings \u203a Groups.');
+        else await vfpShowNotices();   // a second payer: the refund notice
+      }
+    }, 1500);
     return;
   }
   if (c === 'success') {
@@ -15774,7 +15814,12 @@ function vfpGroupError(e) {
     already_yours: 'This group is already yours.',
     not_paused: 'This group isn\u2019t paused, so there\u2019s nothing to take over.',
     takeover_closed: 'It\u2019s too late to take this group over.',
-    not_for_plans: 'This plan can\u2019t be taken over from here.'
+    not_for_plans: 'This plan can\u2019t be taken over from here.',
+    // 26 Nov 2026 (Groups step 6)
+    groups_not_open: 'Duo, Family and Team plans aren\u2019t open yet.',
+    lifetime_annual_only: 'For Lifetime members, these plans are yearly only.',
+    payment_failed: 'Your card was declined, so nothing changed.',
+    not_stripe: 'This plan can\u2019t be changed from here.'
   };
   for (const k in words) if (m.indexOf(k) !== -1) return words[k];
   return 'That didn\u2019t work — please try again.';
@@ -15791,6 +15836,7 @@ async function loadGroups() {
   if (sb && authUserId && !isDemo) {
     try { const d = await vfpRpc('vfp_my_groups'); if (Array.isArray(d)) { vfpGroups = d; vfpGroupsOk = true; } } catch (e) { /* no Groups yet: nothing shown */ }
     try { const w = await vfpRpc('vfp_groups_switch'); if (w === 'off' || w === 'friends' || w === 'all') vfpSwitch = w; } catch (e) { /* before 4b: off */ }
+    try { const sh = await vfpRpc('vfp_plan_shop'); vfpShop = sh && typeof sh === 'object' ? sh : null; } catch (e) { vfpShop = null; }   // step 6 (before 6a: none)
   }
   renderGroups();
   loadGroupUpdates();   // Groups step 3: the orange button (nothing for a member with no group)
@@ -15817,6 +15863,16 @@ async function vfpShowNotices() {
   // Groups 4b: "Pia has taken over Walkers" — told once to everyone else in the group.
   const took = all.filter(x => x && x.kind === 'taken_over');
   const n = all.filter(x => x && x.kind === 'friends_dropped');
+  // 26 Nov 2026 (Groups step 6; Pricing §2B.9): somebody else paid for a takeover first, so this member's payment was refunded.
+  const refunded = all.filter(x => x && x.kind === 'takeover_refunded');
+  if (refunded.length) {
+    const g = refunded[refunded.length - 1].group_name || 'the plan';
+    const by = refunded[refunded.length - 1].who || (took.find(t => t.group_name === g) || {}).who;   // the notice names who paid first
+    document.getElementById('gn-title').textContent = (by || 'Someone else') + ' took over ' + g + ' first';
+    document.getElementById('gn-sub').textContent = 'Your payment for it has been refunded in full.';
+    document.getElementById('groups-notice-modal').classList.add('open');
+    return;
+  }
   if (took.length && !n.length) {
     const t = took[took.length - 1];
     document.getElementById('gn-title').textContent = (t.who || 'Someone') + ' has taken over ' + (t.group_name || 'your group');
@@ -15838,16 +15894,21 @@ function renderGroups() {
   if (!sec || !box) return;
   // Friends' groups (brief 1345): anyone whose OWN plan is Pro can start one. Hidden until live:
   // until then only an account that already owns a group sees the button (the database checks the same).
-  const ownPro = (state.entitlement && (state.entitlement.libraryPlan || state.entitlement.plan)) === 'pro';
+  // 26 Nov 2026 (Groups step 6i; Pricing v10.10 §2B.6): anyone who holds Pro, however they hold it (vfpPaysPro).
+  const ownPro = vfpPaysPro();
   const newFriends = ownPro && (vfpFriendsOpen() || vfpGroups.some(p => p.i_own))
     ? '<div class="settings-row"><span class="grp-act" onclick="vfpNewFriendsGroup()"><i class="ti ti-users-plus"></i> New friends\u2019 group</span></div>' : '';
+  // Groups step 6: Duo, Family and Team, for an account the database says may buy them (the tester list, or everyone at 'all').
+  const shopRow = vfpShop && vfpShop.open
+    ? '<div class="settings-row"><span class="grp-act" onclick="vfpPlanSheet()"><i class="ti ti-users-group"></i> Start a Duo, Family or Team plan</span></div>' : '';
   if (!vfpGroups.length) {
-    sec.style.display = vfpFriendsOpen() ? '' : 'none';
-    box.innerHTML = vfpFriendsOpen() ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends + vfpShareLinksHtml() : '';
+    const show = vfpFriendsOpen() || !!shopRow;
+    sec.style.display = show ? '' : 'none';
+    box.innerHTML = show ? '<div class="settings-row"><span class="settings-row-label" style="color:var(--text-mid)">You\u2019re not in a group.</span></div>' + newFriends + shopRow + (vfpFriendsOpen() ? vfpShareLinksHtml() : '') : '';
     return;
   }
   sec.style.display = '';
-  box.innerHTML = vfpGroups.map(renderGroupPlan).join('') + newFriends + vfpShareLinksHtml();
+  box.innerHTML = vfpGroups.map(renderGroupPlan).join('') + newFriends + shopRow + vfpShareLinksHtml();
 }
 function renderGroupPlan(pl) {
   const own = pl.i_own;
@@ -15865,13 +15926,20 @@ function renderGroupPlan(pl) {
        + ' Shared things are kept until ' + grpEsc(until) + '.</div>';
     // Groups 4b: a friends' group can be taken over by a member whose own plan is Pro (first one wins, the database decides).
     // Duo, Family and Team: taking over means buying the plan, which comes with step 6.
-    const ownPro = (state.entitlement && state.entitlement.libraryPlan) === 'pro';
-    h += '<div class="grp-row">' + (friends && !own && ownPro ? '<span class="grp-act" onclick="vfpTakeOver(\'' + pl.plan_id + '\')"><i class="ti ti-crown"></i> Take over</span>' : '')
+    const ownPro = vfpPaysPro();
+    // Groups step 6: a Duo, Family or Team is taken over by buying it as it stands (§2B.9); its payer can start paying again.
+    const planTake = !friends && vfpShop && vfpShop.open
+      ? '<span class="grp-act" onclick="vfpPlanSheet(\'' + pl.plan_id + '\')"><i class="ti ti-crown"></i> ' + (own ? 'Start paying again' : 'Take over') + '</span>' : '';
+    h += '<div class="grp-row">' + (friends && !own && ownPro ? '<span class="grp-act" onclick="vfpTakeOver(\'' + pl.plan_id + '\')"><i class="ti ti-crown"></i> Take over</span>' : '') + planTake
        + ((pl.groups || [])[0] ? '<span class="grp-act" onclick="vfpKeepGroupCopy(\'' + pl.groups[0].group_id + '\')"><i class="ti ti-copy"></i> Keep a copy in my planner</span>' : '') + '</div>';
   }
   h += friends ? '<div class="grp-meta">People ' + pl.people_now + '</div>'
      : '<div class="grp-meta">Paid seats ' + pl.seats_used + ' of ' + pl.seats_paid + ' \u00b7 People ' + pl.people_now + ' of ' + pl.people_max
      + (team ? ' \u00b7 Pro moves ' + pl.pro_moves_used + ' of ' + pl.pro_moves : '') + '</div>';
+  // Groups step 6: the owner of a plan bought through Stripe adds people here (§2B.4). Moving someone up to Pro is on their row.
+  if (own && !friends && pl.source === 'stripe' && pl.status === 'active' && (pl.kind === 'family' || team))
+    h += '<div class="grp-row"><span class="grp-act" onclick="vfpPlanAdd(\'' + pl.plan_id + '\',\'' + (team ? 'five' : 'person') + '\')"><i class="ti ti-user-plus"></i> '
+       + (team ? 'Add five people' : 'Add a person') + '</span></div>';
   if (Array.isArray(pl.people)) {
     h += '<div class="grp-sub">People</div>';
     h += pl.people.map(p => {
@@ -15922,6 +15990,104 @@ function renderGroupPlan(pl) {
   if (own && team && pl.status === 'active') h += '<div class="grp-row"><span class="grp-act" onclick="vfpNewGroup(\'' + pl.plan_id + '\')"><i class="ti ti-plus"></i> New group</span></div>';
   if (!own) h += '<div class="grp-row"><span class="grp-act grp-danger" onclick="vfpLeavePlan(\'' + pl.plan_id + '\')">' + (friends ? 'Leave this group' : 'Leave this plan') + '</span></div>';
   return h + '</div>';
+}
+
+// ---- Groups step 6 (26 Nov 2026): Duo, Family and Team, bought through Stripe -------------------------------------
+// Hidden until the switch says 'all', or the account is on the tester list: vfp_plan_shop() says whether this account may
+// buy, and the server checks it again at every checkout and add-on. The lines below are Pricing v10.8 §2B's, quoted, never
+// computed; Stripe charges (by lookup key), not this page. TOOLFINDER50 is not taken at these checkouts (as built; Dave's call).
+let vfpShop = null;
+const GRP_PLANS = {
+  duo:    { name: 'Duo',    who: 'Two people: you on Pro, one more on Premium.',
+            line: '$9.08 a month billed annually at $109, or $16.99 month to month', life: '$3.19 a month billed annually at $38.25',
+            year: 'Duo Annual — $9.08/mo, billed $109', month: 'Duo — $16.99/mo', lifeYear: 'Duo Annual — $3.19/mo, billed $38.25' },
+  family: { name: 'Family', who: 'Up to four people: you on Pro, three on Premium. Add more people one at a time.',
+            line: '$12.42 a month billed annually at $149, or $22.99 month to month', life: '$5.85 a month billed annually at $70.25',
+            year: 'Family Annual — $12.42/mo, billed $149', month: 'Family — $22.99/mo', lifeYear: 'Family Annual — $5.85/mo, billed $70.25' },
+  team:   { name: 'Team',   who: 'Up to ten people: you on Pro, nine on Premium. Add more in fives, and move anyone up to Pro.',
+            line: '$24.92 a month billed annually at $299, or $44.99 month to month', life: '$13.85 a month billed annually at $166.25',
+            year: 'Team Annual — $24.92/mo, billed $299', month: 'Team — $44.99/mo', lifeYear: 'Team Annual — $13.85/mo, billed $166.25' },
+};
+const GRP_ADDON = {
+  person:   '$2.50 a month billed annually at $30, or $4.50 month to month',
+  five:     '$12.42 a month billed annually at $149, or $22.99 month to month',
+  pro_move: '$3.42 a month billed annually at $41, or $5.00 month to month',
+};
+// Pricing v10.10 §2B.6 (Dave, 26 Nov, 19:09): anyone who holds Pro, however they hold it: their own Pro, the Pro seat of a
+// Duo, Family or Team they pay for, or a Team seat moved up to Pro. state.entitlement.plan is vfp_my_plan (own plan or seat).
+// The database decides the same (6i: vfp_pays_pro = vfp_effective_plan = 'pro').
+function vfpPaysPro() {
+  return !!(state.entitlement && state.entitlement.plan === 'pro');
+}
+function vfpPlanButtons(kind, life, takeover) {
+  const P = GRP_PLANS[kind], t = takeover ? ',\'' + takeover + '\'' : '';
+  if (life) return '<button class="modal-cta" onclick="vfpGroupCheckout(\'' + kind + '\',\'year\'' + t + ')">' + grpEsc(P.lifeYear) + '</button>';
+  return '<button class="modal-cta" onclick="vfpGroupCheckout(\'' + kind + '\',\'month\'' + t + ')">' + grpEsc(P.month) + '</button>'
+       + '<button class="modal-cta" onclick="vfpGroupCheckout(\'' + kind + '\',\'year\'' + t + ')">' + grpEsc(P.year) + '</button>';
+}
+// The sheet: with no plan id, the three plans to buy; with a paused plan's id, taking it over (or its payer starting again).
+function vfpPlanSheet(planId) {
+  const s = vfpShop || {}, life = !!s.lifetime;
+  const note = t => '<div class="grp-buy-note">' + grpEsc(t) + '</div>';
+  const notes = () => (life ? note('As a Lifetime member, you pay the founding rate for your own Pro and $16 a year for each other seat. Yearly only.') : '')
+    + (s.switch_over ? note('You pay for your own ' + (s.own_plan === 'pro' ? 'Pro' : 'Premium') + ' now. It stops when you buy a plan, and what\u2019s left of it comes off your first bill.') : '');
+  const t = document.getElementById('gpb-title'), sub = document.getElementById('gpb-sub'), body = document.getElementById('gpb-body');
+  if (!planId) {
+    t.textContent = 'Duo, Family and Team plans';
+    sub.textContent = 'You pay for the plan, hold its Pro seat, and invite the others. Each of them gets Premium.';
+    body.innerHTML = s.black_friday ? note('Your Black Friday plan is already paid for. Changing plan isn\u2019t open yet.')
+      : notes() + ['duo', 'family', 'team'].map(k => '<div class="grp-buy-plan"><div class="grp-buy-name">' + GRP_PLANS[k].name + '</div><div class="grp-buy-who">'
+          + grpEsc(GRP_PLANS[k].who) + '</div><div class="grp-buy-line">' + grpEsc(life ? GRP_PLANS[k].life : GRP_PLANS[k].line) + '</div>' + vfpPlanButtons(k, life) + '</div>').join('');
+  } else {
+    const pl = vfpGroups.find(p => p.plan_id === planId);
+    if (!pl || pl.kind === 'friends') return;
+    const P = GRP_PLANS[pl.kind], gname = ((pl.groups || [])[0] || {}).name || GRP_KIND[pl.kind];
+    t.textContent = pl.i_own ? 'Start ' + gname + ' again?' : 'Take over ' + gname + '?';
+    sub.textContent = pl.i_own ? 'Pay for the ' + GRP_KIND[pl.kind] + ' again, as it stands. Its people, shared list and calendar carry on.'
+      : 'You buy the ' + GRP_KIND[pl.kind] + ' as it stands' + (life ? '' : ', at full price') + '. It becomes yours, with its people, shared list and calendar.';   // W19 (26 Nov 12:35): a Lifetime member pays the Lifetime price, so no "at full price"
+    const extra = pl.extra_units || 0, moves = pl.pro_moves || 0;
+    let lines = '<div class="grp-buy-line">' + grpEsc(P.name + ': ' + (life ? P.life : P.line)) + '</div>';
+    if (extra && pl.kind === 'family') lines += '<div class="grp-buy-line">' + grpEsc('Plus ' + extra + ' \u00d7 one more person: ' + GRP_ADDON.person) + '</div>';
+    if (extra && pl.kind === 'team') lines += '<div class="grp-buy-line">' + grpEsc('Plus ' + extra + ' \u00d7 five more people: ' + GRP_ADDON.five) + '</div>';
+    if (moves) lines += '<div class="grp-buy-line">' + grpEsc('Plus ' + moves + ' \u00d7 a member moved up to Pro: ' + GRP_ADDON.pro_move) + '</div>';
+    body.innerHTML = s.black_friday ? note('Your Black Friday plan is already paid for. Changing plan isn\u2019t open yet.')
+      : notes() + '<div class="grp-buy-plan">' + lines + vfpPlanButtons(pl.kind, life, planId) + '</div>';
+  }
+  document.getElementById('gp-buy-modal').classList.add('open');
+}
+async function vfpGroupCheckout(kind, billing, takeover) {
+  if (!sb || isDemo || !authUserId) { showToast('Create an account or sign in to upgrade'); return; }
+  const tok = await vfpAccessToken();
+  if (!tok) { showToast('Create an account or sign in to upgrade'); return; }
+  try {
+    const referral = (window.Rewardful && window.Rewardful.referral) || undefined;
+    const r = await fetch('/api/create-checkout-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ group: { kind, billing, ...(takeover ? { takeover } : {}) }, referral }),
+    });
+    const d = await r.json();
+    if (d.url) { window.location.href = d.url; return; }
+    const m = vfpGroupError(d.error);
+    showToast(m !== vfpGroupError('') ? m : (d.error && / /.test(d.error) ? d.error : 'Could not start checkout'));
+  } catch (e) { showToast('Could not reach checkout — please try again'); }
+}
+// The plan's billing, through the server (api/create-portal-session.js): { action: 'group_add' | 'group_joined', ... }.
+async function vfpPlanBilling(body) {
+  const tok = await vfpAccessToken();
+  if (!tok) return { ok: false, error: 'not_signed_in' };
+  try {
+    const r = await fetch('/api/create-portal-session', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify(body) });
+    const d = await r.json();
+    return r.ok ? { ok: true, ...d } : { ok: false, error: d.error || '' };
+  } catch (e) { return { ok: false, error: '' }; }
+}
+async function vfpPlanAdd(planId, what) {
+  const yes = await vfpAsk({ title: what === 'five' ? 'Add five more people?' : 'Add one more person?',
+    sub: GRP_ADDON[what] + '. You\u2019re charged now for the time left until the plan renews.', ok: 'Add' });
+  if (!yes) return;
+  const r = await vfpPlanBilling({ action: 'group_add', plan_id: planId, what });
+  showToast(r.ok ? 'Added' : vfpGroupError(r.error));
+  await loadGroups();
 }
 
 // ---- actions: each asks the database, then shows what it now says ----
@@ -16014,7 +16180,19 @@ async function vfpLeavePlan(planId) {
   // 25 Nov 2026 (brief 1520 §2.1): a friends' group says its own name; Duo, Family and Team keep the plan's words.
   vfpGroupsDo(() => vfpRpc('vfp_leave', { p_plan: planId }), lname ? 'You\u2019ve left ' + lname : 'You\u2019ve left the plan');
 }
-function vfpSetSeat(planId, userId, seat) { vfpGroupsDo(() => vfpRpc('vfp_set_seat', { p_plan: planId, p_user: userId, p_seat: seat }), seat === 'pro' ? 'Moved up to Pro' : 'Moved back to Premium'); }
+async function vfpSetSeat(planId, userId, seat) {
+  // 26 Nov 2026 (Groups step 6): on a Team bought through Stripe with every Pro move in use, moving someone up buys one more.
+  const pl = vfpGroups.find(p => p.plan_id === planId);
+  if (seat === 'pro' && pl && pl.source === 'stripe' && (pl.pro_moves_used || 0) >= (pl.pro_moves || 0)) {
+    const who = ((pl.people || []).find(p => p.user_id === userId) || {}).name || 'them';
+    const yes = await vfpAsk({ title: 'Move ' + who + ' up to Pro?',
+      sub: 'Every Pro move on this plan is in use, so this adds one: ' + GRP_ADDON.pro_move + '. You\u2019re charged now for the time left until the plan renews.', ok: 'Move up to Pro' });
+    if (!yes) return;
+    const r = await vfpPlanBilling({ action: 'group_add', plan_id: planId, what: 'pro_move' });
+    if (!r.ok) { showToast(vfpGroupError(r.error)); await loadGroups(); return; }
+  }
+  vfpGroupsDo(() => vfpRpc('vfp_set_seat', { p_plan: planId, p_user: userId, p_seat: seat }), seat === 'pro' ? 'Moved up to Pro' : 'Moved back to Premium');
+}
 function vfpSetRunner(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_set_runner', { p_group: groupId, p_user: userId }), 'Done'); }
 function vfpGroupAdd(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_add', { p_group: groupId, p_user: userId }), 'Added'); }
 function vfpTakeOut(groupId, userId) { vfpGroupsDo(() => vfpRpc('vfp_group_take_out', { p_group: groupId, p_user: userId }), 'Taken out'); }
@@ -16044,6 +16222,8 @@ async function openJoinSheet() {
   try { r = await vfpRpc('vfp_invite_peek', { p_code: code }); } catch (e) { return; }   // try again next time the app opens
   vfpJoinPeek = r;
   b.style.display = 'none';
+  b.textContent = 'Join';
+  document.getElementById('gj-join-stop').style.display = 'none';
   document.getElementById('gj-upgrade').style.display = 'none';
   document.getElementById('gj-name-wrap').style.display = 'none';
   document.getElementById('gj-name-miss').style.display = 'none';
@@ -16070,6 +16250,13 @@ async function openJoinSheet() {
     if (r.already_in) seat = 'You\u2019re already on this plan. This adds you to the group.';
     else if (r.kind === 'friends') seat = 'Everyone in it pays for their own plan, so yours stays as it is.';
     else if (r.seat_offered === 'none') seat = 'You keep your own Lifetime plan.';
+    // 26 Nov 2026 (Groups step 6; Pricing §2B.9): a member paying for their own plan is told what happens to it before joining.
+    else if (vfpShop && vfpShop.switch_over && vfpShop.own_plan === 'pro') {
+      seat = 'You\u2019ll be on Premium through the plan. You can keep paying for your own Pro, or let it run to the end of what you\u2019ve paid and stop renewing.';
+      b.textContent = 'Join and keep my Pro';
+      document.getElementById('gj-join-stop').style.display = '';
+    }
+    else if (vfpShop && vfpShop.switch_over && vfpShop.own_plan === 'premium') seat = 'You\u2019ll be on Premium through the plan. Your own Premium runs to the end of what you\u2019ve paid, then stops renewing.';
     else if (mine === 'pro') seat = 'You keep your own Pro.';
     else if (mine === 'premium') seat = 'You\u2019ll be on Premium through the plan. Your own Premium carries on as it is.';
     else seat = 'You\u2019ll get Premium while you\u2019re on the plan.';
@@ -16082,7 +16269,7 @@ async function openJoinSheet() {
   }
   document.getElementById('groups-join-modal').classList.add('open');
 }
-async function vfpJoinNow() {
+async function vfpJoinNow(stopOwn) {
   const code = vfpPendingJoin();
   const nameEl = document.getElementById('gj-name');
   const name = (nameEl ? nameEl.value : '').replace(/[<>"\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
@@ -16094,13 +16281,20 @@ async function vfpJoinNow() {
   closeGroupsSheet('groups-join-modal');
   if (!code) return;
   try {
-    await vfpRpc('vfp_join', { p_code: code, p_name: name });
+    await vfpRpc('vfp_join', { p_code: code, p_name: name });   // Groups step 6: then the member's own plan (below)
     // The account had no name: this one becomes its name, so the next group fills it in.
     if (vfpJoinPeek && !vfpJoinPeek.my_name) {
       try { if (sb.auth.updateUser) await sb.auth.updateUser({ data: { name } }); if (state.user) state.user.name = name; } catch (e) {}
     }
     vfpClearJoin();
-    showToast('You\u2019ve joined ' + ((vfpJoinPeek && vfpJoinPeek.group_name) || 'the group'));
+    let joined = 'You\u2019ve joined ' + ((vfpJoinPeek && vfpJoinPeek.group_name) || 'the group');
+    // Groups step 6 (§2B.9): a Duo, Family or Team seat: the member's own paid plan runs to the end of what they've paid
+    // (Premium, or Pro if they chose), then stops renewing. The server decides, for the signed-in account only.
+    if (vfpJoinPeek && vfpJoinPeek.kind !== 'friends') {
+      const st = await vfpPlanBilling({ action: 'group_joined', stop_own: stopOwn === true });
+      if (st.ok && st.stopped && st.until) joined += '. Your own plan stops renewing on ' + new Date(st.until).toLocaleDateString(VFP_DATE_LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    showToast(joined);
   } catch (e) {
     if (!/not_signed_in/.test(String(e && e.message))) vfpClearJoin();
     showToast(vfpGroupError(e));
@@ -16128,9 +16322,11 @@ function vfpWarnNext() {
   document.getElementById('gw-title').textContent = x.stage === '1day' ? name + ': 1 day left' : x.stage === '7days' ? name + ': 7 days left' : name + ' is paused';
   const why = x.kind !== 'friends' ? 'Its payment has stopped.'
     : x.i_own ? 'Your account is no longer on Pro.' : 'The person who started it is no longer on Pro.';
-  const canTake = x.kind === 'friends' && !x.i_own && x.own_pro;
+  // Groups step 6: anyone on a paused Duo, Family or Team can take it over by buying it (§2B.9).
+  const planTake = x.kind !== 'friends' && !x.i_own && !!(vfpShop && vfpShop.open);
+  const canTake = (x.kind === 'friends' && !x.i_own && x.own_pro) || planTake;
   document.getElementById('gw-sub').textContent = why + ' It will be deleted on ' + when + ' unless someone takes it over.'
-    + (canTake ? ' As you\u2019re on Pro, you can take it over now.' : '') + ' Keep a copy puts its shared list and calendar in your own planner.';
+    + (planTake ? ' You can take it over by buying the plan.' : canTake ? ' As you\u2019re on Pro, you can take it over now.' : '') + ' Keep a copy puts its shared list and calendar in your own planner.';
   document.getElementById('gw-take').style.display = canTake ? '' : 'none';
   document.getElementById('gw-copy').style.display = x.group_id ? '' : 'none';
   m.classList.add('open');
@@ -16140,7 +16336,12 @@ async function vfpWarnGotIt() {
   if (x) { try { await vfpRpc('vfp_warning_seen', { p_warning: x.warning_id }); } catch (e) {} }
   vfpWarnNext();
 }
-async function vfpWarnTakeOver() { const x = vfpWarnNow; if (!x) return; document.getElementById('groups-warn-modal').classList.remove('open'); await vfpTakeOver(x.plan_id, x.warning_id); }
+async function vfpWarnTakeOver() {
+  const x = vfpWarnNow; if (!x) return;
+  document.getElementById('groups-warn-modal').classList.remove('open');
+  if (x.kind !== 'friends') { try { await vfpRpc('vfp_warning_seen', { p_warning: x.warning_id }); } catch (e) {} vfpPlanSheet(x.plan_id); return; }   // Groups step 6: buy it
+  await vfpTakeOver(x.plan_id, x.warning_id);
+}
 function vfpWarnKeepCopy() { const x = vfpWarnNow; if (x && x.group_id) vfpKeepGroupCopy(x.group_id); }
 async function vfpTakeOver(planId, warningId) {
   const pl = vfpGroups.find(p => p.plan_id === planId);
